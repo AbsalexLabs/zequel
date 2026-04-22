@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* 
+ * ZEQUEL — Research-Focused Multimodal AI System
+ * Color System: Black & White foundation. Zero visual noise.
+ */
+
+:root {
+  /* Light Mode — White Base */
+  --background: #FFFFFF;
+  --foreground: #000000;
+  --card: #FFFFFF;
+  --card-foreground: #000000;
+  --popover: #FFFFFF;
+  --popover-foreground: #000000;
+  --primary: #111111;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5F5F5;
+  --secondary-foreground: #000000;
+  --muted: #F5F5F5;
+  --muted-foreground: #444444;
+  --accent: #111111;
+  --accent-foreground: #FFFFFF;
+  --destructive: #DC2626;
+  --destructive-foreground: #DC2626;
+  --border: #E5E5E5;
+  --input: #E5E5E5;
+  --ring: #000000;
+
+  /* Confidence indicators */
+  --confidence-high: #000000;
+  --confidence-medium: #666666;
+  --confidence-low: #999999;
+
+  /* Panel system */
+  --panel-border: #E5E5E5;
+  --panel-bg: #FAFAFA;
+
+  --radius: 0.375rem;
+}
+
+.dark {
+  /* Dark Mode — Black Base */
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --card: #000000;
+  --card-foreground: #FFFFFF;
+  --popover: #0A0A0A;
+  --popover-foreground: #FFFFFF;
+  --primary: #FFFFFF;
+  --primary-foreground: #000000;
+  --secondary: #111111;
+  --secondary-foreground: #FFFFFF;
+  --muted: #111111;
+  --muted-foreground: #BBBBBB;
+  --accent: #FFFFFF;
+  --accent-foreground: #000000;
+  --destructive: #7F1D1D;
+  --destructive-foreground: #EF4444;
+  --border: #222222;
+  --input: #222222;
+  --ring: #FFFFFF;
+
+  /* Confidence indicators */
+  --confidence-high: #FFFFFF;
+  --confidence-medium: #CCCCCC;
+  --confidence-low: #888888;
+
+  /* Panel system */
+  --panel-border: #222222;
+  --panel-bg: #0A0A0A;
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-confidence-high: var(--confidence-high);
+  --color-confidence-medium: var(--confidence-medium);
+  --color-confidence-low: var(--confidence-low);
+  --color-panel-border: var(--panel-border);
+  --color-panel-bg: var(--panel-bg);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+/* Code block styling overrides */
+.prose-container pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.prose-container pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.prose-container code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Study mode AI output — no wrapping container, clean text */
+.prose-zequel pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.prose-zequel pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.prose-zequel code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Make action icons visible on touch */
+@media (hover: none) {
+  .group\/msg .opacity-0 {
+    opacity: 1 !important;
+  }
+}
+
+/* Streaming content renders stably — no animation flicker */
+.prose-zequel {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.prose-zequel > *:last-child {
+  margin-bottom: 0;
+}
+
+/* KaTeX overrides for theme */
+.katex .mord,
+.katex .mbin,
+.katex .mrel,
+.katex .mopen,
+.katex .mclose,
+.katex .mpunct,
+.katex .mop {
+  color: var(--foreground);
+}
+
+/* Typography scale for research density */
+@layer base {
+  h1 {
+    font-size: 1.75rem;
+    line-height: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  h2 {
+    font-size: 1.375rem;
+    line-height: 1.875rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.625rem;
+    font-weight: 500;
+  }
+}
