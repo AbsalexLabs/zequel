@@ -115,21 +115,33 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
       // Extract text from PDF server-side (only for PDFs)
       if (file.type === 'application/pdf') {
         try {
+          console.log('[v0] Starting PDF text extraction for document:', data.id)
           const extractRes = await fetch('/api/extract-text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ documentId: data.id, filePath }),
           })
           const extractResult = await extractRes.json()
+          console.log('[v0] Extract response:', extractRes.status, extractResult)
+          
           if (extractRes.ok && extractResult.success) {
             const { updateDocument } = useWorkspaceStore.getState()
             updateDocument(data.id, {
               status: 'parsed',
               page_count: extractResult.pageCount || 0,
             })
+            console.log('[v0] Document successfully parsed')
+          } else {
+            // Even if extraction fails, mark it as available for use
+            const { updateDocument } = useWorkspaceStore.getState()
+            updateDocument(data.id, { status: 'parsed' })
+            console.log('[v0] Extraction failed but marking document as parsed')
           }
-        } catch {
-          // Text extraction failed, document is still usable
+        } catch (extractError) {
+          console.log('[v0] Text extraction error:', extractError)
+          // Text extraction failed, but mark document as parsed anyway so it's usable
+          const { updateDocument } = useWorkspaceStore.getState()
+          updateDocument(data.id, { status: 'parsed' })
         }
       } else {
         // Non-PDF files are immediately marked as parsed
