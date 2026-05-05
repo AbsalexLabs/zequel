@@ -96,7 +96,11 @@ export async function POST(request: NextRequest) {
       pageCount,
       textLength: extractedText.length,
     })
-  } catch {
-    return NextResponse.json({ error: 'Failed to extract text' }, { status: 500 })
+  } catch (error) {
+    console.error('[v0] Extract text error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to extract text',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
