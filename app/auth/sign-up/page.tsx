@@ -53,34 +53,51 @@ export default function SignUpPage() {
   const handleOtpVerified = async () => {
     const supabase = createClient()
 
-    // OTP already verified via Resend — create account with email pre-confirmed
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/workspace`,
-        data: { email_verified: true, otp_verified: true },
-      },
-    })
+    try {
+      // OTP already verified — create account with email pre-confirmed
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/workspace`,
+          data: { email_verified: true, otp_verified: true },
+        },
+      })
 
-    if (signUpError) {
-      setError(signUpError.message)
+      if (signUpError) {
+        setError(signUpError.message)
+        setStep('form')
+        return
+      }
+
+      // If signup returns a session, user is automatically confirmed
+      if (signUpData?.session) {
+        router.push('/workspace')
+        return
+      }
+
+      // Otherwise, try to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        // If email not confirmed yet, show success page
+        if (signInError.message.includes('email not confirmed')) {
+          router.push('/auth/sign-up-success')
+          return
+        }
+        setError(signInError.message)
+        setStep('form')
+        return
+      }
+
+      router.push('/workspace')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
       setStep('form')
-      return
     }
-
-    // Auto sign-in
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (signInError) {
-      router.push('/auth/sign-up-success')
-      return
-    }
-
-    router.push('/workspace')
   }
 
   const handleGoogleSignUp = async () => {

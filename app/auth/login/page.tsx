@@ -35,7 +35,13 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) throw signInError
+      if (signInError) {
+        if (signInError.message.includes('Email not confirmed')) {
+          setError('Please verify your email first. Check your inbox for the verification code.')
+          return
+        }
+        throw signInError
+      }
       router.push('/workspace')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in')
