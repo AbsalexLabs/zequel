@@ -25,11 +25,13 @@ CREATE TABLE IF NOT EXISTS public.otp_codes (
   purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'reset_password', 'change_password')),
   used BOOLEAN DEFAULT FALSE,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT unique_unused_code UNIQUE (email, code, purpose) WHERE used = FALSE
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
+
+-- Partial unique index for unused OTP codes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_codes_unique_unused ON public.otp_codes(email, code, purpose) WHERE used = FALSE;
 
 CREATE POLICY "otp_codes_anon_insert" ON public.otp_codes FOR INSERT WITH CHECK (true);
 CREATE POLICY "otp_codes_anon_select" ON public.otp_codes FOR SELECT USING (true);
@@ -167,7 +169,7 @@ ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "ai_usage_logs_select_own" ON public.ai_usage_logs FOR SELECT USING (auth.uid() = user_id);
 
-CREATE INDEX idx_ai_usage_logs_user_created ON public.ai_usage_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_created ON public.ai_usage_logs(user_id, created_at DESC);
 
 -- 10. Rate Limit Violations table
 CREATE TABLE IF NOT EXISTS public.rate_limit_violations (
@@ -209,7 +211,7 @@ CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
 
 -- No RLS on admin_audit_logs (admin only)
 
-CREATE INDEX idx_admin_audit_logs_admin_created ON public.admin_audit_logs(admin_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_created ON public.admin_audit_logs(admin_id, created_at DESC);
 
 -- 13. Create auto-profile trigger for new users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -246,4 +248,3 @@ CREATE INDEX IF NOT EXISTS idx_documents_user_created ON public.documents(user_i
 CREATE INDEX IF NOT EXISTS idx_conversations_user_created ON public.conversations(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON public.messages(conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_queries_user_created ON public.queries(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_otp_codes_email_purpose ON public.otp_codes(email, purpose) WHERE used = FALSE;
