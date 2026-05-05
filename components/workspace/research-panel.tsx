@@ -48,8 +48,8 @@ export function ResearchPanel() {
 
   const handleSubmit = async () => {
     if (!query.trim() || selectedDocs.length === 0) return
-    setIsQuerying(true)
     setError(null)
+    setIsQuerying(true)
 
     try {
       const res = await fetch('/api/query', {
