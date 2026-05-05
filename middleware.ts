@@ -1,7 +1,20 @@
 import { updateSession } from '@/lib/supabase/middleware'
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Check if required environment variables are present
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    console.warn(
+      '[v0] Supabase environment variables are not configured. Skipping session management.',
+    )
+    return NextResponse.next({
+      request,
+    })
+  }
+
   return await updateSession(request)
 }
 

@@ -98,7 +98,6 @@ export function OtpVerify({ email, purpose, onVerified, onBack }: OtpVerifyProps
           value={code}
           onChange={(value) => {
             setCode(value)
-            setError('')
           }}
         >
           <InputOTPGroup>

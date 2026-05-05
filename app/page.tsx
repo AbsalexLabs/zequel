@@ -13,11 +13,17 @@ export default function RootPage() {
 
   useEffect(() => {
     async function checkAuth() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setDestination(user ? '/workspace' : '/auth/login')
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        setDestination(user ? '/workspace' : '/auth/login')
+      } catch (error) {
+        console.error('[v0] Auth check failed:', error)
+        // Default to login page if auth fails
+        setDestination('/auth/login')
+      }
     }
     checkAuth()
   }, [])
