@@ -162,22 +162,54 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     if (!usernameValid || !nameValid) return
     setIsSaving(true)
     setSaveMessage('')
-    const supabase = createClient()
-    const { error: profileError } = await supabase.from('profiles').update({ username: username || null, full_name: fullName || null }).eq('id', userId)
-    if (profileError) {
-      if (profileError.message.includes('duplicate') || profileError.message.includes('unique')) { setUsernameError('Username already taken'); setIsSaving(false); return }
-      if (profileError.message.includes('username_format')) { setUsernameError('Only letters, numbers, and underscores'); setIsSaving(false); return }
-      if (profileError.message.includes('name_format')) { setNameError('No symbols allowed'); setIsSaving(false); return }
+    try {
+      const supabase = createClient()
+      
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ username: username || null, full_name: fullName || null })
+        .eq('id', userId)
+      
+      if (profileError) {
+        if (profileError.message.includes('duplicate') || profileError.message.includes('unique')) {
+          setUsernameError('Username already taken')
+          throw new Error('Username already taken')
+        }
+        if (profileError.message.includes('username_format')) {
+          setUsernameError('Only letters, numbers, and underscores')
+          throw profileError
+        }
+        if (profileError.message.includes('name_format')) {
+          setNameError('No symbols allowed')
+          throw profileError
+        }
+        throw profileError
+      }
+
+      // Update preferences
+      const { error: prefError } = await supabase
+        .from('preferences')
+        .update({
+          theme: theme as 'light' | 'dark',
+          default_output_format: defaultFormat,
+          auto_citation: autoCitation,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+
+      if (prefError) throw prefError
+
+      setIsSaving(false)
+      setSaveMessage('Saved')
+      setTimeout(() => setSaveMessage(''), 2000)
+    } catch (err) {
+      setIsSaving(false)
+      console.error('[v0] Save error:', err)
+      if (!usernameError && !nameError) {
+        setSaveMessage('Error saving changes')
+      }
     }
-    await supabase.from('preferences').update({
-      theme: theme as 'light' | 'dark',
-      default_output_format: defaultFormat,
-      auto_citation: autoCitation,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', userId)
-    setIsSaving(false)
-    setSaveMessage('Saved')
-    setTimeout(() => setSaveMessage(''), 2000)
   }
 
   const handleSignOut = async () => {

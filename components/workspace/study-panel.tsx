@@ -231,7 +231,7 @@ export function StudyPanel() {
         body: JSON.stringify({
           conversation_id: convId,
           message: content,
-          document_id: selectedDocumentIds[0] || null,
+          document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : [],
           images: imageDataUrls || [],
           full_content: fullContent, // includes base64 images for persistence
         }),
