@@ -4,9 +4,9 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { getTopUsersByVolume } from '@/lib/security/advanced-rate-limit'
 
 export async function GET(request: Request) {
-  const adminCheck = await verifyAdmin()
-  if (!adminCheck.authorized) {
-    return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status })
+  const { user, error } = await verifyAdmin()
+  if (error || !user) {
+    return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
   }
 
   const { searchParams } = new URL(request.url)

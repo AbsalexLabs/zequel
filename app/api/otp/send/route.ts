@@ -40,7 +40,11 @@ export async function POST(request: NextRequest) {
       })
 
     if (insertError) {
-      return NextResponse.json({ error: 'Failed to generate code' }, { status: 500 })
+      console.error('[v0] OTP insert error:', insertError)
+      return NextResponse.json({ 
+        error: 'Failed to generate code',
+        details: insertError.message 
+      }, { status: 500 })
     }
 
     const subjectMap: Record<string, string> = {
@@ -63,7 +67,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    console.error('[v0] OTP send error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to process request',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

@@ -134,14 +134,15 @@ export async function processAIRequest(
       const schema = requestType === 'chat' ? chatRequestSchema : queryRequestSchema
       const validation = validateRequest(schema as z.ZodSchema<unknown>, body)
       if (!validation.success) {
+        const errorResult = validation as { success: false; error: string }
         await logAIUsage({
           user_id: user.id,
           endpoint: requestType,
           model: 'none',
           status: 'error',
-          error_message: validation.error,
+          error_message: errorResult.error,
         })
-        return { success: false, error: validation.error, statusCode: 400 }
+        return { success: false, error: errorResult.error, statusCode: 400 }
       }
     }
 

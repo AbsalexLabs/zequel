@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { processAIRequest } from '@/lib/ai/model-service'
 import { getSystemSettings, isFileUploadsEnabled, getMaxFileSize } from '@/lib/settings/system-settings'
-// @ts-expect-error - pdf-parse has no types
 import pdfParse from 'pdf-parse'
 
 // Allowed file types

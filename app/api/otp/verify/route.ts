@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !data) {
-      return NextResponse.json({ error: 'Invalid verification code' }, { status: 400 })
+      console.warn('[v0] OTP verification failed:', { email, purpose, error: error?.message })
+      return NextResponse.json({ error: 'Invalid or expired verification code' }, { status: 400 })
     }
 
     // Check expiry
@@ -33,13 +34,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark as used
-    await supabase
+    const { error: updateError } = await supabase
       .from('otp_codes')
       .update({ used: true })
       .eq('id', data.id)
 
+    if (updateError) {
+      console.error('[v0] Failed to mark OTP as used:', updateError)
+      // Still return success since verification was valid
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    console.error('[v0] OTP verify error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to verify code',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

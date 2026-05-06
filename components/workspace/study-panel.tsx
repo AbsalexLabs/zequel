@@ -467,11 +467,11 @@ export function StudyPanel() {
         })
 
         // Also update local messages state to ensure UI reflects change
-        setMessages(prev => prev.map(m => 
-          m.id === msgToRegenerate.id 
-            ? { ...m, content: newContent, versions: updatedVersions, activeVersionIndex: updatedVersions.length - 1 }
-            : m
-        ))
+        updateMessage(msgToRegenerate.id, {
+          content: newContent,
+          versions: updatedVersions,
+          activeVersionIndex: updatedVersions.length - 1,
+        })
 
         // Update in database (store latest content)
         const supabase = createClient()
