@@ -266,6 +266,32 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
             <div className="flex flex-col gap-6">
               <SectionHeader title="Profile" description="Your public identity on Zequel." />
 
+              {/* Live Preview */}
+              <div className="rounded-lg border border-border bg-secondary/30 p-6">
+                <p className="mb-4 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Preview</p>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-12 w-12">
+                    {avatarUrl ? <AvatarImage src={avatarUrl} alt="Profile" /> : null}
+                    <AvatarFallback className="bg-background font-mono text-sm font-semibold text-foreground">
+                      {displayInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    {fullName && <p className="font-sans text-sm font-semibold text-foreground">{fullName}</p>}
+                    {username && (
+                      <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                        @{username}
+                      </p>
+                    )}
+                    {!fullName && !username && (
+                      <p className="font-sans text-sm text-muted-foreground/50">No profile info set</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Avatar */}
               <div className="flex items-center gap-5">
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="group relative shrink-0" disabled={isUploadingAvatar}>
