@@ -1,6 +1,7 @@
 -- Zequel Database Schema - Complete Setup
 -- Drop existing tables to start fresh
 DROP TABLE IF EXISTS public.admin_audit_logs CASCADE;
+DROP TABLE IF EXISTS public.system_settings CASCADE;
 DROP TABLE IF EXISTS public.rate_limit_violations CASCADE;
 DROP TABLE IF EXISTS public.ai_usage_logs CASCADE;
 DROP TABLE IF EXISTS public.subscriptions CASCADE;
