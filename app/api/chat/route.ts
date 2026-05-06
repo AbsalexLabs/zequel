@@ -79,7 +79,7 @@ type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_u
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { conversation_id, message, document_id, images, full_content, regenerate } = body
+    const { conversation_id, message, document_id, document_ids, images, full_content, regenerate } = body
 
     // 1. Process through security layer (auth, validation, rate limit, subscription)
     const authResult = await processAIRequest('chat', body)
@@ -111,38 +111,53 @@ export async function POST(request: Request) {
         .eq('id', conversation_id)
     }
 
-    // Fetch document text if selected
+    // Fetch document text if selected (support both single and multiple documents)
     let documentText: string | null = null
     let documentTitle: string | null = null
-    if (document_id) {
-      const { data: doc } = await supabase
-        .from('documents')
-        .select('title, file_name, file_path, extracted_text')
-        .eq('id', document_id)
-        .single()
-      if (doc) {
-        documentTitle = doc.title
-        documentText = doc.extracted_text
+    const docsToFetch = document_ids && document_ids.length > 0 ? document_ids : (document_id ? [document_id] : [])
 
-        if (!documentText && doc.file_path) {
-          try {
-            const { data: fileData } = await supabase.storage.from('documents').download(doc.file_path)
-            if (fileData) {
-              const pdfParse = (await import('pdf-parse')).default
-              const buffer = Buffer.from(await fileData.arrayBuffer())
-              const parsed = await pdfParse(buffer)
-              documentText = parsed.text?.trim() || null
-              if (documentText) {
-                await supabase
-                  .from('documents')
-                  .update({ extracted_text: documentText, page_count: parsed.numpages || 0, status: 'parsed' })
-                  .eq('id', document_id)
+    if (docsToFetch.length > 0) {
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('id, title, file_name, file_path, extracted_text')
+        .in('id', docsToFetch)
+      
+      if (docs && docs.length > 0) {
+        // Combine multiple documents
+        const docTexts: string[] = []
+        const docTitles: string[] = []
+
+        for (const doc of docs) {
+          docTitles.push(doc.title)
+          let text = doc.extracted_text
+
+          if (!text && doc.file_path) {
+            try {
+              const { data: fileData } = await supabase.storage.from('documents').download(doc.file_path)
+              if (fileData) {
+                const pdfParse = (await import('pdf-parse')).default
+                const buffer = Buffer.from(await fileData.arrayBuffer())
+                const parsed = await pdfParse(buffer)
+                text = parsed.text?.trim() || null
+                if (text) {
+                  await supabase
+                    .from('documents')
+                    .update({ extracted_text: text, page_count: parsed.numpages || 0, status: 'parsed' })
+                    .eq('id', doc.id)
+                }
               }
+            } catch (extractErr) {
+              console.error('[v0] On-the-fly PDF extraction failed:', extractErr)
             }
-          } catch (extractErr) {
-            console.error('On-the-fly PDF extraction failed:', extractErr)
+          }
+
+          if (text) {
+            docTexts.push(`[Document: ${doc.title}]\n${text}`)
           }
         }
+
+        documentTitle = docTitles.join(', ')
+        documentText = docTexts.join('\n\n---\n\n')
       }
     }
 
