@@ -86,10 +86,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     })),
   toggleDocumentSelection: (id) =>
     set((state) => ({
-      // Only allow single document selection — clicking same doc deselects it
+      // Allow multiple document selection with toggle behavior
       selectedDocumentIds: state.selectedDocumentIds.includes(id)
-        ? []
-        : [id],
+        ? state.selectedDocumentIds.filter((sid) => sid !== id)
+        : [...state.selectedDocumentIds, id],
     })),
   selectDocument: (id) => set({ selectedDocumentIds: [id] }),
   clearSelection: () => set({ selectedDocumentIds: [] }),

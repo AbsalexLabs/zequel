@@ -17,13 +17,22 @@ export async function POST(request: NextRequest) {
 
     // Find user by email
     const { data: userData, error: userError } = await supabase.auth.admin.listUsers()
-    if (userError) {
-      return NextResponse.json({ error: 'Failed to look up user' }, { status: 500 })
+    if (userError || !userData) {
+      console.error('[v0] User lookup error:', userError)
+      return NextResponse.json({ 
+        error: 'Failed to look up user',
+        details: userError?.message || 'Unknown error'
+      }, { status: 500 })
     }
 
-    const user = userData.users.find((u) => u.email?.toLowerCase() === email.toLowerCase())
+    const user = userData.users.find((u) => (u.email || '').toLowerCase() === email.toLowerCase())
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      // Don't reveal if user exists or not (security best practice)
+      console.warn('[v0] Password reset attempted for non-existent user:', email)
+      return NextResponse.json({ 
+        success: true,
+        message: 'If the email exists, you will receive a password reset link'
+      }, { status: 200 })
     }
 
     // Update password via admin
@@ -32,11 +41,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (updateError) {
-      return NextResponse.json({ error: 'Failed to update password' }, { status: 500 })
+      console.error('[v0] Password update error:', updateError)
+      return NextResponse.json({ 
+        error: 'Failed to update password',
+        details: updateError.message
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    console.error('[v0] Reset password error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to process request',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

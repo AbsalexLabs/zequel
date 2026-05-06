@@ -335,9 +335,10 @@ export async function POST(request: Request) {
           }
           controller.close()
         } catch (err) {
-          console.error('Stream error:', err)
-          await logStreamCompletion(user.id, 'chat', model, inputTokens, 0, startTime, 'error', 'Stream failed')
-          controller.error(err)
+          console.error('[v0] Chat stream error:', err)
+          const errorMessage = err instanceof Error ? err.message : 'Stream processing failed'
+          await logStreamCompletion(user.id, 'chat', model, inputTokens, 0, startTime, 'error', errorMessage)
+          controller.error(new Error(errorMessage))
         }
       },
     })
@@ -349,7 +350,14 @@ export async function POST(request: Request) {
         Connection: 'keep-alive',
       },
     })
-  } catch {
-    return new Response('An error occurred while processing your request. Please try again.', { status: 500 })
+  } catch (error) {
+    console.error('[v0] Chat API error:', error)
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to process chat request',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 }

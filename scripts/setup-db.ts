@@ -58,10 +58,11 @@ async function setupDatabase() {
     for (const statement of statements) {
       try {
         // Use RPC to execute raw SQL (if available) or direct query
-        const { error } = await supabase.rpc('exec_sql', { sql: statement }).catch(() => {
-          // Fallback: try direct execution (may not work for all statements)
-          return { error: 'RPC not available - please run SQL manually' }
-        })
+        let result = await supabase.rpc('exec_sql', { sql: statement }).then(
+          (res: any) => res,
+          () => ({ error: { message: 'RPC not available - please run SQL manually' } })
+        )
+        const { error } = result
 
         if (error) {
           // Some statements might fail (like creating duplicate policies) - that's ok

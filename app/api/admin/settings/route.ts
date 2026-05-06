@@ -15,6 +15,13 @@ const DEFAULT_SETTINGS: SystemSettings = {
   file_uploads_enabled: true,
   max_file_size_mb: 10,
   maintenance_mode: false,
+  // Advanced rate limiting defaults
+  max_requests_per_minute: 15,
+  max_requests_per_hour: 100,
+  burst_limit_threshold: 5,
+  burst_cooldown_seconds: 30,
+  // Response quality defaults
+  response_style: 'detailed',
 }
 
 export async function GET() {
@@ -167,7 +174,7 @@ export async function PUT(request: Request) {
   await logAdminAction({
     admin_id: admin.id,
     action: 'bulk_update_settings',
-    target_type: 'settings',
+    target_type: 'system',
     target_id: 'multiple',
     details: { updated_keys: Object.keys(settings) },
   })

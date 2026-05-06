@@ -28,7 +28,7 @@ function CodeBlock({
       if (node === null || node === undefined) return ''
       if (Array.isArray(node)) return node.map(extractText).join('')
       if (typeof node === 'object' && 'props' in node) {
-        const element = node as React.ReactElement
+        const element = node as React.ReactElement<{ children?: React.ReactNode }>
         return extractText(element.props.children)
       }
       return ''
@@ -133,12 +133,12 @@ const components: Components = {
       </code>
     )
   },
-  pre: ({ children }) => {
+  pre: ({ children }: { children?: React.ReactNode }) => {
     // Extract language and code from the children
-    const child = children as React.ReactElement
+    const child = children as React.ReactElement<{ className?: string; children?: React.ReactNode }>
     if (child?.props) {
       return (
-        <CodeBlock className={child.props.className}>
+        <CodeBlock className={child.props.className as string | undefined}>
           {child.props.children}
         </CodeBlock>
       )
