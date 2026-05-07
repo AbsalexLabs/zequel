@@ -1,25 +1,11 @@
--- Zequel Database Schema - Complete Setup
--- Run this entire script in Supabase SQL Editor
-
--- Drop existing tables
-DROP TABLE IF EXISTS public.admin_audit_logs CASCADE;
-DROP TABLE IF EXISTS public.system_settings CASCADE;
-DROP TABLE IF EXISTS public.rate_limit_violations CASCADE;
-DROP TABLE IF EXISTS public.ai_usage_logs CASCADE;
-DROP TABLE IF EXISTS public.subscriptions CASCADE;
-DROP TABLE IF EXISTS public.preferences CASCADE;
-DROP TABLE IF EXISTS public.queries CASCADE;
-DROP TABLE IF EXISTS public.messages CASCADE;
-DROP TABLE IF EXISTS public.conversations CASCADE;
-DROP TABLE IF EXISTS public.documents CASCADE;
-DROP TABLE IF EXISTS public.otp_codes CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
-DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+-- Zequel Database Schema - Complete Intelligent Setup
+-- This script creates/updates all tables with required columns
+-- Safe to run multiple times - won't delete existing data
 
 -- 1. Profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT,
+  username TEXT UNIQUE,
   full_name TEXT,
   avatar_url TEXT,
   display_name TEXT,
@@ -28,20 +14,35 @@ CREATE TABLE public.profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Add missing columns to profiles
+DO $$ BEGIN
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 -- 2. Preferences table
-CREATE TABLE public.preferences (
+CREATE TABLE IF NOT EXISTS public.preferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   theme TEXT DEFAULT 'dark',
   default_output_format TEXT DEFAULT 'markdown',
   auto_citation BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 3. Documents table
-CREATE TABLE public.documents (
+CREATE TABLE IF NOT EXISTS public.documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -56,8 +57,13 @@ CREATE TABLE public.documents (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+DO $$ BEGIN
+  ALTER TABLE public.documents ADD COLUMN IF NOT EXISTS extracted_text TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 -- 4. Conversations table
-CREATE TABLE public.conversations (
+CREATE TABLE IF NOT EXISTS public.conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -66,7 +72,7 @@ CREATE TABLE public.conversations (
 );
 
 -- 5. Messages table
-CREATE TABLE public.messages (
+CREATE TABLE IF NOT EXISTS public.messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL,
@@ -75,7 +81,7 @@ CREATE TABLE public.messages (
 );
 
 -- 6. OTP Codes table
-CREATE TABLE public.otp_codes (
+CREATE TABLE IF NOT EXISTS public.otp_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
   code TEXT NOT NULL,
@@ -85,8 +91,10 @@ CREATE TABLE public.otp_codes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_codes_unique_unused ON public.otp_codes(email, code, purpose) WHERE used = FALSE;
+
 -- 7. Queries table
-CREATE TABLE public.queries (
+CREATE TABLE IF NOT EXISTS public.queries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -98,7 +106,7 @@ CREATE TABLE public.queries (
 );
 
 -- 8. AI Usage Logs table
-CREATE TABLE public.ai_usage_logs (
+CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   endpoint TEXT NOT NULL,
@@ -111,17 +119,16 @@ CREATE TABLE public.ai_usage_logs (
 );
 
 -- 9. Subscriptions table
-CREATE TABLE public.subscriptions (
+CREATE TABLE IF NOT EXISTS public.subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   plan TEXT DEFAULT 'free',
   status TEXT DEFAULT 'active',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 10. Rate limit violations table
-CREATE TABLE public.rate_limit_violations (
+CREATE TABLE IF NOT EXISTS public.rate_limit_violations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   violation_type TEXT NOT NULL,
@@ -129,8 +136,8 @@ CREATE TABLE public.rate_limit_violations (
 );
 
 -- 11. System settings table
-CREATE TABLE public.system_settings (
-  id TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
   ai_enabled BOOLEAN DEFAULT TRUE,
   free_daily_limit INTEGER DEFAULT 20,
   premium_daily_limit INTEGER DEFAULT 100,
@@ -149,8 +156,10 @@ CREATE TABLE public.system_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+INSERT INTO public.system_settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+
 -- 12. Admin audit logs table
-CREATE TABLE public.admin_audit_logs (
+CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   action TEXT NOT NULL,
@@ -161,17 +170,19 @@ CREATE TABLE public.admin_audit_logs (
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_documents_user_id ON public.documents(user_id);
-CREATE INDEX idx_documents_status ON public.documents(status);
-CREATE INDEX idx_conversations_user_id ON public.conversations(user_id);
-CREATE INDEX idx_messages_conversation_id ON public.messages(conversation_id);
-CREATE INDEX idx_otp_codes_email ON public.otp_codes(email);
-CREATE INDEX idx_otp_codes_expires_at ON public.otp_codes(expires_at);
-CREATE INDEX idx_ai_usage_logs_user_id ON public.ai_usage_logs(user_id);
-CREATE INDEX idx_rate_limit_violations_user_id ON public.rate_limit_violations(user_id);
-CREATE INDEX idx_preferences_user_id ON public.preferences(user_id);
-CREATE INDEX idx_subscriptions_user_id ON public.subscriptions(user_id);
-CREATE INDEX idx_queries_user_id ON public.queries(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_user_id ON public.documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_documents_status ON public.documents(status);
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON public.conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_otp_codes_email ON public.otp_codes(email);
+CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON public.otp_codes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_id ON public.ai_usage_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_violations_user_id ON public.rate_limit_violations(user_id);
+CREATE INDEX IF NOT EXISTS idx_preferences_user_id ON public.preferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON public.subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_queries_user_id ON public.queries(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_id ON public.admin_audit_logs(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON public.admin_audit_logs(created_at);
 
 -- Enable Row Level Security on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
