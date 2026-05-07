@@ -169,6 +169,7 @@ function MobileWorkspace({
     <div className="flex h-svh w-full flex-col bg-background">
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-2.5">
+        <span className="font-mono text-xs font-semibold text-foreground">Zequel</span>
         <div className="flex items-center gap-2">
           <ModeSwitcher />
           <ThemeToggle />
