@@ -225,6 +225,7 @@ export function StudyPanel() {
     shouldAutoScroll.current = true
 
     try {
+      console.log('[v0] Sending message:', { convId, content, documentIds: selectedDocumentIds })
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,7 +238,12 @@ export function StudyPanel() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to get response')
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('[v0] Chat API error:', res.status, errorText)
+        throw new Error(`Failed to get response: ${res.status}`)
+      }
+      console.log('[v0] Chat API response ok')
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No stream')
@@ -413,7 +419,7 @@ export function StudyPanel() {
         body: JSON.stringify({
           conversation_id: activeConversationId,
           message: lastUserMsg.content,
-          document_id: selectedDocumentIds[0] || null,
+          document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : [],
           images: [],
           regenerate: true, // Flag to not save user message again
         }),

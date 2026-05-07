@@ -12,9 +12,9 @@ import { StudyPanel } from './study-panel'
 import { EvidencePanel } from './evidence-panel'
 import { ConversationsPanel } from './conversations-panel'
 import { useWorkspaceStore } from '@/lib/store'
-import { ZequelLogo } from '@/components/zequel-logo'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import Image from 'next/image'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/lib/types'
@@ -170,7 +170,16 @@ function MobileWorkspace({
     <div className="flex h-svh w-full flex-col bg-background">
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-2.5">
-        <ZequelLogo />
+        <div className="flex items-center gap-2">
+          <Image
+            src="/zequel-logo-new.png"
+            alt="Zequel"
+            width={32}
+            height={32}
+            className="h-8 w-8"
+          />
+          <span className="font-mono text-sm font-semibold text-foreground">Zequel</span>
+        </div>
         <div className="flex items-center gap-2">
           <ModeSwitcher />
           <ThemeToggle />
