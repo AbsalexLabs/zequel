@@ -1,5 +1,7 @@
 -- Zequel Database Schema - Complete Setup
--- Drop existing tables to start fresh
+-- Run this entire script in Supabase SQL Editor
+
+-- Drop existing tables
 DROP TABLE IF EXISTS public.admin_audit_logs CASCADE;
 DROP TABLE IF EXISTS public.system_settings CASCADE;
 DROP TABLE IF EXISTS public.rate_limit_violations CASCADE;
@@ -14,27 +16,65 @@ DROP TABLE IF EXISTS public.otp_codes CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
--- ============================================================================
--- 1. Profiles table (extends auth.users)
--- ============================================================================
+-- 1. Profiles table
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT UNIQUE,
+  username TEXT,
   full_name TEXT,
   avatar_url TEXT,
+  display_name TEXT,
+  role TEXT DEFAULT 'user',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE INDEX idx_profiles_username ON public.profiles(username) WHERE username IS NOT NULL;
+-- 2. Preferences table
+CREATE TABLE public.preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  theme TEXT DEFAULT 'dark',
+  default_output_format TEXT DEFAULT 'markdown',
+  auto_citation BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id)
+);
 
--- ============================================================================
--- 2. OTP Codes table
--- ============================================================================
+-- 3. Documents table
+CREATE TABLE public.documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_size INTEGER,
+  file_type TEXT,
+  extracted_text TEXT,
+  page_count INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'processing',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Conversations table
+CREATE TABLE public.conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. Messages table
+CREATE TABLE public.messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. OTP Codes table
 CREATE TABLE public.otp_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
@@ -45,68 +85,147 @@ CREATE TABLE public.otp_codes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
-CREATE UNIQUE INDEX idx_otp_codes_unique_unused ON public.otp_codes(email, code, purpose) WHERE used = FALSE;
-CREATE POLICY "otp_codes_anon_insert" ON public.otp_codes FOR INSERT WITH CHECK (true);
-CREATE POLICY "otp_codes_anon_select" ON public.otp_codes FOR SELECT USING (true);
-CREATE POLICY "otp_codes_anon_update" ON public.otp_codes FOR UPDATE USING (true);
-
--- ============================================================================
--- 3. Documents table
--- ============================================================================
-CREATE TABLE public.documents (
+-- 7. Queries table
+CREATE TABLE public.queries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
-  file_name TEXT,
-  file_path TEXT,
-  file_size BIGINT,
-  extracted_text TEXT,
-  page_count INT,
-  status TEXT DEFAULT 'processing' CHECK (status IN ('processing', 'parsed', 'failed')),
+  query TEXT NOT NULL,
+  result TEXT,
+  status TEXT DEFAULT 'pending',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 8. AI Usage Logs table
+CREATE TABLE public.ai_usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL,
+  model TEXT NOT NULL,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  status TEXT DEFAULT 'success',
+  error_message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 9. Subscriptions table
+CREATE TABLE public.subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  plan TEXT DEFAULT 'free',
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+-- 10. Rate limit violations table
+CREATE TABLE public.rate_limit_violations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  violation_type TEXT NOT NULL,
+  attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 11. System settings table
+CREATE TABLE public.system_settings (
+  id TEXT PRIMARY KEY,
+  ai_enabled BOOLEAN DEFAULT TRUE,
+  free_daily_limit INTEGER DEFAULT 20,
+  premium_daily_limit INTEGER DEFAULT 100,
+  max_file_uploads_free INTEGER DEFAULT 5,
+  max_file_uploads_premium INTEGER DEFAULT 50,
+  max_tokens_per_request INTEGER DEFAULT 16384,
+  default_model TEXT DEFAULT 'google/gemini-2.0-flash-001',
+  file_uploads_enabled BOOLEAN DEFAULT TRUE,
+  max_file_size_mb INTEGER DEFAULT 10,
+  maintenance_mode BOOLEAN DEFAULT FALSE,
+  max_requests_per_minute INTEGER DEFAULT 15,
+  max_requests_per_hour INTEGER DEFAULT 100,
+  burst_limit_threshold INTEGER DEFAULT 5,
+  burst_cooldown_seconds INTEGER DEFAULT 30,
+  response_style TEXT DEFAULT 'detailed',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 12. Admin audit logs table
+CREATE TABLE public.admin_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT,
+  details JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_documents_user_id ON public.documents(user_id);
+CREATE INDEX idx_documents_status ON public.documents(status);
+CREATE INDEX idx_conversations_user_id ON public.conversations(user_id);
+CREATE INDEX idx_messages_conversation_id ON public.messages(conversation_id);
+CREATE INDEX idx_otp_codes_email ON public.otp_codes(email);
+CREATE INDEX idx_otp_codes_expires_at ON public.otp_codes(expires_at);
+CREATE INDEX idx_ai_usage_logs_user_id ON public.ai_usage_logs(user_id);
+CREATE INDEX idx_rate_limit_violations_user_id ON public.rate_limit_violations(user_id);
+CREATE INDEX idx_preferences_user_id ON public.preferences(user_id);
+CREATE INDEX idx_subscriptions_user_id ON public.subscriptions(user_id);
+CREATE INDEX idx_queries_user_id ON public.queries(user_id);
+
+-- Enable Row Level Security on all tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.queries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rate_limit_violations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for profiles
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- RLS Policies for preferences
+DROP POLICY IF EXISTS "preferences_select_own" ON public.preferences;
+DROP POLICY IF EXISTS "preferences_insert_own" ON public.preferences;
+DROP POLICY IF EXISTS "preferences_update_own" ON public.preferences;
+CREATE POLICY "preferences_select_own" ON public.preferences FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "preferences_insert_own" ON public.preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "preferences_update_own" ON public.preferences FOR UPDATE USING (auth.uid() = user_id);
+
+-- RLS Policies for documents
+DROP POLICY IF EXISTS "documents_select_own" ON public.documents;
+DROP POLICY IF EXISTS "documents_insert_own" ON public.documents;
+DROP POLICY IF EXISTS "documents_update_own" ON public.documents;
+DROP POLICY IF EXISTS "documents_delete_own" ON public.documents;
 CREATE POLICY "documents_select_own" ON public.documents FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "documents_insert_own" ON public.documents FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "documents_update_own" ON public.documents FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "documents_delete_own" ON public.documents FOR DELETE USING (auth.uid() = user_id);
-CREATE INDEX idx_documents_user_created ON public.documents(user_id, created_at DESC);
-CREATE INDEX idx_documents_user_id ON public.documents(user_id);
 
--- ============================================================================
--- 4. Conversations table
--- ============================================================================
-CREATE TABLE public.conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL DEFAULT 'New conversation',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+-- RLS Policies for conversations
+DROP POLICY IF EXISTS "conversations_select_own" ON public.conversations;
+DROP POLICY IF EXISTS "conversations_insert_own" ON public.conversations;
+DROP POLICY IF EXISTS "conversations_update_own" ON public.conversations;
+DROP POLICY IF EXISTS "conversations_delete_own" ON public.conversations;
 CREATE POLICY "conversations_select_own" ON public.conversations FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "conversations_insert_own" ON public.conversations FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "conversations_update_own" ON public.conversations FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "conversations_delete_own" ON public.conversations FOR DELETE USING (auth.uid() = user_id);
-CREATE INDEX idx_conversations_user_created ON public.conversations(user_id, created_at DESC);
 
--- ============================================================================
--- 5. Messages table
--- ============================================================================
-CREATE TABLE public.messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-  content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+-- RLS Policies for messages
+DROP POLICY IF EXISTS "messages_select_own_conversation" ON public.messages;
+DROP POLICY IF EXISTS "messages_insert_own_conversation" ON public.messages;
+DROP POLICY IF EXISTS "messages_update_own_conversation" ON public.messages;
+DROP POLICY IF EXISTS "messages_delete_own_conversation" ON public.messages;
 CREATE POLICY "messages_select_own_conversation" ON public.messages FOR SELECT 
   USING (conversation_id IN (SELECT id FROM public.conversations WHERE user_id = auth.uid()));
 CREATE POLICY "messages_insert_own_conversation" ON public.messages FOR INSERT 
@@ -115,147 +234,51 @@ CREATE POLICY "messages_update_own_conversation" ON public.messages FOR UPDATE
   USING (conversation_id IN (SELECT id FROM public.conversations WHERE user_id = auth.uid()));
 CREATE POLICY "messages_delete_own_conversation" ON public.messages FOR DELETE 
   USING (conversation_id IN (SELECT id FROM public.conversations WHERE user_id = auth.uid()));
-CREATE INDEX idx_messages_conversation_created ON public.messages(conversation_id, created_at ASC);
-CREATE INDEX idx_messages_conversation_id ON public.messages(conversation_id);
 
--- ============================================================================
--- 6. Queries table
--- ============================================================================
-CREATE TABLE public.queries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  query_text TEXT NOT NULL,
-  result TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.queries ENABLE ROW LEVEL SECURITY;
+-- RLS Policies for queries
+DROP POLICY IF EXISTS "queries_select_own" ON public.queries;
+DROP POLICY IF EXISTS "queries_insert_own" ON public.queries;
+DROP POLICY IF EXISTS "queries_update_own" ON public.queries;
+DROP POLICY IF EXISTS "queries_delete_own" ON public.queries;
 CREATE POLICY "queries_select_own" ON public.queries FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "queries_insert_own" ON public.queries FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "queries_update_own" ON public.queries FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "queries_delete_own" ON public.queries FOR DELETE USING (auth.uid() = user_id);
-CREATE INDEX idx_queries_user_created ON public.queries(user_id, created_at DESC);
 
--- ============================================================================
--- 7. Preferences table
--- ============================================================================
-CREATE TABLE public.preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  theme TEXT DEFAULT 'dark' CHECK (theme IN ('light', 'dark', 'auto')),
-  notifications_enabled BOOLEAN DEFAULT TRUE,
-  default_output_format TEXT DEFAULT 'summarize',
-  auto_citation BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- RLS Policies for OTP codes (allow anonymous for signup)
+DROP POLICY IF EXISTS "otp_codes_anon_insert" ON public.otp_codes;
+DROP POLICY IF EXISTS "otp_codes_anon_select" ON public.otp_codes;
+DROP POLICY IF EXISTS "otp_codes_anon_update" ON public.otp_codes;
+CREATE POLICY "otp_codes_anon_insert" ON public.otp_codes FOR INSERT WITH CHECK (true);
+CREATE POLICY "otp_codes_anon_select" ON public.otp_codes FOR SELECT USING (true);
+CREATE POLICY "otp_codes_anon_update" ON public.otp_codes FOR UPDATE USING (true);
 
-ALTER TABLE public.preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "preferences_select_own" ON public.preferences FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "preferences_insert_own" ON public.preferences FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "preferences_update_own" ON public.preferences FOR UPDATE USING (auth.uid() = user_id);
+-- RLS Policies for AI usage logs
+DROP POLICY IF EXISTS "ai_usage_logs_select_own" ON public.ai_usage_logs;
+CREATE POLICY "ai_usage_logs_select_own" ON public.ai_usage_logs FOR SELECT USING (auth.uid() = user_id);
 
--- ============================================================================
--- 8. Subscriptions table
--- ============================================================================
-CREATE TABLE public.subscriptions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  plan TEXT DEFAULT 'free' CHECK (plan IN ('free', 'pro', 'enterprise')),
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'expired')),
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  current_period_start TIMESTAMP WITH TIME ZONE,
-  current_period_end TIMESTAMP WITH TIME ZONE,
-  cancel_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- RLS Policies for rate limit violations
+DROP POLICY IF EXISTS "rate_limit_violations_select_own" ON public.rate_limit_violations;
+CREATE POLICY "rate_limit_violations_select_own" ON public.rate_limit_violations FOR SELECT USING (auth.uid() = user_id);
 
-ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+-- RLS Policies for subscriptions
+DROP POLICY IF EXISTS "subscriptions_select_own" ON public.subscriptions;
+DROP POLICY IF EXISTS "subscriptions_insert_own" ON public.subscriptions;
 CREATE POLICY "subscriptions_select_own" ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "subscriptions_insert_own" ON public.subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- ============================================================================
--- 9. AI Usage Logs table
--- ============================================================================
-CREATE TABLE public.ai_usage_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  model TEXT NOT NULL,
-  endpoint TEXT NOT NULL,
-  input_tokens INT,
-  output_tokens INT,
-  status TEXT DEFAULT 'success' CHECK (status IN ('success', 'error', 'rate_limited')),
-  error_message TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "ai_usage_logs_select_own" ON public.ai_usage_logs FOR SELECT USING (auth.uid() = user_id);
-CREATE INDEX idx_ai_usage_logs_user_created ON public.ai_usage_logs(user_id, created_at DESC);
-
--- ============================================================================
--- 10. Rate Limit Violations table
--- ============================================================================
-CREATE TABLE public.rate_limit_violations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  endpoint TEXT NOT NULL,
-  violation_count INT DEFAULT 1,
-  reset_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.rate_limit_violations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "rate_limit_violations_select_own" ON public.rate_limit_violations FOR SELECT USING (auth.uid() = user_id);
-
--- ============================================================================
--- 11. System Settings table
--- ============================================================================
-CREATE TABLE public.system_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  setting_key TEXT NOT NULL UNIQUE,
-  setting_value JSONB,
-  setting_type TEXT CHECK (setting_type IN ('string', 'number', 'boolean', 'json')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ============================================================================
--- 12. Admin Audit Logs table
--- ============================================================================
-CREATE TABLE public.admin_audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE SET NULL,
-  action TEXT NOT NULL,
-  resource_type TEXT,
-  resource_id TEXT,
-  changes JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-CREATE INDEX idx_admin_audit_logs_admin_created ON public.admin_audit_logs(admin_id, created_at DESC);
-
--- ============================================================================
--- 13. Trigger for new users
--- ============================================================================
+-- Trigger function to create profile on new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
+RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id) VALUES (new.id) ON CONFLICT (id) DO NOTHING;
   INSERT INTO public.preferences (user_id) VALUES (new.id) ON CONFLICT (user_id) DO NOTHING;
   INSERT INTO public.subscriptions (user_id) VALUES (new.id) ON CONFLICT (user_id) DO NOTHING;
   RETURN new;
 END;
-$$;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- Create trigger for new user signup
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
