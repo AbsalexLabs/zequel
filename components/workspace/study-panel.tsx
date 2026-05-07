@@ -685,7 +685,13 @@ export function StudyPanel() {
           {/* Streaming response — typing effect */}
           {isStreaming && streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <ZequelAvatar size={24} className="mt-0.5" />
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
+                <img
+                  src="/zequel-logo-new.png"
+                  alt="Zequel"
+                  className="h-5 w-5"
+                />
+              </div>
               <div className="min-w-0 flex-1 overflow-hidden pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
@@ -701,7 +707,13 @@ export function StudyPanel() {
           {/* Thinking indicator */}
           {isStreaming && !streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <ZequelAvatar size={24} className="mt-0.5" />
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
+                <img
+                  src="/zequel-logo-new.png"
+                  alt="Zequel"
+                  className="h-5 w-5"
+                />
+              </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
