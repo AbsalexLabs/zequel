@@ -7,6 +7,7 @@ import { ZequelLogo } from '@/components/zequel-logo'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { DocumentViewer } from './document-viewer'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +65,34 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
 
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [viewingDocument, setViewingDocument] = useState<Document | null>(null)
+  const [viewerText, setViewerText] = useState<string | null>(null)
+  const [isLoadingText, setIsLoadingText] = useState(false)
+
+  const handleViewDocument = async (doc: Document) => {
+    setViewingDocument(doc)
+    setViewerText(null)
+    setIsLoadingText(true)
+
+    try {
+      const supabase = createClient()
+      const { data: docData, error } = await supabase
+        .from('documents')
+        .select('extracted_text')
+        .eq('id', doc.id)
+        .single()
+
+      if (error) {
+        console.error('[v0] Failed to fetch document text:', error)
+      } else if (docData?.extracted_text) {
+        setViewerText(docData.extracted_text)
+      }
+    } catch (err) {
+      console.error('[v0] Error loading document:', err)
+    } finally {
+      setIsLoadingText(false)
+    }
+  }
 
   const handleDeleteDocument = async () => {
     if (!deleteTarget) return
@@ -143,6 +172,7 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
                   isSelected={selectedDocumentIds.includes(doc.id)}
                   onToggle={() => toggleDocumentSelection(doc.id)}
                   onDelete={() => setDeleteTarget(doc)}
+                  onView={() => handleViewDocument(doc)}
                 />
               ))}
             </div>
@@ -179,6 +209,18 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
           </div>
         </>
       )}
+
+      {/* Document Viewer Dialog */}
+      <DocumentViewer
+        document={viewingDocument}
+        isOpen={!!viewingDocument}
+        onClose={() => {
+          setViewingDocument(null)
+          setViewerText(null)
+        }}
+        extractedText={viewerText}
+        isLoading={isLoadingText}
+      />
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
@@ -219,11 +261,13 @@ function DocumentItem({
   isSelected,
   onToggle,
   onDelete,
+  onView,
 }: {
   document: Document
   isSelected: boolean
   onToggle: () => void
   onDelete: () => void
+  onView: () => void
 }) {
   const statusLabel =
     document.status === 'parsed'
@@ -235,14 +279,18 @@ function DocumentItem({
   return (
     <div
       className={cn(
-        'group flex w-full items-start gap-2 rounded-md px-2 py-2 transition-colors',
+        'group flex w-full items-start gap-2 rounded-md px-2 py-2 transition-colors cursor-pointer',
         isSelected
           ? 'bg-secondary text-foreground'
           : 'text-foreground hover:bg-secondary/50'
       )}
+      onClick={onView}
     >
       <button
-        onClick={onToggle}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
         className="flex flex-1 items-start gap-3 text-left"
       >
         <div

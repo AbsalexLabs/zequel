@@ -225,6 +225,7 @@ export function StudyPanel() {
     shouldAutoScroll.current = true
 
     try {
+      console.log('[v0] Sending message:', { convId, content, documentIds: selectedDocumentIds })
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,7 +238,12 @@ export function StudyPanel() {
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to get response')
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('[v0] Chat API error:', res.status, errorText)
+        throw new Error(`Failed to get response: ${res.status}`)
+      }
+      console.log('[v0] Chat API response ok')
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No stream')
@@ -413,7 +419,7 @@ export function StudyPanel() {
         body: JSON.stringify({
           conversation_id: activeConversationId,
           message: lastUserMsg.content,
-          document_id: selectedDocumentIds[0] || null,
+          document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : [],
           images: [],
           regenerate: true, // Flag to not save user message again
         }),
@@ -679,7 +685,13 @@ export function StudyPanel() {
           {/* Streaming response — typing effect */}
           {isStreaming && streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <ZequelAvatar size={24} className="mt-0.5" />
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
+                <img
+                  src="/zequel-logo-new.png"
+                  alt="Zequel"
+                  className="h-5 w-5"
+                />
+              </div>
               <div className="min-w-0 flex-1 overflow-hidden pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
@@ -695,7 +707,13 @@ export function StudyPanel() {
           {/* Thinking indicator */}
           {isStreaming && !streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <ZequelAvatar size={24} className="mt-0.5" />
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
+                <img
+                  src="/zequel-logo-new.png"
+                  alt="Zequel"
+                  className="h-5 w-5"
+                />
+              </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel

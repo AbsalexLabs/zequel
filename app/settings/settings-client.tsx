@@ -165,10 +165,14 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     try {
       const supabase = createClient()
       
-      // Update profile
+      // Update profile with avatar_url
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ username: username || null, full_name: fullName || null })
+        .update({ 
+          username: username || null, 
+          full_name: fullName || null,
+          avatar_url: avatarUrl || null
+        })
         .eq('id', userId)
       
       if (profileError) {
