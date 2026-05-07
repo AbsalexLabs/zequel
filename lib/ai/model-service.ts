@@ -115,18 +115,24 @@ export async function processAIRequest(
     }
 
     // 5. Check if user is suspended
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('suspended')
       .eq('id', user.id)
       .single()
     
-    if (profile?.suspended) {
+    // Only block if suspended is explicitly true (handle cases where column might not exist yet)
+    if (profile?.suspended === true) {
       return { 
         success: false, 
         error: 'Your account has been suspended. Please contact support.', 
         statusCode: 403 
       }
+    }
+    
+    // Log profile fetch errors but don't block (suspended column might not exist yet)
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('[v0] Profile fetch error:', profileError)
     }
 
     // 6. Validate input

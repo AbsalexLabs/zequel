@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url TEXT,
   display_name TEXT,
   role TEXT DEFAULT 'user',
+  suspended BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -27,6 +28,11 @@ END $$;
 
 DO $$ BEGIN
   ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspended BOOLEAN DEFAULT FALSE;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
