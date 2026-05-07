@@ -67,9 +67,16 @@ CREATE TABLE IF NOT EXISTS public.conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
+  document_id UUID REFERENCES public.documents(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add missing document_id column to conversations
+DO $$ BEGIN
+  ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS document_id UUID REFERENCES public.documents(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- 5. Messages table
 CREATE TABLE IF NOT EXISTS public.messages (
@@ -77,8 +84,21 @@ CREATE TABLE IF NOT EXISTS public.messages (
   conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL,
   content TEXT NOT NULL,
+  versions TEXT[] DEFAULT ARRAY[]::TEXT[],
+  activeVersionIndex INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add missing columns to messages
+DO $$ BEGIN
+  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS versions TEXT[] DEFAULT ARRAY[]::TEXT[];
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS activeVersionIndex INTEGER DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- 6. OTP Codes table
 CREATE TABLE IF NOT EXISTS public.otp_codes (
