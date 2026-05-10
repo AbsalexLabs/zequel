@@ -225,7 +225,6 @@ export function StudyPanel() {
     shouldAutoScroll.current = true
 
     try {
-      console.log('[v0] Sending message:', { convId, content, documentIds: selectedDocumentIds })
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,10 +239,8 @@ export function StudyPanel() {
 
       if (!res.ok) {
         const errorText = await res.text()
-        console.error('[v0] Chat API error:', res.status, errorText)
-        throw new Error(`Failed to get response: ${res.status}`)
+        throw new Error(`API error: ${res.status} - ${errorText}`)
       }
-      console.log('[v0] Chat API response ok')
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No stream')
@@ -484,7 +481,8 @@ export function StudyPanel() {
         await supabase.from('messages').update({ content: newContent }).eq('id', msgToRegenerate.id)
       }
     } catch {
-      // On error, keep original content
+      setStreamingContent('')
+      streamBufferRef.current = ''
     } finally {
       setIsStreaming(false)
       setRegeneratingMessageId(null)
