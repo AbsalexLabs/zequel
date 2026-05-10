@@ -225,7 +225,6 @@ export function StudyPanel() {
     shouldAutoScroll.current = true
 
     try {
-      console.log('[v0] Sending message:', { convId, content, documentIds: selectedDocumentIds })
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,10 +239,8 @@ export function StudyPanel() {
 
       if (!res.ok) {
         const errorText = await res.text()
-        console.error('[v0] Chat API error:', res.status, errorText)
-        throw new Error(`Failed to get response: ${res.status}`)
+        throw new Error(`API error: ${res.status} - ${errorText}`)
       }
-      console.log('[v0] Chat API response ok')
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error('No stream')
@@ -317,63 +314,78 @@ export function StudyPanel() {
   const handleSend = async () => {
     if ((!input.trim() && attachedFiles.length === 0) || isStreaming) return
 
-    let convId = activeConversationId
+    try {
+      let convId = activeConversationId
 
-    if (!convId) {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!convId) {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          console.error('[v0] No authenticated user')
+          return
+        }
 
-      const { data, error } = await supabase
-        .from('conversations')
-        .insert({
-          user_id: user.id,
-          title: 'New conversation',
-          document_id: selectedDocumentIds[0] || null,
-        })
-        .select()
-        .single()
+        const { data, error } = await supabase
+          .from('conversations')
+          .insert({
+            user_id: user.id,
+            title: 'New conversation',
+            document_id: selectedDocumentIds[0] || null,
+          })
+          .select()
+          .single()
 
-      if (error || !data) return
-      addConversation(data as Conversation)
-      setActiveConversationId(data.id)
-      convId = data.id
-      isFirstMessage.current = true
-    } else {
-      isFirstMessage.current = messages.length === 0
+        if (error) {
+          console.error('[v0] Failed to create conversation:', error)
+          return
+        }
+        if (!data) {
+          console.error('[v0] No conversation data returned')
+          return
+        }
+        addConversation(data as Conversation)
+        setActiveConversationId(data.id)
+        convId = data.id
+        isFirstMessage.current = true
+      } else {
+        isFirstMessage.current = messages.length === 0
+      }
+
+      // Build message content with image references
+      let messageContent = input.trim()
+      const imageNames = attachedFiles
+        .filter((af) => af.file.type.startsWith('image/'))
+        .map((af) => af.file.name)
+      if (imageNames.length > 0 && !messageContent) {
+        messageContent = `[Attached: ${imageNames.join(', ')}]`
+      }
+
+      // Build user message with any attached image previews stored in content
+      const imageDataUrls = await filesToDataUrls(attachedFiles)
+      const userMsgContent = imageDataUrls.length > 0
+        ? `${messageContent}\n\n${imageDataUrls.map((url, i) => `![image-${i}](${url})`).join('\n')}`
+        : messageContent
+
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        conversation_id: convId,
+        role: 'user',
+        content: userMsgContent,
+        created_at: new Date().toISOString(),
+      }
+
+      addMessage(userMsg)
+      const content = messageContent
+      const fullContentWithImages = userMsgContent // includes embedded base64 images
+      setInput('')
+      setAttachedFiles([])
+      if (textareaRef.current) textareaRef.current.style.height = '24px'
+
+      await sendMessage(content, convId, isFirstMessage.current, imageDataUrls, fullContentWithImages)
+    } catch (error) {
+      console.error('[v0] handleSend error:', error)
+      setIsStreaming(false)
     }
-
-    // Build message content with image references
-    let messageContent = input.trim()
-    const imageNames = attachedFiles
-      .filter((af) => af.file.type.startsWith('image/'))
-      .map((af) => af.file.name)
-    if (imageNames.length > 0 && !messageContent) {
-      messageContent = `[Attached: ${imageNames.join(', ')}]`
-    }
-
-    // Build user message with any attached image previews stored in content
-    const imageDataUrls = await filesToDataUrls(attachedFiles)
-    const userMsgContent = imageDataUrls.length > 0
-      ? `${messageContent}\n\n${imageDataUrls.map((url, i) => `![image-${i}](${url})`).join('\n')}`
-      : messageContent
-
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      conversation_id: convId,
-      role: 'user',
-      content: userMsgContent,
-      created_at: new Date().toISOString(),
-    }
-
-    addMessage(userMsg)
-    const content = messageContent
-    const fullContentWithImages = userMsgContent // includes embedded base64 images
-    setInput('')
-    setAttachedFiles([])
-    if (textareaRef.current) textareaRef.current.style.height = '24px'
-
-    await sendMessage(content, convId, isFirstMessage.current, imageDataUrls, fullContentWithImages)
   }
 
   const handleRegenerate = async (messageIndex: number) => {
@@ -483,8 +495,10 @@ export function StudyPanel() {
         const supabase = createClient()
         await supabase.from('messages').update({ content: newContent }).eq('id', msgToRegenerate.id)
       }
-    } catch {
-      // On error, keep original content
+    } catch (error) {
+      console.error('[v0] Send message error:', error)
+      setStreamingContent('')
+      streamBufferRef.current = ''
     } finally {
       setIsStreaming(false)
       setRegeneratingMessageId(null)
