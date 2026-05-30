@@ -9,13 +9,13 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/zequel-logo.png",
+      "src": "/zequel-logo-new.png",
       "sizes": "1080x1080",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/zequel-logo.png",
+      "src": "/zequel-logo-new.png",
       "sizes": "1080x1080",
       "type": "image/png",
       "purpose": "maskable"

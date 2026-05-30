@@ -321,3 +321,47 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- Storage bucket setup (run these separately in Supabase Dashboard > Storage)
+-- Create buckets: 'documents' and 'avatars'
+-- Then run these policies in SQL Editor:
+
+-- Documents bucket policies
+INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents', false) ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "documents_bucket_select" ON storage.objects;
+DROP POLICY IF EXISTS "documents_bucket_insert" ON storage.objects;
+DROP POLICY IF EXISTS "documents_bucket_update" ON storage.objects;
+DROP POLICY IF EXISTS "documents_bucket_delete" ON storage.objects;
+
+CREATE POLICY "documents_bucket_select" ON storage.objects FOR SELECT 
+  USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "documents_bucket_insert" ON storage.objects FOR INSERT 
+  WITH CHECK (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "documents_bucket_update" ON storage.objects FOR UPDATE 
+  USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "documents_bucket_delete" ON storage.objects FOR DELETE 
+  USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- Avatars bucket policies
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "avatars_bucket_select" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_bucket_insert" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_bucket_update" ON storage.objects;
+DROP POLICY IF EXISTS "avatars_bucket_delete" ON storage.objects;
+
+CREATE POLICY "avatars_bucket_select" ON storage.objects FOR SELECT 
+  USING (bucket_id = 'avatars');
+
+CREATE POLICY "avatars_bucket_insert" ON storage.objects FOR INSERT 
+  WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "avatars_bucket_update" ON storage.objects FOR UPDATE 
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "avatars_bucket_delete" ON storage.objects FOR DELETE 
+  USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
