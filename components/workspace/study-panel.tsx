@@ -13,7 +13,6 @@ import {
 import { useWorkspaceStore } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
-import { ZequelAvatar } from '@/components/zequel-icon'
 import { cn } from '@/lib/utils'
 import {
   Loader2,
@@ -219,19 +218,20 @@ export function StudyPanel() {
     if (data?.title) updateConversationTitle(convId, data.title)
   }
 
-  const sendMessage = async (content: string, convId: string, isFirst: boolean, imageDataUrls?: string[], fullContent?: string) => {
+  const sendMessage = async (content: string, convId: string, isFirst: boolean, imageDataUrls?: string[], fullContent?: string, docIds?: string[]) => {
     setIsStreaming(true)
     startStreamRenderer()
     shouldAutoScroll.current = true
 
     try {
+      const documentIds = docIds || selectedDocumentIds
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversation_id: convId,
           message: content,
-          document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : [],
+          document_ids: documentIds.length > 0 ? documentIds : [],
           images: imageDataUrls || [],
           full_content: fullContent, // includes base64 images for persistence
         }),
@@ -314,19 +314,74 @@ export function StudyPanel() {
   const handleSend = async () => {
     if ((!input.trim() && attachedFiles.length === 0) || isStreaming) return
 
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Upload any PDF files first and add them to selected documents
+    const pdfFiles = attachedFiles.filter((af) => af.file.type === 'application/pdf')
+    const uploadedDocIds: string[] = [...selectedDocumentIds]
+    
+    for (const pdfFile of pdfFiles) {
+      try {
+        const filePath = `${user.id}/${Date.now()}_${pdfFile.file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, pdfFile.file)
+
+        if (uploadError) continue
+
+        const title = pdfFile.file.name.replace(/\.pdf$/i, '')
+        const { data: docData, error: insertError } = await supabase
+          .from('documents')
+          .insert({
+            user_id: user.id,
+            title,
+            file_name: pdfFile.file.name,
+            file_path: filePath,
+            file_size: pdfFile.file.size,
+            page_count: 0,
+            status: 'processing',
+          })
+          .select()
+          .single()
+
+        if (insertError || !docData) continue
+
+        addDocument(docData as Document)
+        uploadedDocIds.push(docData.id)
+
+        // Extract text from PDF
+        fetch('/api/extract-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: docData.id, filePath }),
+        }).then(async (res) => {
+          if (res.ok) {
+            const result = await res.json()
+            if (result.success) {
+              const { updateDocument } = useWorkspaceStore.getState()
+              updateDocument(docData.id, { status: 'parsed', page_count: result.pageCount || 0 })
+            }
+          }
+        }).catch(() => {
+          const { updateDocument } = useWorkspaceStore.getState()
+          updateDocument(docData.id, { status: 'parsed' })
+        })
+      } catch {
+        // Continue with other files
+      }
+    }
+
     let convId = activeConversationId
 
     if (!convId) {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const { data, error } = await supabase
         .from('conversations')
         .insert({
           user_id: user.id,
           title: 'New conversation',
-          document_id: selectedDocumentIds[0] || null,
+          document_id: uploadedDocIds[0] || null,
         })
         .select()
         .single()
@@ -342,11 +397,17 @@ export function StudyPanel() {
 
     // Build message content with image references
     let messageContent = input.trim()
-    const imageNames = attachedFiles
-      .filter((af) => af.file.type.startsWith('image/'))
-      .map((af) => af.file.name)
+    const imageFiles = attachedFiles.filter((af) => af.file.type.startsWith('image/'))
+    const imageNames = imageFiles.map((af) => af.file.name)
     if (imageNames.length > 0 && !messageContent) {
       messageContent = `[Attached: ${imageNames.join(', ')}]`
+    }
+    // Add PDF names to message if any
+    if (pdfFiles.length > 0) {
+      const pdfNames = pdfFiles.map((af) => af.file.name).join(', ')
+      messageContent = messageContent 
+        ? `${messageContent}\n[Documents: ${pdfNames}]` 
+        : `[Documents: ${pdfNames}]`
     }
 
     // Build user message with any attached image previews stored in content
@@ -370,7 +431,8 @@ export function StudyPanel() {
     setAttachedFiles([])
     if (textareaRef.current) textareaRef.current.style.height = '24px'
 
-    await sendMessage(content, convId, isFirstMessage.current, imageDataUrls, fullContentWithImages)
+    // Use uploadedDocIds which includes any newly uploaded PDFs
+    await sendMessage(content, convId, isFirstMessage.current, imageDataUrls, fullContentWithImages, uploadedDocIds)
   }
 
   const handleRegenerate = async (messageIndex: number) => {
@@ -647,7 +709,9 @@ export function StudyPanel() {
         <div className="mx-auto max-w-3xl px-3 py-4 md:px-6">
           {messages.length === 0 && !streamingContent && (
             <div className="flex flex-col items-center justify-center py-16 md:py-24">
-              <ZequelAvatar size={56} />
+              <p className="font-mono text-lg font-bold uppercase tracking-wider text-foreground">
+                Zequel
+              </p>
               <p className="mt-4 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
                 {activeConversationId ? 'Start the conversation' : 'Study Mode'}
               </p>
@@ -683,14 +747,7 @@ export function StudyPanel() {
           {/* Streaming response — typing effect */}
           {isStreaming && streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
-                <img
-                  src="/zequel-logo-new.png"
-                  alt="Zequel"
-                  className="h-5 w-5"
-                />
-              </div>
-              <div className="min-w-0 flex-1 overflow-hidden pt-0.5">
+              <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
                 </p>
@@ -705,23 +762,13 @@ export function StudyPanel() {
           {/* Thinking indicator */}
           {isStreaming && !streamingContent && (
             <div className="mb-6 flex gap-2.5">
-              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary">
-                <img
-                  src="/zequel-logo-new.png"
-                  alt="Zequel"
-                  className="h-5 w-5"
-                />
-              </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
                 </p>
-                <div className="flex items-center gap-2 py-1">
-                  <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:300ms]" />
-                  </div>
+                <div className="prose-zequel">
+                  <span className="text-muted-foreground/60">Thinking</span>
+                  <span className="ml-0.5 inline-block h-[18px] w-[2px] animate-pulse bg-foreground/70" />
                 </div>
               </div>
             </div>
@@ -1084,12 +1131,10 @@ function ChatMessage({
     )
   }
 
-  // AI message — left-aligned with Zequel logo
+  // AI message — left-aligned with Zequel text only
   return (
     <div className="group/msg mb-6 flex gap-2.5">
-      <ZequelAvatar size={24} className="mt-0.5" />
-
-      <div className="min-w-0 flex-1 overflow-hidden pt-0.5">
+      <div className="min-w-0 flex-1 pt-0.5">
         <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           Zequel
         </p>
