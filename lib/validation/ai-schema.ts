@@ -3,9 +3,10 @@ import { z } from 'zod'
 // Chat request validation
 export const chatRequestSchema = z.object({
   conversation_id: z.string().uuid('Invalid conversation ID'),
-  message: z.string().max(8000, 'Message too long (max 8000 chars)').optional(),
+  message: z.string().max(8000, 'Message too long (max 8000 chars)').optional().nullable(),
   document_id: z.string().uuid().nullable().optional(),
-  images: z.array(z.string().url().or(z.string().startsWith('data:image/'))).max(5, 'Max 5 images allowed').optional(),
+  document_ids: z.array(z.string().uuid()).max(10).optional(),
+  images: z.array(z.string()).max(5, 'Max 5 images allowed').optional(),
   full_content: z.string().max(500000).optional(),
   regenerate: z.boolean().optional(),
 })
