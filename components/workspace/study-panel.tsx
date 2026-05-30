@@ -402,12 +402,12 @@ export function StudyPanel() {
     if (imageNames.length > 0 && !messageContent) {
       messageContent = `[Attached: ${imageNames.join(', ')}]`
     }
-    // Add PDF names to message if any
+    // Add PDF names to message as document chips (using special markup)
     if (pdfFiles.length > 0) {
-      const pdfNames = pdfFiles.map((af) => af.file.name).join(', ')
+      const pdfChips = pdfFiles.map((af) => `{{doc:${af.file.name}}}`).join(' ')
       messageContent = messageContent 
-        ? `${messageContent}\n[Documents: ${pdfNames}]` 
-        : `[Documents: ${pdfNames}]`
+        ? `${messageContent}\n${pdfChips}` 
+        : pdfChips
     }
 
     // Build user message with any attached image previews stored in content
@@ -766,9 +766,10 @@ export function StudyPanel() {
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
                 </p>
-                <div className="prose-zequel">
-                  <span className="text-muted-foreground/60">Thinking</span>
-                  <span className="ml-0.5 inline-block h-[18px] w-[2px] animate-pulse bg-foreground/70" />
+                <div className="flex items-center gap-1 py-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:0ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:300ms]" />
                 </div>
               </div>
             </div>
