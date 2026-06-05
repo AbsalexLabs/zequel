@@ -21,6 +21,7 @@ import {
   MoreVertical,
   Check,
   X,
+  GitBranch,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/lib/types'
 
@@ -242,7 +243,11 @@ function ConversationRow({
         onClick={onClick}
         className="flex min-w-0 flex-1 items-start gap-2 text-left"
       >
-        <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        {conversation.title.startsWith('Branch from') ? (
+          <GitBranch className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-sans text-sm font-medium">
             {conversation.title}

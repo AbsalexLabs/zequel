@@ -10,6 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useWorkspaceStore } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
@@ -968,9 +974,13 @@ export function StudyPanel() {
               ref={cameraInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
+              capture="user"
               className="hidden"
               onChange={handleFileSelect}
+              onClick={(e) => {
+                // Reset value to allow re-selecting the same file
+                (e.target as HTMLInputElement).value = ''
+              }}
             />
             <textarea
               ref={textareaRef}
@@ -1119,6 +1129,8 @@ function ChatMessage({
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [pdfContent, setPdfContent] = useState('')
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
@@ -1155,9 +1167,49 @@ function ChatMessage({
     if (onShare) onShare()
   }
 
-  const downloadAsPdf = async () => {
-    const textOnly = message.content
-    // Create a simple HTML document for PDF
+  // Strip markdown syntax for clean text
+  const stripMarkdown = (text: string): string => {
+    return text
+      // Remove headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove bold/italic
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      // Remove inline code
+      .replace(/`([^`]+)`/g, '$1')
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, (match) => {
+        // Extract just the code content without the language identifier
+        const lines = match.split('\n')
+        return lines.slice(1, -1).join('\n')
+      })
+      // Remove links but keep text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove images
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+      // Remove blockquotes
+      .replace(/^>\s+/gm, '')
+      // Remove horizontal rules
+      .replace(/^[-*_]{3,}$/gm, '')
+      // Remove bullet points
+      .replace(/^[\s]*[-*+]\s+/gm, '• ')
+      // Remove numbered lists prefix
+      .replace(/^[\s]*\d+\.\s+/gm, '')
+      // Clean up multiple newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }
+
+  const openPdfModal = () => {
+    const cleanText = stripMarkdown(message.content)
+    setPdfContent(cleanText)
+    setShowPdfModal(true)
+  }
+
+  const downloadAsPdf = () => {
+    // Create a clean HTML document styled like the app
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -1165,28 +1217,52 @@ function ChatMessage({
           <meta charset="utf-8">
           <title>Zequel Response</title>
           <style>
-            body { font-family: system-ui, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-            pre { background: #f4f4f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
-            code { font-family: 'SF Mono', Monaco, monospace; font-size: 14px; }
-            h1, h2, h3 { margin-top: 24px; }
-            p { margin: 12px 0; }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+            body { 
+              font-family: 'Inter', system-ui, sans-serif; 
+              padding: 48px; 
+              max-width: 700px; 
+              margin: 0 auto; 
+              line-height: 1.7;
+              color: #1a1a1a;
+              font-size: 15px;
+            }
+            .header {
+              margin-bottom: 32px;
+              padding-bottom: 20px;
+              border-bottom: 1px solid #e5e5e5;
+            }
+            .header-label {
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #888;
+              font-weight: 600;
+            }
+            .content {
+              white-space: pre-wrap;
+              word-wrap: break-word;
+            }
+            @media print {
+              body { padding: 24px; }
+            }
           </style>
         </head>
         <body>
-          <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #eee;">
-            <strong style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Zequel Response</strong>
+          <div class="header">
+            <div class="header-label">Zequel Response</div>
           </div>
-          <div>${textOnly.replace(/\n/g, '<br>')}</div>
+          <div class="content">${pdfContent.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
         </body>
       </html>
     `
-    // Open in new window for printing
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(htmlContent)
       printWindow.document.close()
       printWindow.print()
     }
+    setShowPdfModal(false)
   }
 
   // Long press detection — only for user messages, cancel if moved more than 10px
@@ -1387,7 +1463,7 @@ function ChatMessage({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
-                onClick={downloadAsPdf}
+                onClick={openPdfModal}
               >
                 <Download className="h-3.5 w-3.5" />
                 Download as PDF
@@ -1396,6 +1472,44 @@ function ChatMessage({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* PDF Download Modal */}
+      <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
+        <DialogContent className="max-w-2xl border-border bg-background">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm uppercase tracking-wider">
+              Download as PDF
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <p className="mb-3 font-sans text-xs text-muted-foreground">
+              Edit the content below before downloading. Changes here won&apos;t affect the original response.
+            </p>
+            <textarea
+              value={pdfContent}
+              onChange={(e) => setPdfContent(e.target.value)}
+              className="h-[300px] w-full resize-none rounded-lg border border-border bg-secondary/30 p-4 font-sans text-sm leading-relaxed text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              placeholder="Edit content..."
+            />
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowPdfModal(false)}
+              className="h-9 font-mono text-[11px] uppercase tracking-wider"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={downloadAsPdf}
+              className="h-9 gap-2 bg-foreground font-mono text-[11px] uppercase tracking-wider text-background hover:bg-foreground/90"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
