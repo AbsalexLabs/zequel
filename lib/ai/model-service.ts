@@ -266,6 +266,25 @@ export async function executeAICall(
     return acc + 100 // Rough estimate for multimodal
   }, 0)
 
+  // Check if OpenRouter API key is configured
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.error('[Zequel] OPENROUTER_API_KEY is not configured')
+    await logAIUsage({
+      user_id: userId,
+      endpoint: requestType,
+      model,
+      input_tokens: inputTokens,
+      status: 'error',
+      error_message: 'OpenRouter API key not configured',
+      latency_ms: Date.now() - startTime,
+    })
+    return { 
+      success: false, 
+      error: 'AI service is not configured. Please contact support.', 
+      statusCode: 503 
+    }
+  }
+
   try {
     const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
