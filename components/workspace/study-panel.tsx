@@ -27,10 +27,11 @@ import {
   Share2,
   MoreHorizontal,
   GitBranch,
-  Paperclip,
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
+  Camera,
+  Download,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/lib/types'
 
@@ -68,6 +69,8 @@ export function StudyPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const isFirstMessage = useRef(false)
   const shouldAutoScroll = useRef(true)
 
@@ -569,6 +572,52 @@ export function StudyPanel() {
     supabase.from('messages').update({ content: newContent }).eq('id', messageId).then(() => {})
   }
 
+  const handleBranchNewChat = async (messageIndex: number) => {
+    if (isStreaming) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Get all messages up to and including this message
+    const messagesToBranch = messages.slice(0, messageIndex + 1)
+    if (messagesToBranch.length === 0) return
+
+    // Create a new conversation
+    const { data: newConv, error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: user.id,
+        title: `Branch from ${activeConversation?.title || 'conversation'}`,
+        document_id: selectedDocumentIds[0] || null,
+      })
+      .select()
+      .single()
+
+    if (error || !newConv) return
+
+    // Copy messages to new conversation
+    for (const msg of messagesToBranch) {
+      await supabase.from('messages').insert({
+        conversation_id: newConv.id,
+        role: msg.role,
+        content: msg.content,
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    // Add and switch to new conversation
+    addConversation(newConv as Conversation)
+    setActiveConversationId(newConv.id)
+    
+    // Load messages for the new conversation
+    const { data: newMessages } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', newConv.id)
+      .order('created_at', { ascending: true })
+    setMessages((newMessages as Message[]) || [])
+  }
+
   const handleEditMessage = async (messageIndex: number) => {
     if (isStreaming || !activeConversationId) return
     const msgToEdit = messages[messageIndex]
@@ -741,6 +790,9 @@ export function StudyPanel() {
                   ? (newIndex: number) => handleVersionChange(msg.id, newIndex)
                   : undefined
               }
+              onBranchNewChat={
+                msg.role === 'assistant' && !isStreaming ? () => handleBranchNewChat(i) : undefined
+              }
             />
           ))}
 
@@ -759,8 +811,8 @@ export function StudyPanel() {
             </div>
           )}
 
-          {/* Thinking indicator - dots animation */}
-          {isStreaming && !streamingContent && (
+          {/* Thinking indicator - dots animation (only when not regenerating a specific message) */}
+          {isStreaming && !streamingContent && !regeneratingMessageId && (
             <div className="mb-6 flex gap-2.5">
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -863,18 +915,60 @@ export function StudyPanel() {
         )}
         <div className="mx-auto flex max-w-3xl items-end gap-2 py-2.5">
           <div className="flex min-h-[44px] flex-1 items-end rounded-xl border border-border bg-secondary/30 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mb-2.5 ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:text-foreground"
-              aria-label="Attach file"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="mb-2.5 ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:text-foreground"
+                  aria-label="Add attachment"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px] border-border bg-background">
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  Camera
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  Photos
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Files
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx"
+              accept=".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <input
+              ref={imageInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -1006,6 +1100,8 @@ function ChatMessage({
   onRegenerate,
   onEdit,
   onVersionChange,
+  onBranchNewChat,
+  onShare,
 }: {
   message: Message
   userAvatar: string | null
@@ -1014,6 +1110,8 @@ function ChatMessage({
   onRegenerate?: () => void
   onEdit?: () => void
   onVersionChange?: (newIndex: number) => void
+  onBranchNewChat?: () => void
+  onShare?: () => void
 }) {
   const hasVersions = message.versions && message.versions.length > 1
   const activeVersionIndex = message.activeVersionIndex ?? 0
@@ -1035,6 +1133,60 @@ function ChatMessage({
       setTimeout(() => setCopied(false), 2000)
     })
     setShowMenu(false)
+  }
+
+  const shareContent = async () => {
+    const textOnly = isUser ? displayText : message.content
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Zequel Response',
+          text: textOnly,
+        })
+      } catch {
+        // User cancelled or share failed, fallback to copy
+        await navigator.clipboard.writeText(textOnly)
+      }
+    } else {
+      // Fallback to copy
+      await navigator.clipboard.writeText(textOnly)
+    }
+    setShowMenu(false)
+    if (onShare) onShare()
+  }
+
+  const downloadAsPdf = async () => {
+    const textOnly = message.content
+    // Create a simple HTML document for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Zequel Response</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+            pre { background: #f4f4f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
+            code { font-family: 'SF Mono', Monaco, monospace; font-size: 14px; }
+            h1, h2, h3 { margin-top: 24px; }
+            p { margin: 12px 0; }
+          </style>
+        </head>
+        <body>
+          <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #eee;">
+            <strong style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Zequel Response</strong>
+          </div>
+          <div>${textOnly.replace(/\n/g, '<br>')}</div>
+        </body>
+      </html>
+    `
+    // Open in new window for printing
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      printWindow.print()
+    }
   }
 
   // Long press detection — only for user messages, cancel if moved more than 10px
@@ -1140,7 +1292,7 @@ function ChatMessage({
                     Copy
                   </button>
                   <button
-                    onClick={() => { setShowMenu(false) }}
+                    onClick={shareContent}
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 font-mono text-[11px] uppercase tracking-wider text-foreground hover:bg-secondary"
                   >
                     <Share2 className="h-3.5 w-3.5" />
@@ -1216,7 +1368,7 @@ function ChatMessage({
           <button onClick={copyContent} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Copy">
             {copied ? <Check className="h-3.5 w-3.5 text-foreground" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Share">
+          <button onClick={shareContent} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Share">
             <Share2 className="h-3.5 w-3.5" />
           </button>
           <DropdownMenu>
@@ -1226,9 +1378,19 @@ function ChatMessage({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-[160px] border-border bg-background">
-              <DropdownMenuItem className="gap-2 font-mono text-[11px] uppercase tracking-wider">
+              <DropdownMenuItem 
+                className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                onClick={onBranchNewChat}
+              >
                 <GitBranch className="h-3.5 w-3.5" />
                 Branch in new chat
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                onClick={downloadAsPdf}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download as PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
