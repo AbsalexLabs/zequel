@@ -147,13 +147,13 @@ export function SessionsPanel({ currentSessionToken }: SessionsPanelProps) {
   const otherSessions = sessions.filter(s => !s.is_current)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="mb-2">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">
+      <div>
+        <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
           Active Sessions
-        </h2>
-        <p className="mt-1 font-sans text-[13px] leading-relaxed text-muted-foreground">
+        </p>
+        <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">
           Manage devices where you&apos;re signed in. Maximum {MAX_SESSIONS} devices allowed.
         </p>
       </div>
