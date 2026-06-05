@@ -316,7 +316,7 @@ export async function POST(request: Request) {
                             Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
                           },
                           body: JSON.stringify({
-                            model: 'google/gemini-2.0-flash-exp',
+                            model: 'openai/gpt-5-nano',
                             messages: [
                               {
                                 role: 'system',
