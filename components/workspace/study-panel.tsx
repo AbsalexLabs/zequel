@@ -1412,12 +1412,7 @@ function ChatMessage({
         )}
         {/* Action icons row */}
         <div className="mt-2.5 flex items-center gap-0.5">
-          {onRegenerate && (
-            <button onClick={onRegenerate} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Regenerate">
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {/* Version navigation — only shows if multiple versions exist */}
+          {/* Version navigation — only shows if multiple versions exist, positioned at left edge */}
           {hasVersions && onVersionChange && (
             <div className="flex items-center gap-0.5">
               <button
@@ -1440,6 +1435,11 @@ function ChatMessage({
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
+          )}
+          {onRegenerate && (
+            <button onClick={onRegenerate} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Regenerate">
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
           )}
           <button onClick={copyContent} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Copy">
             {copied ? <Check className="h-3.5 w-3.5 text-foreground" /> : <Copy className="h-3.5 w-3.5" />}
