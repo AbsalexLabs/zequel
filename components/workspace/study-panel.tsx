@@ -27,10 +27,11 @@ import {
   Share2,
   MoreHorizontal,
   GitBranch,
-  Paperclip,
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
+  Camera,
+  Download,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/lib/types'
 
@@ -68,6 +69,8 @@ export function StudyPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const isFirstMessage = useRef(false)
   const shouldAutoScroll = useRef(true)
 
@@ -402,12 +405,12 @@ export function StudyPanel() {
     if (imageNames.length > 0 && !messageContent) {
       messageContent = `[Attached: ${imageNames.join(', ')}]`
     }
-    // Add PDF names to message if any
+    // Add PDF names to message if any (using special marker that we'll parse for UI)
     if (pdfFiles.length > 0) {
-      const pdfNames = pdfFiles.map((af) => af.file.name).join(', ')
+      const pdfNames = pdfFiles.map((af) => af.file.name).join('|||')
       messageContent = messageContent 
-        ? `${messageContent}\n[Documents: ${pdfNames}]` 
-        : `[Documents: ${pdfNames}]`
+        ? `${messageContent}\n[DOCS:${pdfNames}]` 
+        : `[DOCS:${pdfNames}]`
     }
 
     // Build user message with any attached image previews stored in content
@@ -569,13 +572,59 @@ export function StudyPanel() {
     supabase.from('messages').update({ content: newContent }).eq('id', messageId).then(() => {})
   }
 
+  const handleBranchNewChat = async (messageIndex: number) => {
+    if (isStreaming) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Get all messages up to and including this message
+    const messagesToBranch = messages.slice(0, messageIndex + 1)
+    if (messagesToBranch.length === 0) return
+
+    // Create a new conversation
+    const { data: newConv, error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: user.id,
+        title: `Branch from ${activeConversation?.title || 'conversation'}`,
+        document_id: selectedDocumentIds[0] || null,
+      })
+      .select()
+      .single()
+
+    if (error || !newConv) return
+
+    // Copy messages to new conversation
+    for (const msg of messagesToBranch) {
+      await supabase.from('messages').insert({
+        conversation_id: newConv.id,
+        role: msg.role,
+        content: msg.content,
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    // Add and switch to new conversation
+    addConversation(newConv as Conversation)
+    setActiveConversationId(newConv.id)
+    
+    // Load messages for the new conversation
+    const { data: newMessages } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', newConv.id)
+      .order('created_at', { ascending: true })
+    setMessages((newMessages as Message[]) || [])
+  }
+
   const handleEditMessage = async (messageIndex: number) => {
     if (isStreaming || !activeConversationId) return
     const msgToEdit = messages[messageIndex]
     if (msgToEdit.role !== 'user') return
 
-    // Extract text and images separately
-    const { text, images } = extractImages(msgToEdit.content)
+    // Extract text and images separately (documents are preserved in content for context)
+    const { text, images } = extractImagesAndDocs(msgToEdit.content)
     setInput(text)
     setEditingMessageId(msgToEdit.id)
     setEditingImages(images) // Store images to re-attach when sending
@@ -741,6 +790,9 @@ export function StudyPanel() {
                   ? (newIndex: number) => handleVersionChange(msg.id, newIndex)
                   : undefined
               }
+              onBranchNewChat={
+                msg.role === 'assistant' && !isStreaming ? () => handleBranchNewChat(i) : undefined
+              }
             />
           ))}
 
@@ -759,16 +811,17 @@ export function StudyPanel() {
             </div>
           )}
 
-          {/* Thinking indicator */}
-          {isStreaming && !streamingContent && (
+          {/* Thinking indicator - dots animation (only when not regenerating a specific message) */}
+          {isStreaming && !streamingContent && !regeneratingMessageId && (
             <div className="mb-6 flex gap-2.5">
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
                 </p>
-                <div className="prose-zequel">
-                  <span className="text-muted-foreground/60">Thinking</span>
-                  <span className="ml-0.5 inline-block h-[18px] w-[2px] animate-pulse bg-foreground/70" />
+                <div className="flex items-center gap-1 py-2">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -862,18 +915,60 @@ export function StudyPanel() {
         )}
         <div className="mx-auto flex max-w-3xl items-end gap-2 py-2.5">
           <div className="flex min-h-[44px] flex-1 items-end rounded-xl border border-border bg-secondary/30 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mb-2.5 ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:text-foreground"
-              aria-label="Attach file"
-            >
-              <Paperclip className="h-4 w-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="mb-2.5 ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:text-foreground"
+                  aria-label="Add attachment"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[140px] border-border bg-background">
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  Camera
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  Photos
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Files
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx"
+              accept=".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <input
+              ref={imageInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -967,16 +1062,33 @@ function EditableTitle({ title, onSave }: { title: string; onSave: (t: string) =
   )
 }
 
-/* Extract images from message content (markdown image syntax) */
-function extractImages(content: string): { text: string; images: string[] } {
+/* Extract images and document references from message content (markdown image syntax and DOCS marker) */
+function extractImagesAndDocs(content: string): { text: string; images: string[]; documents: string[] } {
   const imgRegex = /!\[image-\d+\]\((data:image\/[^)]+)\)/g
+  const docRegex = /\[DOCS:([^\]]+)\]/g
   const images: string[] = []
+  const documents: string[] = []
   let match
   while ((match = imgRegex.exec(content)) !== null) {
     images.push(match[1])
   }
-  const text = content.replace(imgRegex, '').trim()
-  return { text, images }
+  while ((match = docRegex.exec(content)) !== null) {
+    // Documents are separated by |||
+    const docs = match[1].split('|||').filter(Boolean)
+    documents.push(...docs)
+  }
+  // Also handle legacy format [Documents: name.pdf]
+  const legacyDocRegex = /\[Documents:\s*([^\]]+)\]/g
+  while ((match = legacyDocRegex.exec(content)) !== null) {
+    const docs = match[1].split(',').map(d => d.trim()).filter(Boolean)
+    documents.push(...docs)
+  }
+  const text = content
+    .replace(imgRegex, '')
+    .replace(docRegex, '')
+    .replace(legacyDocRegex, '')
+    .trim()
+  return { text, images, documents }
 }
 
 /* Chat message component */
@@ -988,6 +1100,8 @@ function ChatMessage({
   onRegenerate,
   onEdit,
   onVersionChange,
+  onBranchNewChat,
+  onShare,
 }: {
   message: Message
   userAvatar: string | null
@@ -996,6 +1110,8 @@ function ChatMessage({
   onRegenerate?: () => void
   onEdit?: () => void
   onVersionChange?: (newIndex: number) => void
+  onBranchNewChat?: () => void
+  onShare?: () => void
 }) {
   const hasVersions = message.versions && message.versions.length > 1
   const activeVersionIndex = message.activeVersionIndex ?? 0
@@ -1006,9 +1122,9 @@ function ChatMessage({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
-  const { text: displayText, images: userImages } = isUser
-    ? extractImages(message.content)
-    : { text: message.content, images: [] }
+  const { text: displayText, images: userImages, documents: userDocuments } = isUser
+    ? extractImagesAndDocs(message.content)
+    : { text: message.content, images: [], documents: [] }
 
   const copyContent = () => {
     const textOnly = isUser ? displayText : message.content
@@ -1017,6 +1133,60 @@ function ChatMessage({
       setTimeout(() => setCopied(false), 2000)
     })
     setShowMenu(false)
+  }
+
+  const shareContent = async () => {
+    const textOnly = isUser ? displayText : message.content
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Zequel Response',
+          text: textOnly,
+        })
+      } catch {
+        // User cancelled or share failed, fallback to copy
+        await navigator.clipboard.writeText(textOnly)
+      }
+    } else {
+      // Fallback to copy
+      await navigator.clipboard.writeText(textOnly)
+    }
+    setShowMenu(false)
+    if (onShare) onShare()
+  }
+
+  const downloadAsPdf = async () => {
+    const textOnly = message.content
+    // Create a simple HTML document for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Zequel Response</title>
+          <style>
+            body { font-family: system-ui, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+            pre { background: #f4f4f4; padding: 16px; border-radius: 8px; overflow-x: auto; }
+            code { font-family: 'SF Mono', Monaco, monospace; font-size: 14px; }
+            h1, h2, h3 { margin-top: 24px; }
+            p { margin: 12px 0; }
+          </style>
+        </head>
+        <body>
+          <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #eee;">
+            <strong style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Zequel Response</strong>
+          </div>
+          <div>${textOnly.replace(/\n/g, '<br>')}</div>
+        </body>
+      </html>
+    `
+    // Open in new window for printing
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      printWindow.print()
+    }
   }
 
   // Long press detection — only for user messages, cancel if moved more than 10px
@@ -1088,6 +1258,21 @@ function ChatMessage({
                   ))}
                 </div>
               )}
+              {userDocuments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {userDocuments.map((docName, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-md bg-foreground/5 px-2 py-1"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-foreground/60" />
+                      <span className="font-mono text-[11px] text-foreground/80">
+                        {docName}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {displayText && (
                 <p className="whitespace-pre-wrap break-words font-sans text-[14px] leading-[1.65] text-foreground">
                   {displayText}
@@ -1107,7 +1292,7 @@ function ChatMessage({
                     Copy
                   </button>
                   <button
-                    onClick={() => { setShowMenu(false) }}
+                    onClick={shareContent}
                     className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 font-mono text-[11px] uppercase tracking-wider text-foreground hover:bg-secondary"
                   >
                     <Share2 className="h-3.5 w-3.5" />
@@ -1139,22 +1324,10 @@ function ChatMessage({
           Zequel
         </p>
         {isRegenerating ? (
-          <div className="flex flex-col gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <div className="relative h-5 w-5">
-                <div className="absolute inset-0 animate-ping rounded-full bg-primary/30" />
-                <div className="absolute inset-0 animate-pulse rounded-full bg-primary/50" />
-                <Loader2 className="absolute inset-0 h-5 w-5 animate-spin text-primary" />
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-primary">
-                Generating new response...
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-3/4 animate-pulse rounded bg-muted/50" />
-              <div className="h-3 w-full animate-pulse rounded bg-muted/40" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-muted/30" />
-            </div>
+          <div className="flex items-center gap-1 py-2">
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '0ms' }} />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '150ms' }} />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '300ms' }} />
           </div>
         ) : (
           <div className="prose-zequel">
@@ -1195,7 +1368,7 @@ function ChatMessage({
           <button onClick={copyContent} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Copy">
             {copied ? <Check className="h-3.5 w-3.5 text-foreground" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Share">
+          <button onClick={shareContent} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 transition-colors hover:bg-secondary hover:text-foreground" title="Share">
             <Share2 className="h-3.5 w-3.5" />
           </button>
           <DropdownMenu>
@@ -1205,9 +1378,19 @@ function ChatMessage({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-[160px] border-border bg-background">
-              <DropdownMenuItem className="gap-2 font-mono text-[11px] uppercase tracking-wider">
+              <DropdownMenuItem 
+                className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                onClick={onBranchNewChat}
+              >
                 <GitBranch className="h-3.5 w-3.5" />
                 Branch in new chat
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
+                onClick={downloadAsPdf}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download as PDF
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
