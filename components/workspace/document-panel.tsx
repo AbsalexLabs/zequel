@@ -83,12 +83,12 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
         .single()
 
       if (error) {
-        console.error('[v0] Failed to fetch document text:', error)
+        console.error('[Zequel] Failed to fetch document text:', error)
       } else if (docData?.extracted_text) {
         setViewerText(docData.extracted_text)
       }
     } catch (err) {
-      console.error('[v0] Error loading document:', err)
+      console.error('[Zequel] Error loading document:', err)
     } finally {
       setIsLoadingText(false)
     }
@@ -107,7 +107,7 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
         .remove([deleteTarget.file_path])
 
       if (storageError) {
-        console.error('[v0] Storage delete error:', storageError)
+        console.error('[Zequel] Storage delete error:', storageError)
       }
 
       // Delete from database
@@ -117,13 +117,13 @@ export function DocumentPanel({ onUploadClick, userEmail, profile, hideHeader }:
         .eq('id', deleteTarget.id)
 
       if (dbError) {
-        console.error('[v0] DB delete error:', dbError)
+        console.error('[Zequel] DB delete error:', dbError)
       }
 
       // Remove from local store regardless
       removeDocument(deleteTarget.id)
     } catch (err) {
-      console.error('[v0] Delete error:', err)
+      console.error('[Zequel] Delete error:', err)
     } finally {
       setDeleteTarget(null)
       setIsDeleting(false)

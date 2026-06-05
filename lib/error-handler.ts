@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 /**
  * Standardized error response builder for API routes
- * All errors logged with [v0] prefix for easy debugging
+ * All errors logged with [Zequel] prefix for easy debugging
  */
 
 export interface ApiErrorResponse {
@@ -18,7 +18,7 @@ export interface ApiSuccessResponse<T = any> {
 
 /**
  * Create a standardized error response
- * Logs error with [v0] prefix and returns JSON response
+ * Logs error with [Zequel] prefix and returns JSON response
  */
 export function handleApiError(
   error: unknown,
@@ -29,7 +29,7 @@ export function handleApiError(
   const errorMessage = error instanceof Error ? error.message : 'Unknown error'
   const errorCode = error instanceof Error && 'code' in error ? (error as any).code : undefined
 
-  console.error(`[v0] ${context} error:`, {
+  console.error(`[Zequel] ${context} error:`, {
     message: errorMessage,
     code: errorCode,
     fullError: error,
@@ -129,7 +129,7 @@ export function safeJsonParse<T = any>(
     const data = JSON.parse(json)
     return { success: true, data }
   } catch (error) {
-    console.error('[v0] JSON parse error:', error)
+    console.error('[Zequel] JSON parse error:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Invalid JSON',
@@ -147,5 +147,5 @@ export function logOperation(
   details?: any
 ): void {
   const statusSymbol = status === 'success' ? '✓' : status === 'error' ? '✗' : '→'
-  console.log(`[v0] ${statusSymbol} ${operation}`, details ? { details } : '')
+  console.log(`[Zequel] ${statusSymbol} ${operation}`, details ? { details } : '')
 }

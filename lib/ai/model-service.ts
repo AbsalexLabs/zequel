@@ -132,7 +132,7 @@ export async function processAIRequest(
     
     // Log profile fetch errors but don't block (suspended column might not exist yet)
     if (profileError && profileError.code !== 'PGRST116') {
-      console.error('[v0] Profile fetch error:', profileError)
+      console.error('[Zequel] Profile fetch error:', profileError)
     }
 
     // 6. Validate input
