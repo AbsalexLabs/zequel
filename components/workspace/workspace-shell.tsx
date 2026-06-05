@@ -133,7 +133,9 @@ function DesktopWorkspace({
 
         {/* Right Panel — Conversations (study) or Evidence (research) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
-          {mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />}
+          <div className="h-full overflow-hidden">
+            {mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />}
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
