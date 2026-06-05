@@ -4,10 +4,10 @@ import type { RequestType } from '@/lib/validation/ai-schema'
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
 
 // Rate limits per endpoint per minute
-const RATE_LIMITS: Record<RequestType, { free: number; premium: number }> = {
-  chat: { free: 20, premium: 100 },
-  query: { free: 10, premium: 50 },
-  extract: { free: 10, premium: 30 },
+const RATE_LIMITS: Record<RequestType, { free: number; premium_lite: number; premium_pro: number }> = {
+  chat: { free: 10, premium_lite: 30, premium_pro: 100 },
+  query: { free: 5, premium_lite: 20, premium_pro: 50 },
+  extract: { free: 5, premium_lite: 15, premium_pro: 30 },
 }
 
 const WINDOW_MS = 60 * 1000 // 1 minute window
@@ -22,11 +22,11 @@ interface RateLimitResult {
 export function checkRateLimit(
   userId: string,
   endpoint: RequestType,
-  isPremium: boolean = false
+  plan: 'free' | 'premium_lite' | 'premium_pro' = 'free'
 ): RateLimitResult {
   const key = `${userId}:${endpoint}`
   const now = Date.now()
-  const limit = isPremium ? RATE_LIMITS[endpoint].premium : RATE_LIMITS[endpoint].free
+  const limit = RATE_LIMITS[endpoint][plan]
 
   const current = rateLimitStore.get(key)
 

@@ -4,9 +4,9 @@ import { createServiceClient, canCreateServiceClient } from '@/lib/supabase/serv
 
 // Plan limits configuration
 const PLAN_LIMITS = {
-  free: { requestLimit: 50, fileUploads: 5, maxFileSize: 10 },
-  premium: { requestLimit: 500, fileUploads: 50, maxFileSize: 25 },
-  enterprise: { requestLimit: 5000, fileUploads: -1, maxFileSize: 100 }, // -1 = unlimited
+  free: { requestLimit: 20, fileUploads: 3, maxFileSize: 10 },
+  premium_lite: { requestLimit: 200, fileUploads: 30, maxFileSize: 50 },
+  premium_pro: { requestLimit: 1000, fileUploads: 100, maxFileSize: 100 },
 }
 
 // GET - Fetch current subscription
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { plan } = body
 
-    if (!plan || !['free', 'premium', 'enterprise'].includes(plan)) {
+    if (!plan || !['free', 'premium_lite', 'premium_pro'].includes(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 

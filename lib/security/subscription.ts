@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
-export type SubscriptionPlan = 'free' | 'premium' | 'enterprise'
+export type SubscriptionPlan = 'free' | 'premium_lite' | 'premium_pro'
 
 export interface Subscription {
   user_id: string
@@ -12,9 +12,9 @@ export interface Subscription {
 
 // Default limits per plan
 const PLAN_LIMITS: Record<SubscriptionPlan, { requestLimit: number }> = {
-  free: { requestLimit: 50 },
-  premium: { requestLimit: 500 },
-  enterprise: { requestLimit: 5000 },
+  free: { requestLimit: 20 },
+  premium_lite: { requestLimit: 200 },
+  premium_pro: { requestLimit: 1000 },
 }
 
 export async function getUserSubscription(userId: string): Promise<Subscription> {
@@ -71,5 +71,5 @@ export async function getUserSubscription(userId: string): Promise<Subscription>
 }
 
 export function isPremiumPlan(plan: SubscriptionPlan): boolean {
-  return plan === 'premium' || plan === 'enterprise'
+  return plan === 'premium_lite' || plan === 'premium_pro'
 }
