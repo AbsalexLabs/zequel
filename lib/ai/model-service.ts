@@ -192,10 +192,11 @@ export async function processAIRequest(
         settings,
       },
     }
-  } catch {
+  } catch (err) {
+    console.error('[Zequel] processAIRequest error:', err)
     return {
       success: false,
-      error: 'Internal server error',
+      error: err instanceof Error ? err.message : 'Internal server error',
       statusCode: 500,
     }
   }

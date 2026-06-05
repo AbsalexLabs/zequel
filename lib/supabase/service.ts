@@ -12,11 +12,13 @@ export function createServiceClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!url) {
-    throw new Error('[v0] NEXT_PUBLIC_SUPABASE_URL is not configured')
+    console.error('[Zequel] NEXT_PUBLIC_SUPABASE_URL is not configured')
+    throw new Error('Database configuration missing')
   }
 
   if (!serviceRoleKey) {
-    throw new Error('[v0] SUPABASE_SERVICE_ROLE_KEY is not configured - required for service operations')
+    console.error('[Zequel] SUPABASE_SERVICE_ROLE_KEY is not configured - required for service operations')
+    throw new Error('Database service key missing')
   }
 
   return createClient(url, serviceRoleKey, {
@@ -25,4 +27,11 @@ export function createServiceClient() {
       persistSession: false,
     },
   })
+}
+
+/**
+ * Check if service client can be created (for graceful fallbacks)
+ */
+export function canCreateServiceClient(): boolean {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
