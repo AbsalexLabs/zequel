@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Check, Sparkles, Zap, Building2, Loader2 } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SubscriptionPanelProps {
@@ -24,7 +24,6 @@ const PLANS = [
     price: '$0',
     period: '/month',
     description: 'Perfect for getting started',
-    icon: Zap,
     features: [
       '20 AI requests per day',
       '3 document uploads',
@@ -45,7 +44,6 @@ const PLANS = [
     price: '$2.99',
     period: '/month',
     description: 'For regular researchers',
-    icon: Sparkles,
     popular: true,
     features: [
       '200 AI requests per day',
@@ -68,7 +66,6 @@ const PLANS = [
     price: '$5.99',
     period: '/month',
     description: 'For power users',
-    icon: Building2,
     features: [
       '1,000 AI requests per day',
       '100 document uploads',
@@ -172,14 +169,9 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
 
       {/* Current Plan Badge */}
       <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/10">
-          {currentPlan === 'free' && <Zap className="h-5 w-5 text-foreground" />}
-          {currentPlan === 'premium_lite' && <Sparkles className="h-5 w-5 text-amber-500" />}
-          {currentPlan === 'premium_pro' && <Building2 className="h-5 w-5 text-blue-500" />}
-        </div>
         <div>
           <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Current Plan</p>
-          <p className="font-sans text-lg font-semibold text-foreground capitalize">{currentPlan}</p>
+          <p className="font-sans text-lg font-semibold text-foreground capitalize">{currentPlan.replace('_', ' ')}</p>
         </div>
         {subscription?.expires_at && (
           <div className="ml-auto text-right">
@@ -208,7 +200,6 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
       {/* Plans Grid */}
       <div className="grid gap-4 sm:grid-cols-3">
         {PLANS.map((plan) => {
-          const Icon = plan.icon
           const isCurrentPlan = currentPlan === plan.id
           const isUpgradingThis = isUpgrading === plan.id
 
@@ -219,38 +210,18 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
                 'relative flex flex-col rounded-xl border p-5 transition-all',
                 isCurrentPlan
                   ? 'border-foreground bg-foreground/5'
-                  : 'border-border bg-background hover:border-foreground/30',
-                'popular' in plan && plan.popular && !isCurrentPlan && 'border-amber-500/50'
+                  : 'border-border bg-background hover:border-foreground/30'
               )}
             >
               {'popular' in plan && plan.popular && !isCurrentPlan && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-3 py-0.5 font-mono text-[10px] uppercase tracking-wider text-background">
                   Popular
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    plan.id === 'free' && 'bg-secondary',
-                    plan.id === 'premium_lite' && 'bg-amber-500/10',
-                    plan.id === 'premium_pro' && 'bg-blue-500/10'
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      'h-4 w-4',
-                      plan.id === 'free' && 'text-foreground',
-                      plan.id === 'premium_lite' && 'text-amber-500',
-                      plan.id === 'premium_pro' && 'text-blue-500'
-                    )}
-                  />
-                </div>
-                <div>
-                  <h3 className="font-mono text-sm font-semibold text-foreground">{plan.name}</h3>
-                  <p className="font-sans text-xs text-muted-foreground">{plan.description}</p>
-                </div>
+              <div>
+                <h3 className="font-mono text-sm font-semibold text-foreground">{plan.name}</h3>
+                <p className="mt-0.5 font-sans text-xs text-muted-foreground">{plan.description}</p>
               </div>
 
               <div className="mt-4 flex items-baseline gap-1">
@@ -276,11 +247,7 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
                   'mt-5 h-9 w-full font-mono text-[11px] uppercase tracking-wider',
                   isCurrentPlan
                     ? 'bg-foreground/10 text-foreground hover:bg-foreground/10'
-                    : plan.id === 'premium_lite'
-                    ? 'bg-amber-500 text-white hover:bg-amber-600'
-                    : plan.id === 'premium_pro'
-                    ? 'bg-blue-500 text-white hover:bg-blue-600'
-                    : 'bg-secondary text-foreground hover:bg-secondary/80'
+                    : 'bg-foreground text-background hover:bg-foreground/90'
                 )}
               >
                 {isUpgradingThis ? (
