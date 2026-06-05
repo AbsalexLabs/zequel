@@ -81,6 +81,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
     if (error || !rows || rows.length === 0) {
       // Return defaults if table is empty or error
+      console.warn('[Zequel] System settings not found in database, using defaults')
       return DEFAULT_SETTINGS
     }
 
@@ -108,7 +109,9 @@ export async function getSystemSettings(): Promise<SystemSettings> {
 
     return settings
   } catch (err) {
-    console.error('Failed to fetch system settings:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[Zequel] Failed to fetch system settings:', errorMessage)
+    // Return defaults on any error to prevent crashes
     return DEFAULT_SETTINGS
   }
 }

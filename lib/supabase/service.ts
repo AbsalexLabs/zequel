@@ -13,12 +13,12 @@ export function createServiceClient() {
 
   if (!url) {
     console.error('[Zequel] NEXT_PUBLIC_SUPABASE_URL is not configured')
-    throw new Error('Database configuration missing')
+    throw new Error('SUPABASE_URL_MISSING')
   }
 
   if (!serviceRoleKey) {
     console.error('[Zequel] SUPABASE_SERVICE_ROLE_KEY is not configured - required for service operations')
-    throw new Error('Database service key missing')
+    throw new Error('SUPABASE_SERVICE_KEY_MISSING')
   }
 
   return createClient(url, serviceRoleKey, {

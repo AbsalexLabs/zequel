@@ -87,6 +87,14 @@ export async function POST(request: Request) {
       }), { status: 503, headers: { 'Content-Type': 'application/json' } })
     }
 
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[v0] Chat API: Supabase service role key not configured')
+      return new Response(JSON.stringify({
+        error: 'Database service not configured',
+        details: 'SUPABASE_SERVICE_ROLE_KEY environment variable is missing'
+      }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+    }
+
     if (!process.env.OPENROUTER_API_KEY) {
       console.error('[v0] Chat API: OpenRouter API key not configured')
       return new Response(JSON.stringify({
