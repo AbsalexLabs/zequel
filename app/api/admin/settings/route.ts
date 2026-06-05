@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   max_file_uploads_premium_lite: 30,
   max_file_uploads_premium_pro: 100,
   max_tokens_per_request: 16384,
-  default_model: 'google/gemini-2.0-flash-001',
+  default_model: 'google/gemini-2.0-flash-exp',
   file_uploads_enabled: true,
   max_file_size_mb: 10,
   maintenance_mode: false,
