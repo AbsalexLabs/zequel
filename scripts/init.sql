@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   max_file_uploads_premium_lite INTEGER DEFAULT 30,
   max_file_uploads_premium_pro INTEGER DEFAULT 100,
   max_tokens_per_request INTEGER DEFAULT 16384,
-  default_model TEXT DEFAULT 'google/gemini-2.0-flash-001',
+  default_model TEXT DEFAULT 'google/gemini-2.0-flash-exp',
   file_uploads_enabled BOOLEAN DEFAULT TRUE,
   max_file_size_mb INTEGER DEFAULT 10,
   maintenance_mode BOOLEAN DEFAULT FALSE,
