@@ -78,13 +78,34 @@ type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_u
 
 export async function POST(request: Request) {
   try {
+    // Check if required environment variables are configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('[v0] Chat API: Supabase not configured')
+      return new Response(JSON.stringify({
+        error: 'Database not configured',
+        details: 'Supabase environment variables are missing'
+      }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error('[v0] Chat API: OpenRouter API key not configured')
+      return new Response(JSON.stringify({
+        error: 'AI service not configured',
+        details: 'OPENROUTER_API_KEY environment variable is missing'
+      }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+    }
+
     const body = await request.json()
     const { conversation_id, message, document_id, document_ids, images, full_content, regenerate } = body
 
     // 1. Process through security layer (auth, validation, rate limit, subscription)
     const authResult = await processAIRequest('chat', body)
     if (!authResult.success) {
-      return new Response(authResult.error, { status: authResult.statusCode })
+      console.error('[v0] Chat API auth failed:', authResult.error)
+      return new Response(JSON.stringify({
+        error: authResult.error,
+        statusCode: authResult.statusCode
+      }), { status: authResult.statusCode || 401, headers: { 'Content-Type': 'application/json' } })
     }
 
     const { user, isPremium, startTime, settings } = authResult.data as {
@@ -226,7 +247,12 @@ export async function POST(request: Request) {
     )
 
     if (!aiResult.success || !aiResult.stream) {
-      return new Response(aiResult.error || 'AI processing failed', { status: aiResult.statusCode || 502 })
+      console.error('[v0] Chat API AI call failed:', aiResult.error)
+      return new Response(JSON.stringify({
+        error: aiResult.error || 'AI processing failed',
+        details: 'Check OpenRouter API key and model availability',
+        statusCode: aiResult.statusCode || 502
+      }), { status: aiResult.statusCode || 502, headers: { 'Content-Type': 'application/json' } })
     }
 
     const { model, inputTokens } = aiResult.data as { model: string; inputTokens: number }

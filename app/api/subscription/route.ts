@@ -12,10 +12,27 @@ const PLAN_LIMITS = {
 // GET - Fetch current subscription
 export async function GET() {
   try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('[v0] Supabase not configured - missing environment variables')
+      return NextResponse.json({ 
+        error: 'Database not configured',
+        details: 'Supabase environment variables are missing'
+      }, { status: 503 })
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
+    if (authError) {
+      console.error('[v0] Auth error:', authError.message)
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: authError.message 
+      }, { status: 401 })
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -47,18 +64,40 @@ export async function GET() {
       }
     })
   } catch (err) {
-    console.error('Subscription API error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('[v0] Subscription API error:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: errorMessage,
+      hint: 'Check Supabase connection and environment variables'
+    }, { status: 500 })
   }
 }
 
 // POST - Update subscription (simplified - in production, integrate with Stripe)
 export async function POST(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('[v0] Supabase not configured - missing environment variables')
+      return NextResponse.json({ 
+        error: 'Database not configured',
+        details: 'Supabase environment variables are missing'
+      }, { status: 503 })
+    }
+
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !user) {
+    if (authError) {
+      console.error('[v0] Auth error:', authError.message)
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: authError.message 
+      }, { status: 401 })
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -117,7 +156,12 @@ export async function POST(request: NextRequest) {
       message: `Successfully ${plan === 'free' ? 'downgraded to' : 'upgraded to'} ${plan} plan`,
     })
   } catch (err) {
-    console.error('Subscription update API error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('[v0] Subscription update API error:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: errorMessage,
+      hint: 'Check Supabase connection and environment variables'
+    }, { status: 500 })
   }
 }

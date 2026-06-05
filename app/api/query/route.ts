@@ -36,13 +36,34 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 
 export async function POST(request: Request) {
   try {
+    // Check if required environment variables are configured
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('[v0] Query API: Supabase not configured')
+      return NextResponse.json({
+        error: 'Database not configured',
+        details: 'Supabase environment variables are missing'
+      }, { status: 503 })
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error('[v0] Query API: OpenRouter API key not configured')
+      return NextResponse.json({
+        error: 'AI service not configured',
+        details: 'OPENROUTER_API_KEY environment variable is missing'
+      }, { status: 503 })
+    }
+
     const body = await request.json()
     const { query, output_format, document_ids } = body
 
     // Process through security layer
     const authResult = await processAIRequest('query', body)
     if (!authResult.success) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.statusCode })
+      console.error('[v0] Query API auth failed:', authResult.error)
+      return NextResponse.json({ 
+        error: authResult.error,
+        details: 'Authentication or rate limit check failed'
+      }, { status: authResult.statusCode || 401 })
     }
 
     const { user, isPremium, startTime, settings } = authResult.data as {
@@ -115,7 +136,11 @@ export async function POST(request: Request) {
     )
 
     if (!aiResult.success) {
-      return NextResponse.json({ error: aiResult.error }, { status: aiResult.statusCode })
+      console.error('[v0] Query API AI call failed:', aiResult.error)
+      return NextResponse.json({ 
+        error: aiResult.error,
+        details: 'AI processing failed - check OpenRouter API key and model availability'
+      }, { status: aiResult.statusCode || 502 })
     }
 
     const aiResponse = aiResult.data as { choices?: Array<{ message?: { content?: string } }> }
