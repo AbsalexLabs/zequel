@@ -11,21 +11,21 @@ interface ModelConfig {
 const MODEL_CONFIGS: Record<RequestType, ModelConfig> = {
   // Chat: fast, capable model for conversations
   chat: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 16384,
     temperature: 0.4,
   },
   // Query/Research: high-quality model for structured analysis
   query: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 16384,
     temperature: 0.3,
   },
   // Extract: no AI needed, but including for completeness
   extract: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 4096,
     temperature: 0.2,
@@ -35,19 +35,19 @@ const MODEL_CONFIGS: Record<RequestType, ModelConfig> = {
 // Premium users may get access to more powerful models
 const PREMIUM_MODEL_CONFIGS: Record<RequestType, ModelConfig> = {
   chat: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 32768,
     temperature: 0.4,
   },
   query: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 32768,
     temperature: 0.3,
   },
   extract: {
-    primary: 'google/gemini-2.0-flash-exp',
+    primary: 'openai/gpt-5-nano',
     fallback: 'google/gemini-1.5-flash',
     maxTokens: 8192,
     temperature: 0.2,
@@ -59,5 +59,5 @@ export function getModelConfig(requestType: RequestType, isPremium: boolean = fa
 }
 
 export function getVisionModel(): string {
-  return 'google/gemini-2.0-flash-exp'
+  return 'openai/gpt-5-nano'
 }
