@@ -402,12 +402,12 @@ export function StudyPanel() {
     if (imageNames.length > 0 && !messageContent) {
       messageContent = `[Attached: ${imageNames.join(', ')}]`
     }
-    // Add PDF names to message if any
+    // Add PDF names to message if any (using special marker that we'll parse for UI)
     if (pdfFiles.length > 0) {
-      const pdfNames = pdfFiles.map((af) => af.file.name).join(', ')
+      const pdfNames = pdfFiles.map((af) => af.file.name).join('|||')
       messageContent = messageContent 
-        ? `${messageContent}\n[Documents: ${pdfNames}]` 
-        : `[Documents: ${pdfNames}]`
+        ? `${messageContent}\n[DOCS:${pdfNames}]` 
+        : `[DOCS:${pdfNames}]`
     }
 
     // Build user message with any attached image previews stored in content
@@ -574,8 +574,8 @@ export function StudyPanel() {
     const msgToEdit = messages[messageIndex]
     if (msgToEdit.role !== 'user') return
 
-    // Extract text and images separately
-    const { text, images } = extractImages(msgToEdit.content)
+    // Extract text and images separately (documents are preserved in content for context)
+    const { text, images } = extractImagesAndDocs(msgToEdit.content)
     setInput(text)
     setEditingMessageId(msgToEdit.id)
     setEditingImages(images) // Store images to re-attach when sending
@@ -759,16 +759,17 @@ export function StudyPanel() {
             </div>
           )}
 
-          {/* Thinking indicator */}
+          {/* Thinking indicator - dots animation */}
           {isStreaming && !streamingContent && (
             <div className="mb-6 flex gap-2.5">
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Zequel
                 </p>
-                <div className="prose-zequel">
-                  <span className="text-muted-foreground/60">Thinking</span>
-                  <span className="ml-0.5 inline-block h-[18px] w-[2px] animate-pulse bg-foreground/70" />
+                <div className="flex items-center gap-1 py-2">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '0ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -967,16 +968,33 @@ function EditableTitle({ title, onSave }: { title: string; onSave: (t: string) =
   )
 }
 
-/* Extract images from message content (markdown image syntax) */
-function extractImages(content: string): { text: string; images: string[] } {
+/* Extract images and document references from message content (markdown image syntax and DOCS marker) */
+function extractImagesAndDocs(content: string): { text: string; images: string[]; documents: string[] } {
   const imgRegex = /!\[image-\d+\]\((data:image\/[^)]+)\)/g
+  const docRegex = /\[DOCS:([^\]]+)\]/g
   const images: string[] = []
+  const documents: string[] = []
   let match
   while ((match = imgRegex.exec(content)) !== null) {
     images.push(match[1])
   }
-  const text = content.replace(imgRegex, '').trim()
-  return { text, images }
+  while ((match = docRegex.exec(content)) !== null) {
+    // Documents are separated by |||
+    const docs = match[1].split('|||').filter(Boolean)
+    documents.push(...docs)
+  }
+  // Also handle legacy format [Documents: name.pdf]
+  const legacyDocRegex = /\[Documents:\s*([^\]]+)\]/g
+  while ((match = legacyDocRegex.exec(content)) !== null) {
+    const docs = match[1].split(',').map(d => d.trim()).filter(Boolean)
+    documents.push(...docs)
+  }
+  const text = content
+    .replace(imgRegex, '')
+    .replace(docRegex, '')
+    .replace(legacyDocRegex, '')
+    .trim()
+  return { text, images, documents }
 }
 
 /* Chat message component */
@@ -1006,9 +1024,9 @@ function ChatMessage({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
-  const { text: displayText, images: userImages } = isUser
-    ? extractImages(message.content)
-    : { text: message.content, images: [] }
+  const { text: displayText, images: userImages, documents: userDocuments } = isUser
+    ? extractImagesAndDocs(message.content)
+    : { text: message.content, images: [], documents: [] }
 
   const copyContent = () => {
     const textOnly = isUser ? displayText : message.content
@@ -1088,6 +1106,21 @@ function ChatMessage({
                   ))}
                 </div>
               )}
+              {userDocuments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {userDocuments.map((docName, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 rounded-md bg-foreground/5 px-2 py-1"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-foreground/60" />
+                      <span className="font-mono text-[11px] text-foreground/80">
+                        {docName}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {displayText && (
                 <p className="whitespace-pre-wrap break-words font-sans text-[14px] leading-[1.65] text-foreground">
                   {displayText}
@@ -1139,22 +1172,10 @@ function ChatMessage({
           Zequel
         </p>
         {isRegenerating ? (
-          <div className="flex flex-col gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <div className="relative h-5 w-5">
-                <div className="absolute inset-0 animate-ping rounded-full bg-primary/30" />
-                <div className="absolute inset-0 animate-pulse rounded-full bg-primary/50" />
-                <Loader2 className="absolute inset-0 h-5 w-5 animate-spin text-primary" />
-              </div>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-primary">
-                Generating new response...
-              </span>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 w-3/4 animate-pulse rounded bg-muted/50" />
-              <div className="h-3 w-full animate-pulse rounded bg-muted/40" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-muted/30" />
-            </div>
+          <div className="flex items-center gap-1 py-2">
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '0ms' }} />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '150ms' }} />
+            <span className="h-2 w-2 animate-bounce rounded-full bg-foreground/60" style={{ animationDelay: '300ms' }} />
           </div>
         ) : (
           <div className="prose-zequel">
