@@ -11,7 +11,7 @@ interface SubscriptionPanelProps {
 }
 
 interface Subscription {
-  plan: 'free' | 'premium' | 'enterprise'
+  plan: 'free' | 'premium_lite' | 'premium_pro'
   status: string
   request_limit?: number
   expires_at?: string | null
@@ -26,53 +26,64 @@ const PLANS = [
     description: 'Perfect for getting started',
     icon: Zap,
     features: [
-      '50 AI requests per day',
-      '5 document uploads',
+      '20 AI requests per day',
+      '3 document uploads',
       'Basic study mode',
       'Standard response speed',
       'Community support',
+      'Limited workspace history',
     ],
     limitations: [
       'Limited to 10MB files',
-      'No priority support',
+      'No research mode',
+      'No multi-document analysis',
     ],
   },
   {
-    id: 'premium',
-    name: 'Premium',
-    price: '$12',
+    id: 'premium_lite',
+    name: 'Premium Lite',
+    price: '$2.99',
     period: '/month',
-    description: 'For serious researchers',
+    description: 'For regular researchers',
     icon: Sparkles,
     popular: true,
     features: [
-      '500 AI requests per day',
-      '50 document uploads',
-      'Advanced study & research modes',
+      '200 AI requests per day',
+      '30 document uploads',
+      'Advanced study mode',
+      'Research mode access',
+      'Multi-document analysis',
       'Priority response speed',
       'Email support',
-      'Extended file size (25MB)',
+      'Extended file size (50MB)',
       'Citation export',
+      'Full workspace history',
+      'Advanced research tools',
     ],
     limitations: [],
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: '$49',
+    id: 'premium_pro',
+    name: 'Premium Pro',
+    price: '$5.99',
     period: '/month',
-    description: 'For teams and institutions',
+    description: 'For power users',
     icon: Building2,
     features: [
-      '5000 AI requests per day',
-      'Unlimited document uploads',
-      'All features included',
-      'Fastest response speed',
+      '1,000 AI requests per day',
+      '100 document uploads',
+      'Advanced+ study mode',
+      'Research mode access',
+      'Multi-document analysis',
+      'Highest priority speed',
       'Priority support',
       'Extended file size (100MB)',
-      'API access',
-      'Team collaboration',
-      'Custom integrations',
+      'Citation export',
+      'Full workspace history',
+      'Advanced research tools',
+      'Early access features',
+      'API access (coming soon)',
+      'Team collaboration (coming soon)',
     ],
     limitations: [],
   },
@@ -163,8 +174,8 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
       <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/10">
           {currentPlan === 'free' && <Zap className="h-5 w-5 text-foreground" />}
-          {currentPlan === 'premium' && <Sparkles className="h-5 w-5 text-amber-500" />}
-          {currentPlan === 'enterprise' && <Building2 className="h-5 w-5 text-blue-500" />}
+          {currentPlan === 'premium_lite' && <Sparkles className="h-5 w-5 text-amber-500" />}
+          {currentPlan === 'premium_pro' && <Building2 className="h-5 w-5 text-blue-500" />}
         </div>
         <div>
           <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Current Plan</p>
@@ -209,10 +220,10 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
                 isCurrentPlan
                   ? 'border-foreground bg-foreground/5'
                   : 'border-border bg-background hover:border-foreground/30',
-                plan.popular && !isCurrentPlan && 'border-amber-500/50'
+                'popular' in plan && plan.popular && !isCurrentPlan && 'border-amber-500/50'
               )}
             >
-              {plan.popular && !isCurrentPlan && (
+              {'popular' in plan && plan.popular && !isCurrentPlan && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white">
                   Popular
                 </div>
@@ -223,16 +234,16 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-lg',
                     plan.id === 'free' && 'bg-secondary',
-                    plan.id === 'premium' && 'bg-amber-500/10',
-                    plan.id === 'enterprise' && 'bg-blue-500/10'
+                    plan.id === 'premium_lite' && 'bg-amber-500/10',
+                    plan.id === 'premium_pro' && 'bg-blue-500/10'
                   )}
                 >
                   <Icon
                     className={cn(
                       'h-4 w-4',
                       plan.id === 'free' && 'text-foreground',
-                      plan.id === 'premium' && 'text-amber-500',
-                      plan.id === 'enterprise' && 'text-blue-500'
+                      plan.id === 'premium_lite' && 'text-amber-500',
+                      plan.id === 'premium_pro' && 'text-blue-500'
                     )}
                   />
                 </div>
@@ -265,9 +276,9 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
                   'mt-5 h-9 w-full font-mono text-[11px] uppercase tracking-wider',
                   isCurrentPlan
                     ? 'bg-foreground/10 text-foreground hover:bg-foreground/10'
-                    : plan.id === 'premium'
+                    : plan.id === 'premium_lite'
                     ? 'bg-amber-500 text-white hover:bg-amber-600'
-                    : plan.id === 'enterprise'
+                    : plan.id === 'premium_pro'
                     ? 'bg-blue-500 text-white hover:bg-blue-600'
                     : 'bg-secondary text-foreground hover:bg-secondary/80'
                 )}

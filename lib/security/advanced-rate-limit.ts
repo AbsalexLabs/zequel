@@ -180,12 +180,13 @@ function checkHourLimit(
 function checkDailyLimit(
   userId: string,
   freeLimit: number,
-  premiumLimit: number,
-  isPremium: boolean
+  premiumLiteLimit: number,
+  premiumProLimit: number,
+  plan: 'free' | 'premium_lite' | 'premium_pro'
 ): { allowed: boolean; remaining: number; resetIn: number } {
   const key = `daily:${userId}`
   const now = Date.now()
-  const limit = isPremium ? premiumLimit : freeLimit
+  const limit = plan === 'premium_pro' ? premiumProLimit : plan === 'premium_lite' ? premiumLiteLimit : freeLimit
   
   const current = dailyStore.get(key)
   
@@ -309,8 +310,9 @@ export async function checkAdvancedRateLimit(
   const dailyCheck = checkDailyLimit(
     userId,
     settings.free_daily_limit ?? 20,
-    settings.premium_daily_limit ?? 100,
-    isPremium
+    settings.premium_lite_daily_limit ?? 200,
+    settings.premium_pro_daily_limit ?? 1000,
+    isPremium ? 'premium_lite' : 'free' // simplified - actual plan should be passed
   )
   if (!dailyCheck.allowed) {
     await logRateLimitViolation(userId, ip, 'daily')

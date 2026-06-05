@@ -7,9 +7,11 @@ export type ResponseStyle = 'concise' | 'detailed' | 'academic'
 export interface SystemSettings {
   ai_enabled: boolean
   free_daily_limit: number
-  premium_daily_limit: number
+  premium_lite_daily_limit: number
+  premium_pro_daily_limit: number
   max_file_uploads_free: number
-  max_file_uploads_premium: number
+  max_file_uploads_premium_lite: number
+  max_file_uploads_premium_pro: number
   max_tokens_per_request: number
   default_model: string
   file_uploads_enabled: boolean
@@ -28,9 +30,11 @@ export interface SystemSettings {
 const DEFAULT_SETTINGS: SystemSettings = {
   ai_enabled: true,
   free_daily_limit: 20,
-  premium_daily_limit: 100,
-  max_file_uploads_free: 5,
-  max_file_uploads_premium: 50,
+  premium_lite_daily_limit: 200,
+  premium_pro_daily_limit: 1000,
+  max_file_uploads_free: 3,
+  max_file_uploads_premium_lite: 30,
+  max_file_uploads_premium_pro: 100,
   max_tokens_per_request: 16384,
   default_model: 'google/gemini-2.0-flash-001',
   file_uploads_enabled: true,
@@ -128,17 +132,31 @@ export async function isAIEnabled(): Promise<boolean> {
 /**
  * Get daily limit based on user plan
  */
-export async function getDailyLimit(isPremium: boolean): Promise<number> {
+export async function getDailyLimit(plan: 'free' | 'premium_lite' | 'premium_pro'): Promise<number> {
   const settings = await getSystemSettings()
-  return isPremium ? settings.premium_daily_limit : settings.free_daily_limit
+  switch (plan) {
+    case 'premium_pro':
+      return settings.premium_pro_daily_limit
+    case 'premium_lite':
+      return settings.premium_lite_daily_limit
+    default:
+      return settings.free_daily_limit
+  }
 }
 
 /**
  * Get file upload limit based on user plan
  */
-export async function getFileUploadLimit(isPremium: boolean): Promise<number> {
+export async function getFileUploadLimit(plan: 'free' | 'premium_lite' | 'premium_pro'): Promise<number> {
   const settings = await getSystemSettings()
-  return isPremium ? settings.max_file_uploads_premium : settings.max_file_uploads_free
+  switch (plan) {
+    case 'premium_pro':
+      return settings.max_file_uploads_premium_pro
+    case 'premium_lite':
+      return settings.max_file_uploads_premium_lite
+    default:
+      return settings.max_file_uploads_free
+  }
 }
 
 /**

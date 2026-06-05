@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   plan TEXT DEFAULT 'free',
   status TEXT DEFAULT 'active',
-  request_limit INTEGER DEFAULT 50,
+  request_limit INTEGER DEFAULT 20,
   expires_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -169,9 +169,11 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
   id TEXT PRIMARY KEY DEFAULT 'default',
   ai_enabled BOOLEAN DEFAULT TRUE,
   free_daily_limit INTEGER DEFAULT 20,
-  premium_daily_limit INTEGER DEFAULT 100,
-  max_file_uploads_free INTEGER DEFAULT 5,
-  max_file_uploads_premium INTEGER DEFAULT 50,
+  premium_lite_daily_limit INTEGER DEFAULT 200,
+  premium_pro_daily_limit INTEGER DEFAULT 1000,
+  max_file_uploads_free INTEGER DEFAULT 3,
+  max_file_uploads_premium_lite INTEGER DEFAULT 30,
+  max_file_uploads_premium_pro INTEGER DEFAULT 100,
   max_tokens_per_request INTEGER DEFAULT 16384,
   default_model TEXT DEFAULT 'google/gemini-2.0-flash-001',
   file_uploads_enabled BOOLEAN DEFAULT TRUE,
@@ -186,6 +188,41 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 );
 
 INSERT INTO public.system_settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+
+-- Migration: Add new subscription tier columns if they don't exist and migrate old data
+DO $$ 
+BEGIN
+  -- Add premium_lite columns if they don't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_lite_daily_limit') THEN
+    ALTER TABLE public.system_settings ADD COLUMN premium_lite_daily_limit INTEGER DEFAULT 200;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_lite') THEN
+    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_lite INTEGER DEFAULT 30;
+  END IF;
+  
+  -- Add premium_pro columns if they don't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_pro_daily_limit') THEN
+    ALTER TABLE public.system_settings ADD COLUMN premium_pro_daily_limit INTEGER DEFAULT 1000;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_pro') THEN
+    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_pro INTEGER DEFAULT 100;
+  END IF;
+  
+  -- Migrate old premium users to premium_lite (only if subscriptions table and plan column exist)
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'plan') THEN
+    UPDATE public.subscriptions SET plan = 'premium_lite' WHERE plan = 'premium';
+    UPDATE public.subscriptions SET plan = 'premium_pro' WHERE plan = 'enterprise';
+  END IF;
+  
+  -- Update request limits only if the column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'request_limit') THEN
+    UPDATE public.subscriptions SET request_limit = 20 WHERE plan = 'free' AND request_limit = 50;
+    UPDATE public.subscriptions SET request_limit = 200 WHERE plan = 'premium_lite';
+    UPDATE public.subscriptions SET request_limit = 1000 WHERE plan = 'premium_pro';
+  END IF;
+END $$;
 
 -- 12. Admin audit logs table
 CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
