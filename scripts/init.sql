@@ -210,16 +210,18 @@ BEGIN
     ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_pro INTEGER DEFAULT 100;
   END IF;
   
-  -- Migrate old premium users to premium_lite
-  UPDATE public.subscriptions SET plan = 'premium_lite' WHERE plan = 'premium';
+  -- Migrate old premium users to premium_lite (only if subscriptions table and plan column exist)
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'plan') THEN
+    UPDATE public.subscriptions SET plan = 'premium_lite' WHERE plan = 'premium';
+    UPDATE public.subscriptions SET plan = 'premium_pro' WHERE plan = 'enterprise';
+  END IF;
   
-  -- Migrate old enterprise users to premium_pro  
-  UPDATE public.subscriptions SET plan = 'premium_pro' WHERE plan = 'enterprise';
-  
-  -- Update request limits for existing users based on new plan
-  UPDATE public.subscriptions SET request_limit = 20 WHERE plan = 'free' AND request_limit = 50;
-  UPDATE public.subscriptions SET request_limit = 200 WHERE plan = 'premium_lite';
-  UPDATE public.subscriptions SET request_limit = 1000 WHERE plan = 'premium_pro';
+  -- Update request limits only if the column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'request_limit') THEN
+    UPDATE public.subscriptions SET request_limit = 20 WHERE plan = 'free' AND request_limit = 50;
+    UPDATE public.subscriptions SET request_limit = 200 WHERE plan = 'premium_lite';
+    UPDATE public.subscriptions SET request_limit = 1000 WHERE plan = 'premium_pro';
+  END IF;
 END $$;
 
 -- 12. Admin audit logs table
