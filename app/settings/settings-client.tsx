@@ -232,9 +232,9 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   })()
 
   return (
-    <div className="min-h-svh bg-background">
+    <div className="flex h-svh flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center gap-4 border-b border-border px-6 py-4">
+      <div className="flex shrink-0 items-center gap-4 border-b border-border px-6 py-4">
         <Link href="/workspace">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
@@ -243,7 +243,8 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         <ZequelLogo />
       </div>
 
-      <div className="mx-auto max-w-2xl px-6 py-8">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-2xl px-6 py-8">
         <h1 className="font-mono text-sm font-semibold uppercase tracking-wider text-foreground">Settings</h1>
 
         {/* Category Navigation */}
@@ -518,8 +519,9 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
           )}
         </div>
 
-        <div className="mt-16 text-center">
+        <div className="mt-16 pb-8 text-center">
           <span className="font-mono text-[10px] tracking-wider text-muted-foreground/40">Absalex Labs</span>
+        </div>
         </div>
       </div>
     </div>

@@ -16,7 +16,7 @@ export function EvidencePanel() {
     ) ?? []
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground">
