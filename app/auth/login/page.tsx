@@ -42,6 +42,15 @@ export default function LoginPage() {
         }
         throw signInError
       }
+      
+      // Register session for device tracking
+      try {
+        await fetch('/api/sessions/register', { method: 'POST' })
+      } catch {
+        // Don't block login if session registration fails
+        console.warn('Failed to register session')
+      }
+      
       router.push('/workspace')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign in')
@@ -91,6 +100,12 @@ export default function LoginPage() {
         setEmail(resetEmail)
         setError('Password reset successfully. Please sign in.')
       } else {
+        // Register session for device tracking
+        try {
+          await fetch('/api/sessions/register', { method: 'POST' })
+        } catch {
+          // Don't block login if session registration fails
+        }
         router.push('/workspace')
       }
     } catch (err: unknown) {

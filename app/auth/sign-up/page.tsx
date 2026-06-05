@@ -72,6 +72,12 @@ export default function SignUpPage() {
 
       // If signup returns a session, user is automatically confirmed
       if (signUpData?.session) {
+        // Register session for device tracking
+        try {
+          await fetch('/api/sessions/register', { method: 'POST' })
+        } catch {
+          // Don't block signup if session registration fails
+        }
         router.push('/workspace')
         return
       }
@@ -91,6 +97,13 @@ export default function SignUpPage() {
         setError(signInError.message)
         setStep('form')
         return
+      }
+
+      // Register session for device tracking
+      try {
+        await fetch('/api/sessions/register', { method: 'POST' })
+      } catch {
+        // Don't block signup if session registration fails
       }
 
       router.push('/workspace')

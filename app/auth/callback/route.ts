@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createSession } from '@/lib/session/session-manager'
+import { headers } from 'next/headers'
 
 /**
  * Auth callback route for handling email confirmation and OAuth redirects
@@ -36,6 +38,21 @@ export async function GET(request: NextRequest) {
             request.url,
           ),
         )
+      }
+
+      // Register session for device tracking
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (user && session?.access_token) {
+          const headersList = await headers()
+          const userAgent = headersList.get('user-agent') || undefined
+          await createSession(user.id, session.access_token, userAgent)
+        }
+      } catch (sessionError) {
+        // Don't block OAuth flow if session registration fails
+        console.warn('[v0] Session registration failed:', sessionError)
       }
 
       // Successfully authenticated, redirect to workspace
