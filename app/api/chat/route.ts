@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { processAIRequest, executeAICall, logStreamCompletion } from '@/lib/ai/model-service'
 import { estimateTokens } from '@/lib/logging/ai-logger'
 import type { SystemSettings } from '@/lib/settings/system-settings'
+import type { WorkspaceMode } from '@/lib/ai/tier-models'
 
 const STUDY_SYSTEM_PROMPT = `You are Zequel, a world-class AI research assistant and study companion created by Absalex Labs. You possess extraordinary intelligence, depth of knowledge, and analytical capability rivaling the best human experts in every field.
 
@@ -116,9 +117,10 @@ export async function POST(request: Request) {
       }), { status: authResult.statusCode || 401, headers: { 'Content-Type': 'application/json' } })
     }
 
-    const { user, isPremium, startTime, settings } = authResult.data as {
+    const { user, isPremium, subscription, startTime, settings } = authResult.data as {
       user: { id: string }
       isPremium: boolean
+      subscription: { plan: 'free' | 'premium_lite' | 'premium_pro' }
       startTime: number
       settings: SystemSettings
     }
@@ -251,7 +253,9 @@ export async function POST(request: Request) {
       { messages: chatMessages, stream: true, hasImages },
       isPremium,
       startTime,
-      settings
+      settings,
+      subscription.plan,
+      'normal' as WorkspaceMode  // Chat always uses 'normal' mode
     )
 
     if (!aiResult.success || !aiResult.stream) {

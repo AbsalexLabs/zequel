@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { processAIRequest, executeAICall, createAIResponse } from '@/lib/ai/model-service'
 import type { SystemSettings } from '@/lib/settings/system-settings'
+import type { WorkspaceMode } from '@/lib/ai/tier-models'
 
 const BASE_INSTRUCTIONS = `You are Zequel, an advanced research analysis engine by Absalex Labs. You produce exhaustive, publication-quality structured analysis.
 
@@ -74,9 +75,10 @@ export async function POST(request: Request) {
       }, { status: authResult.statusCode || 401 })
     }
 
-    const { user, isPremium, startTime, settings } = authResult.data as {
+    const { user, isPremium, subscription, startTime, settings } = authResult.data as {
       user: { id: string }
       isPremium: boolean
+      subscription: { plan: 'free' | 'premium_lite' | 'premium_pro' }
       startTime: number
       settings: SystemSettings
     }
@@ -127,7 +129,7 @@ export async function POST(request: Request) {
 
     const userMessage = `Research Query: "${query}"\n\n${docBlock}\n\nAnalyze comprehensively. Return ONLY the JSON object.`
 
-    // Execute AI call through secure service (using system settings)
+    // Execute AI call through secure service (using tier-based model selection)
     const aiResult = await executeAICall(
       user.id,
       'query',
@@ -140,7 +142,9 @@ export async function POST(request: Request) {
       },
       isPremium,
       startTime,
-      settings
+      settings,
+      subscription.plan,
+      'research' as WorkspaceMode  // Query API uses 'research' mode
     )
 
     if (!aiResult.success) {

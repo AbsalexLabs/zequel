@@ -24,6 +24,12 @@ export interface SystemSettings {
   burst_cooldown_seconds: number
   // Response quality settings
   response_style: ResponseStyle
+  // Tier-based model overrides (optional, stored as JSON strings)
+  model_override_free?: string
+  model_override_premium_lite?: string
+  model_override_premium_pro?: string
+  // Research mode specific override for Premium Lite
+  model_override_premium_lite_research?: string
 }
 
 // Default settings - used if database is unavailable
@@ -192,4 +198,43 @@ export async function isFileUploadsEnabled(): Promise<boolean> {
 export async function getMaxFileSize(): Promise<number> {
   const settings = await getSystemSettings()
   return settings.max_file_size_mb * 1024 * 1024
+}
+
+/**
+ * Get tier-specific model override from system settings
+ * Returns undefined if no override is set (falls back to hardcoded defaults)
+ */
+export async function getTierModelOverride(plan: 'free' | 'premium_lite' | 'premium_pro', mode?: 'research'): Promise<string | undefined> {
+  const settings = await getSystemSettings()
+  
+  // Check for mode-specific override (e.g., Premium Lite research mode)
+  if (mode === 'research' && plan === 'premium_lite') {
+    if (settings.model_override_premium_lite_research) {
+      return settings.model_override_premium_lite_research
+    }
+  }
+  
+  // Check for tier override
+  const key = `model_override_${plan}` as keyof SystemSettings
+  const override = settings[key]
+  
+  return typeof override === 'string' ? override : undefined
+}
+
+/**
+ * Get all tier model overrides (for admin dashboard)
+ */
+export async function getAllTierModelOverrides(): Promise<{
+  free?: string
+  premium_lite?: string
+  premium_pro?: string
+  premium_lite_research?: string
+}> {
+  const settings = await getSystemSettings()
+  return {
+    free: settings.model_override_free,
+    premium_lite: settings.model_override_premium_lite,
+    premium_pro: settings.model_override_premium_pro,
+    premium_lite_research: settings.model_override_premium_lite_research,
+  }
 }

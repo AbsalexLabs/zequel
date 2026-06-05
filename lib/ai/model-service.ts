@@ -1,11 +1,13 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getUserSubscription, isPremiumPlan } from '@/lib/security/subscription'
+import { getUserSubscription, isPremiumPlan, type SubscriptionPlan } from '@/lib/security/subscription'
 import { logAIUsage, estimateTokens } from '@/lib/logging/ai-logger'
 import { validateRequest, chatRequestSchema, queryRequestSchema, type RequestType } from '@/lib/validation/ai-schema'
 import { getSystemSettings, isAIEnabled, type SystemSettings } from '@/lib/settings/system-settings'
 import { checkAdvancedRateLimit, checkIPLimit, type RateLimitResult } from '@/lib/security/advanced-rate-limit'
 import { buildSystemPrompt, validateResponseQuality, buildRetryPrompt } from '@/lib/ai/prompt-builder'
+import { getModelConfig } from '@/lib/ai/model-router'
+import type { WorkspaceMode } from '@/lib/ai/tier-models'
 import type { z } from 'zod'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -214,34 +216,20 @@ export async function processAIRequest(
 }
 
 /**
- * Get model configuration based on system settings
+ * Internal helper to get model config from router
+ * This will be called from executeAICall with subscription plan and workspace mode
  */
-function getModelConfig(settings: SystemSettings, requestType: RequestType, isPremium: boolean) {
-  const baseModel = settings.default_model
-  const fallbackModel = 'google/gemini-1.5-flash'
-  
-  // Max tokens from settings, adjusted by plan
-  const maxTokens = isPremium 
-    ? Math.min(settings.max_tokens_per_request * 2, 65536) 
-    : settings.max_tokens_per_request
-  
-  // Temperature varies by request type
-  const temperatures: Record<RequestType, number> = {
-    chat: 0.4,
-    query: 0.3,
-    extract: 0.2,
-  }
-  
-  return {
-    primary: baseModel,
-    fallback: fallbackModel,
-    maxTokens,
-    temperature: temperatures[requestType],
-  }
+async function getModelConfigWithTier(
+  requestType: RequestType,
+  plan: SubscriptionPlan = 'free',
+  workspaceMode: WorkspaceMode = 'normal'
+) {
+  return getModelConfig(requestType, plan, workspaceMode)
 }
 
 /**
  * Execute AI call with proper security and logging
+ * Now supports subscription tier-based model selection
  */
 export async function executeAICall(
   userId: string,
@@ -249,12 +237,18 @@ export async function executeAICall(
   options: AIRequestOptions,
   isPremium: boolean = false,
   startTime: number = Date.now(),
-  settings?: SystemSettings
+  settings?: SystemSettings,
+  subscriptionPlan?: SubscriptionPlan,
+  workspaceMode?: WorkspaceMode
 ): Promise<AIServiceResult> {
   // Fetch settings if not provided
   const systemSettings = settings || await getSystemSettings()
-  const modelConfig = getModelConfig(systemSettings, requestType, isPremium)
-  const model = options.hasImages ? systemSettings.default_model : modelConfig.primary
+  
+  // Use tier-based model selection (defaults to 'free' if no plan provided)
+  const plan = subscriptionPlan || (isPremium ? 'premium_lite' : 'free')
+  const mode = workspaceMode || 'normal'
+  const modelConfig = await getModelConfigWithTier(requestType, plan, mode)
+  const model = options.hasImages ? modelConfig.primary : modelConfig.primary
 
   // Build system prompt using centralized prompt builder
   const zequelSystemPrompt = buildSystemPrompt(systemSettings)
