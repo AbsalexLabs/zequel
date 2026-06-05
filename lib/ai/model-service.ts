@@ -193,10 +193,21 @@ export async function processAIRequest(
       },
     }
   } catch (err) {
-    console.error('[Zequel] processAIRequest error:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[Zequel] processAIRequest error:', errorMessage)
+    
+    // Handle specific configuration errors
+    if (errorMessage === 'SUPABASE_URL_MISSING' || errorMessage === 'SUPABASE_SERVICE_KEY_MISSING') {
+      return {
+        success: false,
+        error: 'Database service is not configured. Please check environment variables.',
+        statusCode: 503,
+      }
+    }
+    
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Internal server error',
+      error: errorMessage,
       statusCode: 500,
     }
   }

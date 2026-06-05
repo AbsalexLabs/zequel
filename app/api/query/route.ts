@@ -45,6 +45,14 @@ export async function POST(request: Request) {
       }, { status: 503 })
     }
 
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[v0] Query API: Supabase service role key not configured')
+      return NextResponse.json({
+        error: 'Database service not configured',
+        details: 'SUPABASE_SERVICE_ROLE_KEY environment variable is missing'
+      }, { status: 503 })
+    }
+
     if (!process.env.OPENROUTER_API_KEY) {
       console.error('[v0] Query API: OpenRouter API key not configured')
       return NextResponse.json({
