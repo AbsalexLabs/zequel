@@ -189,6 +189,39 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 
 INSERT INTO public.system_settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
 
+-- Migration: Add new subscription tier columns if they don't exist and migrate old data
+DO $$ 
+BEGIN
+  -- Add premium_lite columns if they don't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_lite_daily_limit') THEN
+    ALTER TABLE public.system_settings ADD COLUMN premium_lite_daily_limit INTEGER DEFAULT 200;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_lite') THEN
+    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_lite INTEGER DEFAULT 30;
+  END IF;
+  
+  -- Add premium_pro columns if they don't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_pro_daily_limit') THEN
+    ALTER TABLE public.system_settings ADD COLUMN premium_pro_daily_limit INTEGER DEFAULT 1000;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_pro') THEN
+    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_pro INTEGER DEFAULT 100;
+  END IF;
+  
+  -- Migrate old premium users to premium_lite
+  UPDATE public.subscriptions SET plan = 'premium_lite' WHERE plan = 'premium';
+  
+  -- Migrate old enterprise users to premium_pro  
+  UPDATE public.subscriptions SET plan = 'premium_pro' WHERE plan = 'enterprise';
+  
+  -- Update request limits for existing users based on new plan
+  UPDATE public.subscriptions SET request_limit = 20 WHERE plan = 'free' AND request_limit = 50;
+  UPDATE public.subscriptions SET request_limit = 200 WHERE plan = 'premium_lite';
+  UPDATE public.subscriptions SET request_limit = 1000 WHERE plan = 'premium_pro';
+END $$;
+
 -- 12. Admin audit logs table
 CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
