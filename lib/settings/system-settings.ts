@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient, canCreateServiceClient } from '@/lib/supabase/service'
 
 // Response style type
 export type ResponseStyle = 'concise' | 'detailed' | 'academic'
@@ -60,6 +60,12 @@ export async function getSystemSettings(): Promise<SystemSettings> {
   // Return cached settings if still valid
   if (cachedSettings && (now - cacheTimestamp) < CACHE_TTL) {
     return cachedSettings
+  }
+
+  // Check if we can create the service client
+  if (!canCreateServiceClient()) {
+    console.warn('[Zequel] Service client unavailable, using default settings')
+    return DEFAULT_SETTINGS
   }
 
   try {

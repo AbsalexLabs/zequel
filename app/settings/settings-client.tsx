@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { ZequelLogo } from '@/components/zequel-logo'
 import { OtpVerify } from '@/components/otp-verify'
+import { SessionsPanel } from '@/components/settings/sessions-panel'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui/select'
 import { OUTPUT_FORMAT_LABELS } from '@/lib/types'
 import type { OutputFormat, UserPreferences, Profile } from '@/lib/types'
-import { ArrowLeft, Camera, User, Shield, Palette, FileOutput } from 'lucide-react'
+import { ArrowLeft, Camera, User, Shield, Palette, FileOutput, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +35,7 @@ interface SettingsClientProps {
 const CATEGORIES = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Shield },
+  { id: 'sessions', label: 'Sessions', icon: Smartphone },
   { id: 'theme', label: 'Theme', icon: Palette },
   { id: 'output', label: 'Output', icon: FileOutput },
 ] as const
@@ -419,6 +421,11 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                 </Button>
               </div>
             </div>
+          )}
+
+          {/* ========== SESSIONS ========== */}
+          {activeCategory === 'sessions' && (
+            <SessionsPanel />
           )}
 
           {/* ========== THEME ========== */}

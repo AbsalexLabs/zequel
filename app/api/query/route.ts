@@ -167,6 +167,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (err) {
     console.error('Query route error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined 
+    }, { status: 500 })
   }
 }
