@@ -22,6 +22,7 @@ import { OUTPUT_FORMAT_LABELS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Loader2, ArrowRight, History, Clock, ChevronLeft, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { UpgradeDialog, type RequiredPlan } from './upgrade-dialog'
 
 export function ResearchPanel() {
   const {
@@ -41,6 +42,11 @@ export function ResearchPanel() {
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('summarize')
   const [showHistory, setShowHistory] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [upgrade, setUpgrade] = useState<{
+    open: boolean
+    plan?: RequiredPlan
+    message?: string
+  }>({ open: false })
 
   const selectedDocs = documents.filter((d) =>
     selectedDocumentIds.includes(d.id)
@@ -64,6 +70,15 @@ export function ResearchPanel() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({ error: 'Request failed' }))
+        // Feature gated by plan — show the upgrade notice instead of an error.
+        if (res.status === 403 && errData?.upgradeRequired) {
+          setUpgrade({
+            open: true,
+            plan: (errData.requiredPlan as RequiredPlan) || 'premium_lite',
+            message: errData.error,
+          })
+          return
+        }
         throw new Error(errData.error || 'Request failed')
       }
 
@@ -336,6 +351,14 @@ export function ResearchPanel() {
           )}
         </div>
       </div>
+
+      <UpgradeDialog
+        open={upgrade.open}
+        onOpenChange={(open) => setUpgrade((prev) => ({ ...prev, open }))}
+        featureName="Research Mode"
+        requiredPlan={upgrade.plan}
+        message={upgrade.message}
+      />
     </div>
   )
 }

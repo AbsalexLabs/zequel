@@ -39,7 +39,8 @@ import {
   Camera,
   Download,
 } from 'lucide-react'
-import type { Conversation, Message } from '@/lib/types'
+import type { Conversation, Message, Document } from '@/lib/types'
+import { UpgradeDialog, type RequiredPlan } from './upgrade-dialog'
 
 interface AttachedFile {
   file: File
@@ -60,6 +61,7 @@ export function StudyPanel() {
     isStreaming,
     setIsStreaming,
     documents,
+    addDocument,
     selectedDocumentIds,
   } = useWorkspaceStore()
 
@@ -71,6 +73,11 @@ export function StudyPanel() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null)
   const [editingImages, setEditingImages] = useState<string[]>([]) // Store images when editing
+  const [upgrade, setUpgrade] = useState<{
+    open: boolean
+    plan?: RequiredPlan
+    message?: string
+  }>({ open: false })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -248,11 +255,22 @@ export function StudyPanel() {
 
       if (!res.ok) {
         let serverMessage = ''
+        let errData: { error?: string; upgradeRequired?: boolean; requiredPlan?: string } | null = null
         try {
-          const errData = await res.json()
+          errData = await res.json()
           serverMessage = errData?.error || ''
         } catch {
           serverMessage = await res.text().catch(() => '')
+        }
+        // Feature gated by plan — show the upgrade notice modal instead of an error bubble.
+        if (res.status === 403 && errData?.upgradeRequired) {
+          stopStreamRenderer()
+          setUpgrade({
+            open: true,
+            plan: (errData.requiredPlan as RequiredPlan) || 'premium_lite',
+            message: errData.error,
+          })
+          return
         }
         throw new Error(serverMessage || `API error: ${res.status}`)
       }
@@ -1041,6 +1059,14 @@ export function StudyPanel() {
           </div>
         </div>
       </div>
+
+      <UpgradeDialog
+        open={upgrade.open}
+        onOpenChange={(open) => setUpgrade((prev) => ({ ...prev, open }))}
+        featureName="Multi-Document Analysis"
+        requiredPlan={upgrade.plan}
+        message={upgrade.message}
+      />
     </div>
   )
 }

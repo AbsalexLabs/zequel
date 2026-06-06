@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { ZequelLogo } from '@/components/zequel-logo'
@@ -49,10 +49,15 @@ const NAME_REGEX = /^[a-zA-Z0-9 ]*$/
 
 export function SettingsClient({ userId, userEmail, preferences, profile }: SettingsClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { theme, setTheme } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [activeCategory, setActiveCategory] = useState<Category>('profile')
+  const tabParam = searchParams.get('tab')
+  const initialCategory: Category = CATEGORIES.some((c) => c.id === tabParam)
+    ? (tabParam as Category)
+    : 'profile'
+  const [activeCategory, setActiveCategory] = useState<Category>(initialCategory)
 
   // Profile state
   const [username, setUsername] = useState(profile?.username || '')
