@@ -1,6 +1,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getUserSubscription, isPremiumPlan } from '@/lib/security/subscription'
+import { getUserSubscription, isPremiumPlan, type SubscriptionPlan } from '@/lib/security/subscription'
+import { resolveModel, resolveFeature, type AIFeature } from '@/lib/ai/model-router'
 import { logAIUsage, estimateTokens } from '@/lib/logging/ai-logger'
 import { validateRequest, chatRequestSchema, queryRequestSchema, type RequestType } from '@/lib/validation/ai-schema'
 import { getSystemSettings, isAIEnabled, type SystemSettings } from '@/lib/settings/system-settings'
@@ -14,6 +15,10 @@ interface AIRequestOptions {
   messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>
   stream?: boolean
   hasImages?: boolean
+  // Feature being used — drives model selection per plan (see model-router.ts)
+  feature?: AIFeature
+  // Number of documents in the request (used to detect multi-document analysis)
+  documentCount?: number
 }
 
 interface AIServiceResult {
@@ -214,27 +219,37 @@ export async function processAIRequest(
 }
 
 /**
- * Get model configuration based on system settings
+ * Get model configuration based on plan + feature.
+ * Model selection comes from the plan/feature matrix in model-router.ts.
+ * Token budget and temperature still come from system settings.
  */
-function getModelConfig(settings: SystemSettings, requestType: RequestType, isPremium: boolean) {
-  const baseModel = settings.default_model
-  const fallbackModel = 'google/gemini-1.5-flash'
-  
+function getModelConfig(
+  settings: SystemSettings,
+  requestType: RequestType,
+  plan: SubscriptionPlan,
+  feature: AIFeature
+) {
+  const isPremium = isPremiumPlan(plan)
+  const resolution = resolveModel(feature, plan)
+
   // Max tokens from settings, adjusted by plan
-  const maxTokens = isPremium 
-    ? Math.min(settings.max_tokens_per_request * 2, 65536) 
+  const maxTokens = isPremium
+    ? Math.min(settings.max_tokens_per_request * 2, 65536)
     : settings.max_tokens_per_request
-  
+
   // Temperature varies by request type
   const temperatures: Record<RequestType, number> = {
     chat: 0.4,
     query: 0.3,
     extract: 0.2,
   }
-  
+
   return {
-    primary: baseModel,
-    fallback: fallbackModel,
+    allowed: resolution.allowed,
+    primary: resolution.model,
+    fallback: resolution.fallback,
+    reason: resolution.reason,
+    requiredPlan: resolution.requiredPlan,
     maxTokens,
     temperature: temperatures[requestType],
   }
@@ -247,14 +262,38 @@ export async function executeAICall(
   userId: string,
   requestType: RequestType,
   options: AIRequestOptions,
-  isPremium: boolean = false,
+  plan: SubscriptionPlan = 'free',
   startTime: number = Date.now(),
   settings?: SystemSettings
 ): Promise<AIServiceResult> {
   // Fetch settings if not provided
   const systemSettings = settings || await getSystemSettings()
-  const modelConfig = getModelConfig(systemSettings, requestType, isPremium)
-  const model = options.hasImages ? systemSettings.default_model : modelConfig.primary
+
+  // Determine which billable feature this request maps to, then resolve the
+  // model the user's plan is entitled to for that feature.
+  const feature = options.feature
+    ?? resolveFeature(requestType, { documentCount: options.documentCount })
+  const modelConfig = getModelConfig(systemSettings, requestType, plan, feature)
+
+  // Plan is not entitled to this feature — block before spending any tokens.
+  if (!modelConfig.allowed) {
+    await logAIUsage({
+      user_id: userId,
+      endpoint: requestType,
+      model: 'none',
+      status: 'error',
+      error_message: modelConfig.reason || 'Feature not available on current plan',
+      latency_ms: Date.now() - startTime,
+    })
+    return {
+      success: false,
+      error: modelConfig.reason || 'This feature is not available on your current plan.',
+      statusCode: 403,
+      data: { upgradeRequired: true, requiredPlan: modelConfig.requiredPlan },
+    }
+  }
+
+  const model = modelConfig.primary
 
   // Build system prompt using centralized prompt builder
   const zequelSystemPrompt = buildSystemPrompt(systemSettings)

@@ -116,9 +116,9 @@ export async function POST(request: Request) {
       }), { status: authResult.statusCode || 401, headers: { 'Content-Type': 'application/json' } })
     }
 
-    const { user, isPremium, startTime, settings } = authResult.data as {
+    const { user, subscription, startTime, settings } = authResult.data as {
       user: { id: string }
-      isPremium: boolean
+      subscription: { plan: 'free' | 'premium_lite' | 'premium_pro' }
       startTime: number
       settings: SystemSettings
     }
@@ -245,11 +245,12 @@ export async function POST(request: Request) {
     }
 
     // 2. Execute AI call through secure service (using system settings)
+    // documentCount drives feature detection: 2+ docs = multi-document analysis
     const aiResult = await executeAICall(
       user.id,
       'chat',
-      { messages: chatMessages, stream: true, hasImages },
-      isPremium,
+      { messages: chatMessages, stream: true, hasImages, documentCount: docsToFetch.length },
+      subscription.plan,
       startTime,
       settings
     )

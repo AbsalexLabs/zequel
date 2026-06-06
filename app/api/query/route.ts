@@ -74,9 +74,9 @@ export async function POST(request: Request) {
       }, { status: authResult.statusCode || 401 })
     }
 
-    const { user, isPremium, startTime, settings } = authResult.data as {
+    const { user, subscription, startTime, settings } = authResult.data as {
       user: { id: string }
-      isPremium: boolean
+      subscription: { plan: 'free' | 'premium_lite' | 'premium_pro' }
       startTime: number
       settings: SystemSettings
     }
@@ -128,6 +128,7 @@ export async function POST(request: Request) {
     const userMessage = `Research Query: "${query}"\n\n${docBlock}\n\nAnalyze comprehensively. Return ONLY the JSON object.`
 
     // Execute AI call through secure service (using system settings)
+    // Research mode; escalates to multi-document analysis with 2+ documents.
     const aiResult = await executeAICall(
       user.id,
       'query',
@@ -137,8 +138,9 @@ export async function POST(request: Request) {
           { role: 'user', content: userMessage },
         ],
         stream: false,
+        documentCount: document_ids.length,
       },
-      isPremium,
+      subscription.plan,
       startTime,
       settings
     )
