@@ -77,24 +77,55 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   )
   const [autoCitation, setAutoCitation] = useState(preferences?.auto_citation ?? true)
 
-  // Personalization / memory state (UI only for now — not yet persisted)
-  // TODO: integrate with backend. Plan:
-  //   1. Add columns to `preferences`: reference_saved_memories (bool),
-  //      reference_chat_history (bool), nickname (text), occupation (text),
-  //      about_you (text). Persist them in handleSave alongside other prefs.
-  //   2. Build a `memories` table (id, user_id, content, created_at) + a
-  //      "Manage memories" modal to list/delete saved memories.
-  //   3. Inject these values into the system prompt in lib/ai/prompt-builder.ts
-  //      when the corresponding toggles are enabled.
-  const [referenceMemories, setReferenceMemories] = useState(true)
-  const [referenceHistory, setReferenceHistory] = useState(true)
-  const [nickname, setNickname] = useState('')
-  const [occupation, setOccupation] = useState('')
-  const [aboutYou, setAboutYou] = useState('')
+  // Personalization / memory state — persisted to the `preferences` table
+  const [referenceMemories, setReferenceMemories] = useState(
+    preferences?.reference_saved_memories ?? true
+  )
+  const [referenceHistory, setReferenceHistory] = useState(
+    preferences?.reference_chat_history ?? true
+  )
+  const [nickname, setNickname] = useState(preferences?.nickname || '')
+  const [occupation, setOccupation] = useState(preferences?.occupation || '')
+  const [aboutYou, setAboutYou] = useState(preferences?.about_you || '')
 
-  // Manage memories dialog (UI only for now — sample data until backend lands)
+  // Manage memories dialog — loaded from /api/memories
   const [memoriesOpen, setMemoriesOpen] = useState(false)
   const [memories, setMemories] = useState<Memory[]>([])
+  const [memoriesLoading, setMemoriesLoading] = useState(false)
+
+  const openMemories = async () => {
+    setMemoriesOpen(true)
+    setMemoriesLoading(true)
+    try {
+      const res = await fetch('/api/memories')
+      const data = await res.json()
+      if (res.ok) {
+        setMemories((data.memories || []).map((m: { id: string; content: string }) => ({ id: m.id, content: m.content })))
+      }
+    } catch (err) {
+      console.error('[v0] Failed to load memories:', err)
+    } finally {
+      setMemoriesLoading(false)
+    }
+  }
+
+  const deleteMemory = async (id: string) => {
+    setMemories((prev) => prev.filter((m) => m.id !== id))
+    try {
+      await fetch(`/api/memories?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    } catch (err) {
+      console.error('[v0] Failed to delete memory:', err)
+    }
+  }
+
+  const deleteAllMemories = async () => {
+    setMemories([])
+    try {
+      await fetch('/api/memories?all=true', { method: 'DELETE' })
+    } catch (err) {
+      console.error('[v0] Failed to delete all memories:', err)
+    }
+  }
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -222,6 +253,11 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
           theme: theme as 'light' | 'dark',
           default_output_format: defaultFormat,
           auto_citation: autoCitation,
+          reference_saved_memories: referenceMemories,
+          reference_chat_history: referenceHistory,
+          nickname: nickname.trim() || null,
+          occupation: occupation.trim() || null,
+          about_you: aboutYou.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId)
@@ -546,7 +582,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setMemoriesOpen(true)}
+                  onClick={openMemories}
                   className="h-9 shrink-0 rounded-md font-mono text-[11px] uppercase tracking-wider"
                 >
                   Manage
@@ -631,8 +667,9 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         open={memoriesOpen}
         onOpenChange={setMemoriesOpen}
         memories={memories}
-        onDelete={(id) => setMemories((prev) => prev.filter((m) => m.id !== id))}
-        onDeleteAll={() => setMemories([])}
+        loading={memoriesLoading}
+        onDelete={deleteMemory}
+        onDeleteAll={deleteAllMemories}
       />
     </div>
   )

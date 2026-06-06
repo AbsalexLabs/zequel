@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { processAIRequest, executeAICall, logStreamCompletion } from '@/lib/ai/model-service'
 import { estimateTokens } from '@/lib/logging/ai-logger'
+import { buildPersonalizationContext, extractAndSaveMemories } from '@/lib/ai/personalization'
 import type { SystemSettings } from '@/lib/settings/system-settings'
 
 const STUDY_SYSTEM_PROMPT = `You are Zequel, a world-class AI research assistant and study companion created by Absalex Labs. You possess extraordinary intelligence, depth of knowledge, and analytical capability rivaling the best human experts in every field.
@@ -125,6 +126,12 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
+    // Personalization: load user preferences + saved memories and build context
+    const { context: personalizationContext, prefs: personalizationPrefs } =
+      await buildPersonalizationContext(supabase, user.id)
+    const referenceChatHistory = personalizationPrefs?.reference_chat_history ?? true
+    const referenceSavedMemories = personalizationPrefs?.reference_saved_memories ?? true
+
     // Save user message to DB (skip if regenerating)
     if (!regenerate) {
       const storedContent = full_content || message || '[Image]'
@@ -138,6 +145,12 @@ export async function POST(request: Request) {
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversation_id)
+
+      // Personalization: extract & save durable memories from the user's message
+      // (only when the user has memory-saving enabled). Best-effort, fire-and-forget.
+      if (referenceSavedMemories && message && typeof message === 'string') {
+        void extractAndSaveMemories(supabase, user.id, message)
+      }
     }
 
     // Fetch document text if selected (support both single and multiple documents)
@@ -203,6 +216,11 @@ export async function POST(request: Request) {
       { role: 'system', content: STUDY_SYSTEM_PROMPT },
     ]
 
+    // Inject personalization context (nickname, occupation, about, saved memories)
+    if (personalizationContext) {
+      chatMessages.push({ role: 'system', content: personalizationContext })
+    }
+
     if (documentTitle && documentText) {
       const truncated = documentText.length > 80000
         ? documentText.substring(0, 80000) + '\n\n[Document truncated due to length]'
@@ -218,11 +236,19 @@ export async function POST(request: Request) {
       })
     }
 
-    if (history && history.length > 0) {
+    if (referenceChatHistory && history && history.length > 0) {
       for (const msg of history) {
         if (msg.role === 'user' || msg.role === 'assistant') {
           chatMessages.push({ role: msg.role, content: msg.content })
         }
+      }
+    } else if (!referenceChatHistory) {
+      // Chat-history referencing disabled: only include the most recent user turn
+      const lastUser = history && history.length > 0
+        ? [...history].reverse().find((m) => m.role === 'user')
+        : null
+      if (lastUser) {
+        chatMessages.push({ role: 'user', content: lastUser.content })
       }
     }
 

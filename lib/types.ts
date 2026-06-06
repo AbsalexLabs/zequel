@@ -37,6 +37,20 @@ export interface UserPreferences {
   theme: 'light' | 'dark'
   default_output_format: OutputFormat
   auto_citation: boolean
+  // Personalization / memory settings
+  reference_saved_memories: boolean
+  reference_chat_history: boolean
+  nickname: string | null
+  occupation: string | null
+  about_you: string | null
+}
+
+export interface Memory {
+  id: string
+  user_id: string
+  content: string
+  source: 'ai' | 'user'
+  created_at: string
 }
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
