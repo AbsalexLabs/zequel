@@ -23,7 +23,26 @@ import {
 } from '@/components/ui/select'
 import { OUTPUT_FORMAT_LABELS } from '@/lib/types'
 import type { OutputFormat, UserPreferences, Profile } from '@/lib/types'
-import { ArrowLeft, Camera, User, Shield, Palette, FileOutput, CreditCard } from 'lucide-react'
+import {
+  ArrowLeft,
+  Camera,
+  User,
+  Shield,
+  Palette,
+  FileOutput,
+  CreditCard,
+  Settings2,
+  Languages,
+  LifeBuoy,
+  Bug,
+  Download,
+  Trash2,
+  ScrollText,
+  Globe,
+  BookOpen,
+  ExternalLink,
+  ChevronRight,
+} from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +59,7 @@ const CATEGORIES = [
   { id: 'subscription', label: 'Subscription', icon: CreditCard },
   { id: 'theme', label: 'Theme', icon: Palette },
   { id: 'output', label: 'Output', icon: FileOutput },
+  { id: 'more', label: 'More', icon: Settings2 },
 ] as const
 
 type Category = (typeof CATEGORIES)[number]['id']
@@ -81,6 +101,9 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     preferences?.default_output_format || 'summarize'
   )
   const [autoCitation, setAutoCitation] = useState(preferences?.auto_citation ?? true)
+
+  // Language (UI only for now)
+  const [language, setLanguage] = useState('en')
 
   // Personalization / memory state — persisted to the `preferences` table
   const [referenceMemories, setReferenceMemories] = useState(
@@ -660,6 +683,86 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
               </div>
             </div>
           )}
+
+          {/* ========== MORE ========== */}
+          {activeCategory === 'more' && (
+            <div className="flex flex-col gap-8">
+              {/* ----- Preferences ----- */}
+              <div className="flex flex-col gap-6">
+                <SectionHeader title="Preferences" description="General application preferences." />
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Languages className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Language</p>
+                      <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Choose your preferred interface language.</p>
+                    </div>
+                  </div>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger className="h-9 w-44 rounded-md border-border font-mono text-[11px] uppercase tracking-wider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover text-popover-foreground">
+                      <SelectItem value="en" className="font-mono text-[11px] uppercase tracking-wider">English</SelectItem>
+                      <SelectItem value="es" className="font-mono text-[11px] uppercase tracking-wider">Español</SelectItem>
+                      <SelectItem value="fr" className="font-mono text-[11px] uppercase tracking-wider">Français</SelectItem>
+                      <SelectItem value="de" className="font-mono text-[11px] uppercase tracking-wider">Deutsch</SelectItem>
+                      <SelectItem value="pt" className="font-mono text-[11px] uppercase tracking-wider">Português</SelectItem>
+                      <SelectItem value="ar" className="font-mono text-[11px] uppercase tracking-wider">العربية</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* ----- Support ----- */}
+              <div className="flex flex-col gap-2">
+                <SectionHeader title="Support" description="Get help and share feedback." />
+                <div className="flex flex-col overflow-hidden rounded-lg border border-border">
+                  <MoreRow icon={LifeBuoy} label="Help Center" description="Browse guides and FAQs." />
+                  <Separator />
+                  <MoreRow icon={Bug} label="Report a Bug" description="Let us know what went wrong." />
+                </div>
+              </div>
+
+              {/* ----- Data ----- */}
+              <div className="flex flex-col gap-2">
+                <SectionHeader title="Data" description="Manage your personal data." />
+                <div className="flex flex-col overflow-hidden rounded-lg border border-border">
+                  <MoreRow icon={Download} label="Export Data" description="Download a copy of your data." />
+                  <Separator />
+                  <MoreRow
+                    icon={Trash2}
+                    label="Delete Account"
+                    description="Permanently remove your account and data."
+                    destructive
+                  />
+                </div>
+              </div>
+
+              {/* ----- Resources ----- */}
+              <div className="flex flex-col gap-2">
+                <SectionHeader title="Resources" description="Links and reference material." />
+                <div className="flex flex-col overflow-hidden rounded-lg border border-border">
+                  <MoreRow icon={Globe} label="Website" description="Visit the Zequel website." external />
+                  <Separator />
+                  <MoreRow icon={BookOpen} label="Documentation" description="Read the product documentation." external />
+                </div>
+              </div>
+
+              {/* ----- Legal ----- */}
+              <div className="flex flex-col gap-2">
+                <SectionHeader title="Legal" description="Policies and agreements." />
+                <div className="flex flex-col overflow-hidden rounded-lg border border-border">
+                  <MoreRow icon={ScrollText} label="Terms of Use" description="Review our terms of service." external />
+                  <Separator />
+                  <MoreRow icon={Shield} label="Privacy Policy" description="Learn how we handle your data." external />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-16 pb-8 text-center">
@@ -698,5 +801,51 @@ function FieldRow({ label, error, children }: { label: string; error?: string; c
       </div>
       {children}
     </div>
+  )
+}
+
+function MoreRow({
+  icon: Icon,
+  label,
+  description,
+  external = false,
+  destructive = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  description: string
+  external?: boolean
+  destructive?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      className="group flex w-full items-center justify-between gap-4 bg-background px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
+    >
+      <div className="flex items-center gap-3">
+        <Icon
+          className={cn(
+            'h-4 w-4 shrink-0',
+            destructive ? 'text-confidence-low' : 'text-muted-foreground'
+          )}
+        />
+        <div>
+          <p
+            className={cn(
+              'font-mono text-[11px] uppercase tracking-wider',
+              destructive ? 'text-confidence-low' : 'text-foreground'
+            )}
+          >
+            {label}
+          </p>
+          <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">{description}</p>
+        </div>
+      </div>
+      {external ? (
+        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+      ) : (
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+      )}
+    </button>
   )
 }
