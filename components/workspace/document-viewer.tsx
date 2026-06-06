@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,11 +30,11 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[80vh] max-w-2xl border-border bg-background p-0 flex flex-col gap-0">
+      <DialogContent className="max-h-[80vh] max-w-2xl border-border bg-background p-0 flex flex-col gap-0 overflow-hidden">
         <DialogTitle className="sr-only">{document.title}</DialogTitle>
         <DialogDescription className="sr-only">Parsed text extracted from {document.file_name}</DialogDescription>
         {/* Header */}
-        <div className="flex items-center gap-3 border-b border-border px-6 py-4 pr-12">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4 pr-12">
           <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
           <div className="min-w-0 flex-1">
             <h2 className="font-sans text-sm font-semibold text-foreground truncate">{document.title}</h2>
@@ -46,7 +45,7 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
         </div>
 
         {/* Status Badge */}
-        <div className="px-6 py-3 border-b border-border flex items-center justify-between gap-3">
+        <div className="px-6 py-3 border-b border-border flex shrink-0 items-center justify-between gap-3">
           <div>
             <Badge 
               variant="outline" 
@@ -84,7 +83,10 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
         </div>
 
         {/* Content */}
-        <ScrollArea className="flex-1">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <div className="px-6 py-4">
             {isLoading ? (
               <div className="py-8 text-center">
@@ -110,7 +112,7 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1,6 +1,5 @@
 'use client'
 
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useWorkspaceStore } from '@/lib/store'
 import { X, BookOpen } from 'lucide-react'
@@ -35,7 +34,10 @@ export function EvidencePanel() {
       </div>
       <Separator />
 
-      <ScrollArea className="flex-1">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         <div className="px-4 py-3">
           {/* Active source detail */}
           {activeSource ? (
@@ -106,7 +108,7 @@ export function EvidencePanel() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }
