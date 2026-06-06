@@ -14,6 +14,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -108,6 +109,14 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   // Export data flow
   const [isExporting, setIsExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState('')
+
+  // Report a bug flow (submitted to the admin dashboard)
+  const [bugOpen, setBugOpen] = useState(false)
+  const [bugSubject, setBugSubject] = useState('')
+  const [bugDescription, setBugDescription] = useState('')
+  const [isSubmittingBug, setIsSubmittingBug] = useState(false)
+  const [bugError, setBugError] = useState('')
+  const [bugSuccess, setBugSuccess] = useState('')
 
   // Delete account flow: idle -> sending OTP -> verify -> deleting
   const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'otp_verify'>('idle')
@@ -338,6 +347,50 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     } finally {
       setIsExporting(false)
     }
+  }
+
+  // Report a bug: opens an in-app form and submits to the admin dashboard
+  const handleSubmitBug = async () => {
+    setBugError('')
+    if (bugSubject.trim().length < 3) {
+      setBugError('Please enter a short subject.')
+      return
+    }
+    if (bugDescription.trim().length < 10) {
+      setBugError('Please describe the issue in a little more detail.')
+      return
+    }
+    setIsSubmittingBug(true)
+    try {
+      const res = await fetch('/api/bug-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: bugSubject.trim(),
+          description: bugDescription.trim(),
+          pageUrl: typeof window !== 'undefined' ? window.location.href : null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit bug report')
+      setBugSuccess('Thanks! Your report has been sent to our team.')
+      setBugSubject('')
+      setBugDescription('')
+      setTimeout(() => {
+        setBugOpen(false)
+        setBugSuccess('')
+      }, 1800)
+    } catch (err) {
+      setBugError(err instanceof Error ? err.message : 'Failed to submit bug report')
+    } finally {
+      setIsSubmittingBug(false)
+    }
+  }
+
+  const toggleBugForm = () => {
+    setBugError('')
+    setBugSuccess('')
+    setBugOpen((prev) => !prev)
   }
 
   // Delete account: send OTP -> verify -> delete
@@ -929,10 +982,79 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={Bug}
                     label="Report a Bug"
                     description="Let us know what went wrong."
-                    href="mailto:support@mrcoolweb3.xyz?subject=Zequel%20Bug%20Report"
-                    external
+                    onClick={toggleBugForm}
+                    active={bugOpen}
                   />
                 </div>
+
+                {/* Inline bug report form -> submitted to the admin dashboard */}
+                {bugOpen && (
+                  <div className="mt-2 flex flex-col gap-4 rounded-lg border border-border bg-secondary/20 p-5">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Report a Bug</p>
+                      <p className="mt-2 font-sans text-[13px] leading-relaxed text-muted-foreground">
+                        {'Tell us what went wrong. This is sent to our team along with your account details ('}
+                        <span className="font-medium text-foreground">{userEmail}</span>
+                        {') so we can follow up.'}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="bug-subject" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Subject
+                      </label>
+                      <Input
+                        id="bug-subject"
+                        value={bugSubject}
+                        onChange={(e) => setBugSubject(e.target.value)}
+                        placeholder="Brief summary of the issue"
+                        maxLength={150}
+                        disabled={isSubmittingBug || !!bugSuccess}
+                        className="h-9 rounded-md border-border bg-background font-sans text-sm"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="bug-description" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Description
+                      </label>
+                      <Textarea
+                        id="bug-description"
+                        value={bugDescription}
+                        onChange={(e) => setBugDescription(e.target.value)}
+                        placeholder="What happened? What did you expect to happen? Steps to reproduce?"
+                        maxLength={5000}
+                        rows={5}
+                        disabled={isSubmittingBug || !!bugSuccess}
+                        className="resize-none rounded-md border-border bg-background font-sans text-sm leading-relaxed"
+                      />
+                    </div>
+
+                    {bugError && <p className="font-mono text-[10px] text-confidence-low">{bugError}</p>}
+                    {bugSuccess && (
+                      <p className="rounded-md bg-secondary/60 px-3 py-2 font-mono text-[11px] text-foreground">{bugSuccess}</p>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleSubmitBug}
+                        disabled={isSubmittingBug || !!bugSuccess}
+                        className="h-9 rounded-md bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background hover:bg-foreground/90"
+                      >
+                        {isSubmittingBug ? 'Sending...' : 'Send Report'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={toggleBugForm}
+                        disabled={isSubmittingBug}
+                        className="h-9 font-mono text-xs uppercase tracking-wider text-muted-foreground"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ----- Resources ----- */}
@@ -1028,6 +1150,8 @@ function MoreRow({
   href,
   external = false,
   destructive = false,
+  onClick,
+  active = false,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
@@ -1035,6 +1159,8 @@ function MoreRow({
   href?: string
   external?: boolean
   destructive?: boolean
+  onClick?: () => void
+  active?: boolean
 }) {
   const content = (
     <>
@@ -1060,7 +1186,12 @@ function MoreRow({
       {external ? (
         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
       ) : (
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        <ChevronRight
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground/50 transition-all group-hover:text-foreground',
+            active && 'rotate-90 text-foreground'
+          )}
+        />
       )}
     </>
   )
@@ -1083,7 +1214,7 @@ function MoreRow({
   }
 
   return (
-    <button type="button" className={className}>
+    <button type="button" onClick={onClick} className={className}>
       {content}
     </button>
   )

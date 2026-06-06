@@ -54,6 +54,22 @@ export interface Memory {
   created_at: string
 }
 
+export type BugReportStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
+
+export interface BugReport {
+  id: string
+  user_id: string
+  user_email: string
+  user_name: string | null
+  subject: string
+  description: string
+  status: BugReportStatus
+  page_url: string | null
+  user_agent: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
 export type EvidenceStrength = 'strong' | 'moderate' | 'weak'
 

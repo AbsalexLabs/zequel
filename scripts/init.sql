@@ -359,6 +359,21 @@ CREATE TABLE IF NOT EXISTS public.memories (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 15. Bug reports table (submitted by users from Settings > Help, reviewed in the admin dashboard)
+CREATE TABLE IF NOT EXISTS public.bug_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email TEXT NOT NULL,
+  user_name TEXT,
+  subject TEXT NOT NULL,
+  description TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+  page_url TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON public.documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON public.documents(status);
@@ -378,6 +393,9 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON public.user_sessions(sessi
 CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON public.user_sessions(user_id, revoked_at) WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_memories_user_id ON public.memories(user_id);
 CREATE INDEX IF NOT EXISTS idx_memories_created_at ON public.memories(created_at);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_user_id ON public.bug_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_status ON public.bug_reports(status);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_created_at ON public.bug_reports(created_at);
 
 -- Enable Row Level Security on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -392,6 +410,7 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bug_reports ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for profiles
 DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
@@ -490,6 +509,12 @@ CREATE POLICY "memories_select_own" ON public.memories FOR SELECT USING (auth.ui
 CREATE POLICY "memories_insert_own" ON public.memories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "memories_update_own" ON public.memories FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "memories_delete_own" ON public.memories FOR DELETE USING (auth.uid() = user_id);
+
+-- RLS Policies for bug_reports (users submit and read their own; admins read all via service client)
+DROP POLICY IF EXISTS "bug_reports_select_own" ON public.bug_reports;
+DROP POLICY IF EXISTS "bug_reports_insert_own" ON public.bug_reports;
+CREATE POLICY "bug_reports_select_own" ON public.bug_reports FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "bug_reports_insert_own" ON public.bug_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Trigger function to create profile on new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
