@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Copy, Check } from 'lucide-react'
+import { FileText, Copy, Check, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
 import type { Document } from '@/lib/types'
 
 interface DocumentViewerProps {
@@ -49,7 +49,7 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
           <div>
             <Badge 
               variant="outline" 
-              className={`font-mono text-[10px] uppercase tracking-wider ${
+              className={`font-mono text-[10px] uppercase tracking-wider gap-1 ${
                 document.status === 'parsed' 
                   ? 'bg-green-500/10 text-green-700 border-green-200' 
                   : document.status === 'processing'
@@ -57,7 +57,22 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
                   : 'bg-red-500/10 text-red-700 border-red-200'
               }`}
             >
-              {document.status === 'parsed' ? '✓ Parsed' : document.status === 'processing' ? '⏳ Processing' : '⚠ Error'}
+              {document.status === 'parsed' ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  Parsed
+                </>
+              ) : document.status === 'processing' ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Processing
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-3 w-3" />
+                  Error
+                </>
+              )}
             </Badge>
           </div>
           {extractedText && (
