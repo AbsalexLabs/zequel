@@ -27,7 +27,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import type { Document, Profile } from '@/lib/types'
-import { Upload, FileText, Check, Settings, MoreVertical, Trash2 } from 'lucide-react'
+import { Upload, FileText, Check, Settings, MoreVertical, Trash2, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -284,15 +284,9 @@ function DocumentItem({
           ? 'bg-secondary text-foreground'
           : 'text-foreground hover:bg-secondary/50'
       )}
-      onClick={onView}
+      onClick={onToggle}
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggle()
-        }}
-        className="flex flex-1 items-start gap-3 text-left"
-      >
+      <div className="flex flex-1 items-start gap-3 text-left min-w-0">
         <div
           className={cn(
             'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border',
@@ -316,19 +310,30 @@ function DocumentItem({
             </span>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Three-dot menu — always visible */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
+            onClick={(e) => e.stopPropagation()}
             className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:text-foreground data-[state=open]:text-foreground"
             aria-label={`Options for ${document.title}`}
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[140px] border-border bg-background">
+        <DropdownMenuContent align="end" className="min-w-[160px] border-border bg-background">
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation()
+              onView()
+            }}
+            className="gap-2 font-mono text-[11px] uppercase tracking-wider text-foreground"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            View Parsed Text
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation()

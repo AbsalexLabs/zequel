@@ -147,9 +147,12 @@ export async function POST(request: Request) {
 
     if (!aiResult.success) {
       console.error('[v0] Query API AI call failed:', aiResult.error)
-      return NextResponse.json({ 
+      const aiData = aiResult.data as { upgradeRequired?: boolean; requiredPlan?: string } | undefined
+      return NextResponse.json({
         error: aiResult.error,
-        details: 'AI processing failed - check OpenRouter API key and model availability'
+        details: 'AI processing failed - check OpenRouter API key and model availability',
+        upgradeRequired: aiData?.upgradeRequired ?? false,
+        requiredPlan: aiData?.requiredPlan,
       }, { status: aiResult.statusCode || 502 })
     }
 

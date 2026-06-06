@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { X, FileText, Copy, Check } from 'lucide-react'
+import { FileText, Copy, Check } from 'lucide-react'
 import type { Document } from '@/lib/types'
 
 interface DocumentViewerProps {
@@ -31,25 +31,18 @@ export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[80vh] max-w-2xl border-border bg-background p-0 flex flex-col">
+      <DialogContent className="max-h-[80vh] max-w-2xl border-border bg-background p-0 flex flex-col gap-0">
+        <DialogTitle className="sr-only">{document.title}</DialogTitle>
+        <DialogDescription className="sr-only">Parsed text extracted from {document.file_name}</DialogDescription>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="min-w-0">
-              <h2 className="font-sans text-sm font-semibold text-foreground truncate">{document.title}</h2>
-              <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                {document.page_count > 0 ? `${document.page_count} pages` : 'N/A'} • {document.file_name}
-              </p>
-            </div>
+        <div className="flex items-center gap-3 border-b border-border px-6 py-4 pr-12">
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-sans text-sm font-semibold text-foreground truncate">{document.title}</h2>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground truncate">
+              {document.page_count > 0 ? `${document.page_count} pages` : 'N/A'} • {document.file_name}
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Status Badge */}

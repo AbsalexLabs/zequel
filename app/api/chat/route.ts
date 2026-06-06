@@ -283,10 +283,13 @@ export async function POST(request: Request) {
 
     if (!aiResult.success || !aiResult.stream) {
       console.error('[v0] Chat API AI call failed:', aiResult.error)
+      const aiData = aiResult.data as { upgradeRequired?: boolean; requiredPlan?: string } | undefined
       return new Response(JSON.stringify({
         error: aiResult.error || 'AI processing failed',
         details: 'Check OpenRouter API key and model availability',
-        statusCode: aiResult.statusCode || 502
+        statusCode: aiResult.statusCode || 502,
+        upgradeRequired: aiData?.upgradeRequired ?? false,
+        requiredPlan: aiData?.requiredPlan,
       }), { status: aiResult.statusCode || 502, headers: { 'Content-Type': 'application/json' } })
     }
 

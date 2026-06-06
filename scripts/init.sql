@@ -151,17 +151,34 @@ CREATE TABLE IF NOT EXISTS public.otp_codes (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_codes_unique_unused ON public.otp_codes(email, code, purpose) WHERE used = FALSE;
 
--- 7. Queries table
+-- 7. Queries table (Research mode history)
+-- Columns match what /api/query writes and the research panel reads.
 CREATE TABLE IF NOT EXISTS public.queries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  query TEXT NOT NULL,
-  result TEXT,
-  status TEXT DEFAULT 'pending',
+  query_text TEXT NOT NULL,
+  output_format TEXT NOT NULL DEFAULT 'summarize',
+  document_ids JSONB DEFAULT '[]'::jsonb,
+  result JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migrate legacy installs that used the old (title/query/result/status) shape.
+DO $$ BEGIN
+  ALTER TABLE public.queries ADD COLUMN IF NOT EXISTS query_text TEXT;
+  ALTER TABLE public.queries ADD COLUMN IF NOT EXISTS output_format TEXT DEFAULT 'summarize';
+  ALTER TABLE public.queries ADD COLUMN IF NOT EXISTS document_ids JSONB DEFAULT '[]'::jsonb;
+  -- Drop legacy NOT NULL constraints that would block new inserts
+  BEGIN ALTER TABLE public.queries ALTER COLUMN title DROP NOT NULL; EXCEPTION WHEN undefined_column THEN NULL; END;
+  BEGIN ALTER TABLE public.queries ALTER COLUMN query DROP NOT NULL; EXCEPTION WHEN undefined_column THEN NULL; END;
+END $$;
+
+-- Ensure `result` is JSONB (legacy schema used TEXT).
+DO $$ BEGIN
+  ALTER TABLE public.queries ALTER COLUMN result TYPE JSONB USING result::jsonb;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- 8. AI Usage Logs table
 CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
