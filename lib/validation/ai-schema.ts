@@ -7,7 +7,9 @@ export const chatRequestSchema = z.object({
   document_id: z.string().uuid().nullable().optional(),
   document_ids: z.array(z.string().uuid()).max(10).optional(),
   images: z.array(z.string()).max(5, 'Max 5 images allowed').optional(),
-  full_content: z.string().max(500000).optional(),
+  // full_content embeds compressed base64 image data URLs for DB persistence.
+  // Allow headroom for up to 5 compressed images (client downscales each).
+  full_content: z.string().max(8000000).optional(),
   regenerate: z.boolean().optional(),
 })
 
