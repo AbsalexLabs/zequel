@@ -8,6 +8,7 @@ import { ZequelLogo } from '@/components/zequel-logo'
 import { OtpVerify } from '@/components/otp-verify'
 import { SessionsPanel } from '@/components/settings/sessions-panel'
 import { SubscriptionPanel } from '@/components/settings/subscription-panel'
+import { MemoriesDialog, type Memory } from '@/components/settings/memories-dialog'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,10 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   const [nickname, setNickname] = useState('')
   const [occupation, setOccupation] = useState('')
   const [aboutYou, setAboutYou] = useState('')
+
+  // Manage memories dialog (UI only for now — sample data until backend lands)
+  const [memoriesOpen, setMemoriesOpen] = useState(false)
+  const [memories, setMemories] = useState<Memory[]>([])
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -541,7 +546,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                 <Button
                   type="button"
                   variant="outline"
-                  disabled
+                  onClick={() => setMemoriesOpen(true)}
                   className="h-9 shrink-0 rounded-md font-mono text-[11px] uppercase tracking-wider"
                 >
                   Manage
@@ -621,6 +626,14 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         </div>
         </div>
       </div>
+
+      <MemoriesDialog
+        open={memoriesOpen}
+        onOpenChange={setMemoriesOpen}
+        memories={memories}
+        onDelete={(id) => setMemories((prev) => prev.filter((m) => m.id !== id))}
+        onDeleteAll={() => setMemories([])}
+      />
     </div>
   )
 }
