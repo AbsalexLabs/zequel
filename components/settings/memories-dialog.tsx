@@ -22,6 +22,7 @@ interface MemoriesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   memories: Memory[]
+  loading?: boolean
   onDelete?: (id: string) => void
   onDeleteAll?: () => void
 }
@@ -30,6 +31,7 @@ export function MemoriesDialog({
   open,
   onOpenChange,
   memories,
+  loading = false,
   onDelete,
   onDeleteAll,
 }: MemoriesDialogProps) {
@@ -68,7 +70,11 @@ export function MemoriesDialog({
 
         {/* List */}
         <ScrollArea className="flex-1 px-6 py-4">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+              <p className="font-sans text-[13px] text-muted-foreground">Loading memories...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted/30">
                 <Brain className="h-5 w-5 text-muted-foreground" />

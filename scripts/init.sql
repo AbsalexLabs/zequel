@@ -43,9 +43,41 @@ CREATE TABLE IF NOT EXISTS public.preferences (
   theme TEXT DEFAULT 'dark',
   default_output_format TEXT DEFAULT 'markdown',
   auto_citation BOOLEAN DEFAULT TRUE,
+  -- Personalization / memory settings
+  reference_saved_memories BOOLEAN DEFAULT TRUE,
+  reference_chat_history BOOLEAN DEFAULT TRUE,
+  nickname TEXT,
+  occupation TEXT,
+  about_you TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add missing personalization columns to preferences (safe for existing installs)
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS reference_saved_memories BOOLEAN DEFAULT TRUE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS reference_chat_history BOOLEAN DEFAULT TRUE;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS nickname TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS occupation TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS about_you TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- 3. Documents table
 CREATE TABLE IF NOT EXISTS public.documents (
@@ -274,6 +306,15 @@ CREATE TABLE IF NOT EXISTS public.user_sessions (
   revoked_reason TEXT
 );
 
+-- 14. Memories table (personalization — details Zequel remembers about a user)
+CREATE TABLE IF NOT EXISTS public.memories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  source TEXT DEFAULT 'ai', -- 'ai' (auto-extracted) or 'user'
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON public.documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON public.documents(status);
@@ -291,6 +332,8 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON public.admin_audit
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON public.user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON public.user_sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON public.user_sessions(user_id, revoked_at) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_memories_user_id ON public.memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_memories_created_at ON public.memories(created_at);
 
 -- Enable Row Level Security on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -304,6 +347,7 @@ ALTER TABLE public.rate_limit_violations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.otp_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memories ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for profiles
 DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
@@ -392,6 +436,16 @@ DROP POLICY IF EXISTS "user_sessions_select_own" ON public.user_sessions;
 DROP POLICY IF EXISTS "user_sessions_update_own" ON public.user_sessions;
 CREATE POLICY "user_sessions_select_own" ON public.user_sessions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "user_sessions_update_own" ON public.user_sessions FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- RLS Policies for memories
+DROP POLICY IF EXISTS "memories_select_own" ON public.memories;
+DROP POLICY IF EXISTS "memories_insert_own" ON public.memories;
+DROP POLICY IF EXISTS "memories_update_own" ON public.memories;
+DROP POLICY IF EXISTS "memories_delete_own" ON public.memories;
+CREATE POLICY "memories_select_own" ON public.memories FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "memories_insert_own" ON public.memories FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "memories_update_own" ON public.memories FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "memories_delete_own" ON public.memories FOR DELETE USING (auth.uid() = user_id);
 
 -- Trigger function to create profile on new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
