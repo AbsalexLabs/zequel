@@ -115,14 +115,14 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
       // Extract text from PDF server-side (only for PDFs)
       if (file.type === 'application/pdf') {
         try {
-          console.log('[v0] Starting PDF text extraction for document:', data.id)
+          console.log('[Zequel] Starting PDF text extraction for document:', data.id)
           const extractRes = await fetch('/api/extract-text', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ documentId: data.id, filePath }),
           })
           const extractResult = await extractRes.json()
-          console.log('[v0] Extract response:', extractRes.status, extractResult)
+          console.log('[Zequel] Extract response:', extractRes.status, extractResult)
           
           if (extractRes.ok && extractResult.success) {
             const { updateDocument } = useWorkspaceStore.getState()
@@ -130,15 +130,15 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
               status: 'parsed',
               page_count: extractResult.pageCount || 0,
             })
-            console.log('[v0] Document successfully parsed')
+            console.log('[Zequel] Document successfully parsed')
           } else {
             // Even if extraction fails, mark it as available for use
             const { updateDocument } = useWorkspaceStore.getState()
             updateDocument(data.id, { status: 'parsed' })
-            console.log('[v0] Extraction failed but marking document as parsed')
+            console.log('[Zequel] Extraction failed but marking document as parsed')
           }
         } catch (extractError) {
-          console.log('[v0] Text extraction error:', extractError)
+          console.log('[Zequel] Text extraction error:', extractError)
           // Text extraction failed, but mark document as parsed anyway so it's usable
           const { updateDocument } = useWorkspaceStore.getState()
           updateDocument(data.id, { status: 'parsed' })

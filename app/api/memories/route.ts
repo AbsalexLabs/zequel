@@ -18,7 +18,7 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('[v0] Memories GET error:', error.message)
+    console.error('[Zequel] Memories GET error:', error.message)
     return Response.json({ error: 'Failed to load memories' }, { status: 500 })
   }
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('[v0] Memories POST error:', error.message)
+    console.error('[Zequel] Memories POST error:', error.message)
     return Response.json({ error: 'Failed to save memory' }, { status: 500 })
   }
 
@@ -85,7 +85,7 @@ export async function DELETE(request: Request) {
   const { error } = await query
 
   if (error) {
-    console.error('[v0] Memories DELETE error:', error.message)
+    console.error('[Zequel] Memories DELETE error:', error.message)
     return Response.json({ error: 'Failed to delete memory' }, { status: 500 })
   }
 

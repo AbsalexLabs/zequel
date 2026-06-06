@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (insertError) {
-      console.error('[v0] OTP insert error:', insertError)
+      console.error('[Zequel] OTP insert error:', insertError)
       return NextResponse.json({ 
         error: 'Failed to generate code',
         details: insertError.message 
@@ -63,13 +63,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (sendError) {
-      console.error('[v0] Resend error:', sendError)
+      console.error('[Zequel] Resend error:', sendError)
       return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[v0] OTP send error:', error)
+    console.error('[Zequel] OTP send error:', error)
     return NextResponse.json({ 
       error: 'Failed to process request',
       details: error instanceof Error ? error.message : 'Unknown error'

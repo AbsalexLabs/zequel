@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !data) {
-      console.warn('[v0] OTP verification failed:', { email, purpose, error: error?.message })
+      console.warn('[Zequel] OTP verification failed:', { email, purpose, error: error?.message })
       return NextResponse.json({ error: 'Invalid or expired verification code' }, { status: 400 })
     }
 
@@ -40,14 +40,14 @@ export async function POST(request: NextRequest) {
       .eq('id', data.id)
 
     if (updateError) {
-      console.error('[v0] Failed to mark OTP as used:', updateError)
+      console.error('[Zequel] Failed to mark OTP as used:', updateError)
       // Still return success since verification was valid
       return NextResponse.json({ success: true })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[v0] OTP verify error:', error)
+    console.error('[Zequel] OTP verify error:', error)
     return NextResponse.json({ 
       error: 'Failed to verify code',
       details: error instanceof Error ? error.message : 'Unknown error'

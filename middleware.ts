@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
     console.warn(
-      '[v0] Supabase environment variables are not configured. Skipping session management.',
+      '[Zequel] Supabase environment variables are not configured. Skipping session management.',
     )
     return NextResponse.next({
       request,

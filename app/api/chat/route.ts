@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   try {
     // Check if required environment variables are configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('[v0] Chat API: Supabase not configured')
+      console.error('[Zequel] Chat API: Supabase not configured')
       return new Response(JSON.stringify({
         error: 'Database not configured',
         details: 'Supabase environment variables are missing'
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('[v0] Chat API: Supabase service role key not configured')
+      console.error('[Zequel] Chat API: Supabase service role key not configured')
       return new Response(JSON.stringify({
         error: 'Database service not configured',
         details: 'SUPABASE_SERVICE_ROLE_KEY environment variable is missing'
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-      console.error('[v0] Chat API: OpenRouter API key not configured')
+      console.error('[Zequel] Chat API: OpenRouter API key not configured')
       return new Response(JSON.stringify({
         error: 'AI service not configured',
         details: 'OPENROUTER_API_KEY environment variable is missing'
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     // 1. Process through security layer (auth, validation, rate limit, subscription)
     const authResult = await processAIRequest('chat', body)
     if (!authResult.success) {
-      console.error('[v0] Chat API auth failed:', authResult.error)
+      console.error('[Zequel] Chat API auth failed:', authResult.error)
       return new Response(JSON.stringify({
         error: authResult.error,
         statusCode: authResult.statusCode
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
                 }
               }
             } catch (extractErr) {
-              console.error('[v0] On-the-fly PDF extraction failed:', extractErr)
+              console.error('[Zequel] On-the-fly PDF extraction failed:', extractErr)
             }
           }
 
@@ -282,7 +282,7 @@ export async function POST(request: Request) {
     )
 
     if (!aiResult.success || !aiResult.stream) {
-      console.error('[v0] Chat API AI call failed:', aiResult.error)
+      console.error('[Zequel] Chat API AI call failed:', aiResult.error)
       const aiData = aiResult.data as { upgradeRequired?: boolean; requiredPlan?: string } | undefined
       return new Response(JSON.stringify({
         error: aiResult.error || 'AI processing failed',
@@ -399,7 +399,7 @@ export async function POST(request: Request) {
           }
           controller.close()
         } catch (err) {
-          console.error('[v0] Chat stream error:', err)
+          console.error('[Zequel] Chat stream error:', err)
           const errorMessage = err instanceof Error ? err.message : 'Stream processing failed'
           await logStreamCompletion(user.id, 'chat', model, inputTokens, 0, startTime, 'error', errorMessage)
           controller.error(new Error(errorMessage))
@@ -415,7 +415,7 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    console.error('[v0] Chat API error:', error)
+    console.error('[Zequel] Chat API error:', error)
     return new Response(
       JSON.stringify({
         error: 'Failed to process chat request',
