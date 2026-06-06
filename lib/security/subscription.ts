@@ -17,6 +17,26 @@ const PLAN_LIMITS: Record<SubscriptionPlan, { requestLimit: number }> = {
   premium_pro: { requestLimit: 1000 },
 }
 
+/**
+ * Normalize a raw plan value from the database into a canonical SubscriptionPlan.
+ * Tolerates spaces, dashes, and casing (e.g. "premium pro", "Premium-Pro" -> "premium_pro")
+ * and legacy tier names ("premium" -> premium_lite, "enterprise" -> premium_pro).
+ */
+export function normalizePlan(raw: unknown): SubscriptionPlan {
+  if (typeof raw !== 'string') return 'free'
+  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  switch (normalized) {
+    case 'premium_pro':
+    case 'enterprise':
+      return 'premium_pro'
+    case 'premium_lite':
+    case 'premium':
+      return 'premium_lite'
+    default:
+      return 'free'
+  }
+}
+
 export async function getUserSubscription(userId: string): Promise<Subscription> {
   try {
     const supabase = await createServerClient()
@@ -51,10 +71,13 @@ export async function getUserSubscription(userId: string): Promise<Subscription>
       }
     }
 
+    // Normalize the stored plan value (tolerates "premium pro", casing, etc.)
+    const plan = normalizePlan(data.plan)
+
     return {
       user_id: data.user_id,
-      plan: data.plan as SubscriptionPlan,
-      request_limit: data.request_limit || PLAN_LIMITS[data.plan as SubscriptionPlan].requestLimit,
+      plan,
+      request_limit: data.request_limit || PLAN_LIMITS[plan].requestLimit,
       expires_at: data.expires_at,
       is_active: true,
     }
