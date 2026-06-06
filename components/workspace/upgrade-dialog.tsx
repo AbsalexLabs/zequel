@@ -8,7 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Check, ArrowRight } from 'lucide-react'
+import { Check, ArrowRight } from 'lucide-react'
 
 export type RequiredPlan = 'premium_lite' | 'premium_pro'
 
@@ -56,21 +56,19 @@ export function UpgradeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-border bg-background p-0 gap-0 overflow-hidden">
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-md border-border bg-background p-0 gap-0 overflow-hidden"
+      >
         {/* Header */}
-        <div className="flex flex-col items-center gap-3 border-b border-border px-6 py-6 text-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-secondary">
-            <Sparkles className="h-5 w-5 text-foreground" />
-          </div>
-          <div>
-            <DialogTitle className="font-mono text-sm font-semibold uppercase tracking-wider text-foreground">
-              Upgrade Required
-            </DialogTitle>
-            <DialogDescription className="mt-1.5 font-sans text-sm text-muted-foreground text-pretty">
-              {message ||
-                `${featureName || 'This feature'} is part of the ${plan.name} plan. Upgrade to unlock it.`}
-            </DialogDescription>
-          </div>
+        <div className="flex flex-col gap-1.5 border-b border-border px-6 py-6 text-center">
+          <DialogTitle className="font-mono text-sm font-semibold uppercase tracking-wider text-foreground">
+            Upgrade Required
+          </DialogTitle>
+          <DialogDescription className="font-sans text-sm text-muted-foreground text-pretty">
+            {message ||
+              `${featureName || 'This feature'} is part of the ${plan.name} plan. Upgrade to unlock it.`}
+          </DialogDescription>
         </div>
 
         {/* Plan card */}
