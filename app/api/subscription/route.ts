@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient, canCreateServiceClient } from '@/lib/supabase/service'
+import { normalizePlan } from '@/lib/security/subscription'
 
 // Plan limits configuration
 const PLAN_LIMITS = {
@@ -48,9 +49,10 @@ export async function GET() {
       console.error('Subscription fetch error:', subError)
     }
 
-    // Default to free plan if no subscription exists
-    const plan = subscription?.plan || 'free'
-    const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free
+    // Default to free plan if no subscription exists.
+    // Normalize stored value so legacy formats (e.g. "premium pro") map correctly.
+    const plan = normalizePlan(subscription?.plan)
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free
 
     return NextResponse.json({
       subscription: {

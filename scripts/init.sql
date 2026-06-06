@@ -164,54 +164,74 @@ CREATE TABLE IF NOT EXISTS public.rate_limit_violations (
   attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 11. System settings table
+-- 11. System settings table (KEY/VALUE store)
+-- IMPORTANT: The application (lib/settings/system-settings.ts and
+-- app/api/admin/settings/route.ts) reads/writes this table as key/value rows
+-- using .select('key, value') and .upsert({ key, value }). The schema MUST be
+-- a key/value table, NOT a wide single-row table, or every settings read fails
+-- and the app silently falls back to defaults ("System settings not found").
 CREATE TABLE IF NOT EXISTS public.system_settings (
-  id TEXT PRIMARY KEY DEFAULT 'default',
-  ai_enabled BOOLEAN DEFAULT TRUE,
-  free_daily_limit INTEGER DEFAULT 20,
-  premium_lite_daily_limit INTEGER DEFAULT 200,
-  premium_pro_daily_limit INTEGER DEFAULT 1000,
-  max_file_uploads_free INTEGER DEFAULT 3,
-  max_file_uploads_premium_lite INTEGER DEFAULT 30,
-  max_file_uploads_premium_pro INTEGER DEFAULT 100,
-  max_tokens_per_request INTEGER DEFAULT 16384,
-  default_model TEXT DEFAULT 'openai/gpt-5-nano',
-  file_uploads_enabled BOOLEAN DEFAULT TRUE,
-  max_file_size_mb INTEGER DEFAULT 10,
-  maintenance_mode BOOLEAN DEFAULT FALSE,
-  max_requests_per_minute INTEGER DEFAULT 15,
-  max_requests_per_hour INTEGER DEFAULT 100,
-  burst_limit_threshold INTEGER DEFAULT 5,
-  burst_cooldown_seconds INTEGER DEFAULT 30,
-  response_style TEXT DEFAULT 'detailed',
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
-INSERT INTO public.system_settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+-- Migration: if an older WIDE system_settings table exists (with an `id`
+-- column instead of `key`), drop it so the key/value schema can be created.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'system_settings' AND column_name = 'id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'system_settings' AND column_name = 'key'
+  ) THEN
+    DROP TABLE public.system_settings CASCADE;
+    CREATE TABLE public.system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+    );
+  END IF;
+END $$;
 
--- Migration: Add new subscription tier columns if they don't exist and migrate old data
+-- Seed default settings as key/value rows (matches DEFAULT_SETTINGS in
+-- lib/settings/system-settings.ts). Existing keys are left untouched.
+INSERT INTO public.system_settings (key, value) VALUES
+  ('ai_enabled', 'true'),
+  ('free_daily_limit', '20'),
+  ('premium_lite_daily_limit', '200'),
+  ('premium_pro_daily_limit', '1000'),
+  ('max_file_uploads_free', '3'),
+  ('max_file_uploads_premium_lite', '30'),
+  ('max_file_uploads_premium_pro', '100'),
+  ('max_tokens_per_request', '16384'),
+  ('default_model', 'openai/gpt-5-nano'),
+  ('file_uploads_enabled', 'true'),
+  ('max_file_size_mb', '10'),
+  ('maintenance_mode', 'false'),
+  ('max_requests_per_minute', '15'),
+  ('max_requests_per_hour', '100'),
+  ('burst_limit_threshold', '5'),
+  ('burst_cooldown_seconds', '30'),
+  ('response_style', 'detailed')
+ON CONFLICT (key) DO NOTHING;
+
+-- Migration: normalize subscription plan values and migrate legacy tiers.
 DO $$ 
 BEGIN
-  -- Add premium_lite columns if they don't exist
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_lite_daily_limit') THEN
-    ALTER TABLE public.system_settings ADD COLUMN premium_lite_daily_limit INTEGER DEFAULT 200;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_lite') THEN
-    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_lite INTEGER DEFAULT 30;
-  END IF;
-  
-  -- Add premium_pro columns if they don't exist
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'premium_pro_daily_limit') THEN
-    ALTER TABLE public.system_settings ADD COLUMN premium_pro_daily_limit INTEGER DEFAULT 1000;
-  END IF;
-  
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'system_settings' AND column_name = 'max_file_uploads_premium_pro') THEN
-    ALTER TABLE public.system_settings ADD COLUMN max_file_uploads_premium_pro INTEGER DEFAULT 100;
-  END IF;
-  
-  -- Migrate old premium users to premium_lite (only if subscriptions table and plan column exist)
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'plan') THEN
+    -- Normalize any space/dash/case variants to the canonical underscore form
+    -- the application expects (e.g. 'premium pro' -> 'premium_pro').
+    UPDATE public.subscriptions SET plan = 'premium_pro'
+      WHERE lower(regexp_replace(plan, '[\s-]+', '_', 'g')) = 'premium_pro';
+    UPDATE public.subscriptions SET plan = 'premium_lite'
+      WHERE lower(regexp_replace(plan, '[\s-]+', '_', 'g')) = 'premium_lite';
+
+    -- Migrate old single-tier names
     UPDATE public.subscriptions SET plan = 'premium_lite' WHERE plan = 'premium';
     UPDATE public.subscriptions SET plan = 'premium_pro' WHERE plan = 'enterprise';
   END IF;
