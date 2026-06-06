@@ -149,6 +149,6 @@ Rules:
 
     await supabase.from('memories').insert(rows)
   } catch (err) {
-    console.error('[v0] extractAndSaveMemories error:', err instanceof Error ? err.message : err)
+    console.error('[Zequel] extractAndSaveMemories error:', err instanceof Error ? err.message : err)
   }
 }

@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   try {
     // Check if required environment variables are configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('[v0] Query API: Supabase not configured')
+      console.error('[Zequel] Query API: Supabase not configured')
       return NextResponse.json({
         error: 'Database not configured',
         details: 'Supabase environment variables are missing'
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('[v0] Query API: Supabase service role key not configured')
+      console.error('[Zequel] Query API: Supabase service role key not configured')
       return NextResponse.json({
         error: 'Database service not configured',
         details: 'SUPABASE_SERVICE_ROLE_KEY environment variable is missing'
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-      console.error('[v0] Query API: OpenRouter API key not configured')
+      console.error('[Zequel] Query API: OpenRouter API key not configured')
       return NextResponse.json({
         error: 'AI service not configured',
         details: 'OPENROUTER_API_KEY environment variable is missing'
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     // Process through security layer
     const authResult = await processAIRequest('query', body)
     if (!authResult.success) {
-      console.error('[v0] Query API auth failed:', authResult.error)
+      console.error('[Zequel] Query API auth failed:', authResult.error)
       return NextResponse.json({ 
         error: authResult.error,
         details: 'Authentication or rate limit check failed'
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
     )
 
     if (!aiResult.success) {
-      console.error('[v0] Query API AI call failed:', aiResult.error)
+      console.error('[Zequel] Query API AI call failed:', aiResult.error)
       const aiData = aiResult.data as { upgradeRequired?: boolean; requiredPlan?: string } | undefined
       return NextResponse.json({
         error: aiResult.error,

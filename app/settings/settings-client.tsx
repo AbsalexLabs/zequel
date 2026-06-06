@@ -151,7 +151,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         setMemories((data.memories || []).map((m: { id: string; content: string }) => ({ id: m.id, content: m.content })))
       }
     } catch (err) {
-      console.error('[v0] Failed to load memories:', err)
+      console.error('[Zequel] Failed to load memories:', err)
     } finally {
       setMemoriesLoading(false)
     }
@@ -162,7 +162,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     try {
       await fetch(`/api/memories?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
     } catch (err) {
-      console.error('[v0] Failed to delete memory:', err)
+      console.error('[Zequel] Failed to delete memory:', err)
     }
   }
 
@@ -171,7 +171,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     try {
       await fetch('/api/memories?all=true', { method: 'DELETE' })
     } catch (err) {
-      console.error('[v0] Failed to delete all memories:', err)
+      console.error('[Zequel] Failed to delete all memories:', err)
     }
   }
 
@@ -318,7 +318,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
       setTimeout(() => setSaveMessage(''), 2000)
     } catch (err) {
       setIsSaving(false)
-      console.error('[v0] Save error:', err)
+      console.error('[Zequel] Save error:', err)
       if (!usernameError && !nameError) {
         setSaveMessage('Error saving changes')
       }

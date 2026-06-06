@@ -15,7 +15,7 @@ export async function GET() {
   try {
     // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('[v0] Supabase not configured - missing environment variables')
+      console.error('[Zequel] Supabase not configured - missing environment variables')
       return NextResponse.json({ 
         error: 'Database not configured',
         details: 'Supabase environment variables are missing'
@@ -26,7 +26,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError) {
-      console.error('[v0] Auth error:', authError.message)
+      console.error('[Zequel] Auth error:', authError.message)
       return NextResponse.json({ 
         error: 'Authentication failed', 
         details: authError.message 
@@ -66,7 +66,7 @@ export async function GET() {
       }
     })
   } catch (err) {
-    console.error('[v0] Subscription API error:', err)
+    console.error('[Zequel] Subscription API error:', err)
     const errorMessage = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ 
       error: 'Internal server error',
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   try {
     // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('[v0] Supabase not configured - missing environment variables')
+      console.error('[Zequel] Supabase not configured - missing environment variables')
       return NextResponse.json({ 
         error: 'Database not configured',
         details: 'Supabase environment variables are missing'
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError) {
-      console.error('[v0] Auth error:', authError.message)
+      console.error('[Zequel] Auth error:', authError.message)
       return NextResponse.json({ 
         error: 'Authentication failed', 
         details: authError.message 
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       message: `Successfully ${plan === 'free' ? 'downgraded to' : 'upgraded to'} ${plan} plan`,
     })
   } catch (err) {
-    console.error('[v0] Subscription update API error:', err)
+    console.error('[Zequel] Subscription update API error:', err)
     const errorMessage = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ 
       error: 'Internal server error',

@@ -5,7 +5,7 @@
 **Version:** 1.0.0  
 **Organization:** Absalex Labs  
 **License:** Proprietary  
-**Last Updated:** March 2026
+**Last Updated:** June 2026
 
 ---
 
@@ -203,14 +203,48 @@ The app directory contains all pages and API routes using Next.js 16 App Router 
 
 #### 3.2.4 API Routes (`/app/api/`)
 
+**Core**
+
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/api/chat` | POST | AI chat endpoint with streaming responses |
 | `/api/query` | POST | Structured research query endpoint |
 | `/api/extract-text` | POST | Document text extraction endpoint |
-| `/api/otp/send` | POST | Send OTP verification codes |
+| `/api/memories` | GET, POST, DELETE | Personalization memories for the AI |
+| `/api/subscription` | GET, POST | Read/update the current user's subscription |
+
+**Authentication**
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/otp/send` | POST | Send OTP verification codes via email |
 | `/api/otp/verify` | POST | Verify OTP codes |
 | `/api/auth/reset-password` | POST | Password reset handler |
+| `/auth/callback` | GET | OAuth / email confirmation callback |
+
+**Account & Sessions**
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/account/export` | POST | Email the user a JSON export of their data |
+| `/api/account/delete` | POST | OTP-gated permanent account deletion |
+| `/api/sessions` | GET, DELETE | List and revoke active sessions |
+| `/api/sessions/register` | POST | Register a session on login |
+| `/api/bug-reports` | POST | Submit a bug report to the admin dashboard |
+
+**Admin** (protected by `verifyAdmin`, consumed by the separate admin app)
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/admin/stats` | GET | Dashboard summary metrics |
+| `/api/admin/users` | GET | List users |
+| `/api/admin/users/[id]` | GET, PATCH | View / update a single user |
+| `/api/admin/subscriptions` | GET | Subscription overview |
+| `/api/admin/ai-usage` | GET | AI usage analytics |
+| `/api/admin/rate-limits` | GET | Rate-limit violations |
+| `/api/admin/bug-reports` | GET, PATCH | List and triage bug reports |
+| `/api/admin/audit` | GET | Admin audit log |
+| `/api/admin/settings` | GET, PATCH | System settings |
 
 ### 3.3 Components Directory (`/components`)
 
@@ -234,9 +268,11 @@ The app directory contains all pages and API routes using Next.js 16 App Router 
 | `study-panel.tsx` | Chat interface for Study mode with AI conversation |
 | `research-panel.tsx` | Structured query interface for Research mode |
 | `document-panel.tsx` | Document library and management panel |
+| `document-viewer.tsx` | In-app viewer for the selected document |
 | `conversations-panel.tsx` | Chat history and conversation list |
 | `evidence-panel.tsx` | Source evidence display for research results |
 | `upload-dialog.tsx` | Document upload modal dialog |
+| `upgrade-dialog.tsx` | Upgrade-to-premium prompt dialog |
 
 #### 3.3.3 UI Components (`/components/ui/`)
 
@@ -265,7 +301,9 @@ Contains 50+ shadcn/ui components including:
 | `types.ts` | TypeScript interfaces for all data structures |
 | `store.ts` | Zustand global state management |
 | `utils.ts` | Utility functions (cn for classnames) |
-| `otp.ts` | OTP generation and storage utilities |
+| `otp.ts` | OTP code generation and verification email template |
+| `logger.ts` | Centralized logging utility (`[Zequel]` prefix) |
+| `error-handler.ts` | Standardized API error responses and validation helpers |
 
 #### 3.5.2 Supabase Integration (`/lib/supabase/`)
 
@@ -282,44 +320,52 @@ Contains 50+ shadcn/ui components including:
 |------|---------|
 | `model-service.ts` | Central AI request handler with security pipeline |
 | `model-router.ts` | Model selection based on request type and subscription |
+| `prompt-builder.ts` | Builds system/user prompts for chat and research |
+| `personalization.ts` | Extracts and applies user memories for personalized responses |
 
 #### 3.5.4 Security (`/lib/security/`)
 
 | File | Purpose |
 |------|---------|
 | `rate-limit.ts` | In-memory rate limiting for API protection |
+| `advanced-rate-limit.ts` | Database-backed rate-limit violation tracking |
 | `subscription.ts` | Subscription plan checking and enforcement |
 
-#### 3.5.5 Validation (`/lib/validation/`)
+#### 3.5.5 Admin (`/lib/admin/`)
 
 | File | Purpose |
 |------|---------|
-| `ai-schema.ts` | Zod schemas for API request validation |
+| `auth.ts` | `verifyAdmin` guard for admin API routes |
+| `audit.ts` | Writes entries to the admin audit log |
 
-#### 3.5.6 Logging (`/lib/logging/`)
+#### 3.5.6 Sessions & Settings
 
 | File | Purpose |
 |------|---------|
-| `ai-logger.ts` | AI usage logging to database |
+| `session/session-manager.ts` | Registers, lists, and revokes user sessions |
+| `settings/system-settings.ts` | Reads/writes global system settings |
+
+#### 3.5.7 Validation & Logging
+
+| File | Purpose |
+|------|---------|
+| `validation/ai-schema.ts` | Zod schemas for API request validation |
+| `logging/ai-logger.ts` | AI usage logging to database |
 
 ### 3.6 Scripts Directory (`/scripts`)
 
-Contains SQL migration scripts executed in order:
+The database schema is consolidated into a single idempotent script. Running it on a fresh or existing Supabase project is safe — it uses `CREATE TABLE IF NOT EXISTS` and guarded `ALTER` migrations.
 
 | Script | Purpose |
 |--------|---------|
-| `001_create_profiles.sql` | User profiles table with RLS |
-| `002_profile_trigger.sql` | Automatic profile creation on signup |
-| `003_create_documents.sql` | Documents table with RLS |
-| `004_create_preferences.sql` | User preferences table |
-| `005_create_storage_bucket.sql` | Supabase storage bucket for documents |
-| `006_create_security_tables.sql` | AI usage logs and subscriptions tables |
+| `init.sql` | Full schema: all tables, indexes, RLS policies, the `handle_new_user` trigger, and storage buckets |
 
 ### 3.7 Public Directory (`/public`)
 
 | File | Purpose |
 |------|---------|
 | `zequel-logo-new.png` | Zequel logo for Open Graph and favicons |
+| `manifest.json` | PWA web app manifest |
 
 ### 3.8 Configuration Files
 
@@ -356,7 +402,7 @@ Zequel follows a modern serverless architecture with clear separation of concern
 └───────────────────────────────────────────────┬───────────────────┘
                                                 │
                                                 ▼
-┌───────────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────��─────────────┐
 │                      NEXT.JS API ROUTES                            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐   │
 │  │  /api/chat  │  │ /api/query  │  │  /api/extract-text      │   │
@@ -551,7 +597,7 @@ All AI requests flow through a centralized security pipeline in `/lib/ai/model-s
 │  3. Subscription Check                                        │
 │     └─ Get user's subscription plan                           │
 │     └─ Determine premium status                               │
-├──────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────���─────────────────┤
 │  4. Rate Limit Check                                          │
 │     └─ Check against limits (user_id + endpoint)              │
 │     └─ Return 429 if exceeded                                 │
@@ -805,31 +851,20 @@ export async function updateSession(request: NextRequest) {
 
 ### 6.4 OTP System
 
-OTPs are generated and stored in-memory with expiration:
+OTP codes are generated server-side and persisted in the `otp_codes` table in Supabase (not in memory), so they survive restarts and work across serverless instances. Codes are 6 digits, single-use, and expire after 10 minutes. Delivery is handled by Resend using the branded template in `lib/otp.ts`.
 
 ```typescript
 // lib/otp.ts
-const otpStore = new Map<string, { otp: string; expires: Date; purpose: string }>()
-
-export function generateOtp(email: string, purpose: string): string {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString()
-  otpStore.set(email, {
-    otp,
-    expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    purpose
-  })
-  return otp
-}
-
-export function verifyOtp(email: string, otp: string, purpose: string): boolean {
-  const stored = otpStore.get(email)
-  if (!stored || stored.purpose !== purpose) return false
-  if (new Date() > stored.expires) return false
-  if (stored.otp !== otp) return false
-  otpStore.delete(email)
-  return true
+export function generateOtp(): string {
+  return Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('')
 }
 ```
+
+Supported purposes: `signup`, `reset_password`, `change_password`, and `delete_account`.
+
+**Flow:**
+1. `/api/otp/send` generates a code, stores a hashed/row record in `otp_codes` with an expiry, and emails it via Resend.
+2. `/api/otp/verify` looks up the most recent unused code for the email + purpose, checks expiry, and marks it used on success.
 
 ### 6.5 Role System
 
@@ -838,8 +873,8 @@ User roles are stored in the `profiles` table:
 | Role | Permissions |
 |------|-------------|
 | `user` | Standard access, rate-limited |
-| `admin` | Access to admin dashboard (future) |
-| `superadmin` | Full system access (future) |
+| `admin` | Access to the admin dashboard API (`/api/admin/*`) |
+| `superadmin` | Full system access including system settings |
 
 ```sql
 ALTER TABLE profiles ADD COLUMN role TEXT DEFAULT 'user';
@@ -1031,6 +1066,69 @@ data: [DONE]
 { error: string }
 ```
 
+### 7.7 Export Data API (`/api/account/export`)
+
+**Method:** POST
+**Purpose:** Email the authenticated user a JSON export of all their data (profile, preferences, documents, conversations, messages, queries, subscription)
+
+**Request Body:** none (uses the authenticated session)
+
+**Response:**
+```typescript
+{ success: true }   // export emailed via Resend
+// or
+{ error: string }
+```
+
+### 7.8 Delete Account API (`/api/account/delete`)
+
+**Method:** POST
+**Purpose:** Permanently delete the user's account and all associated data after OTP confirmation
+
+**Request Body:**
+```typescript
+{
+  code: string   // OTP previously sent with purpose 'delete_account'
+}
+```
+
+**Behavior:** Verifies the OTP server-side, then uses the service-role client to delete the auth user. All related rows are removed via `ON DELETE CASCADE`.
+
+### 7.9 Bug Reports API (`/api/bug-reports`)
+
+**Method:** POST
+**Purpose:** Submit a bug report from Settings → Help to the admin dashboard
+
+**Request Body:**
+```typescript
+{
+  subject: string         // 3-150 chars
+  description: string     // 10-5000 chars
+  pageUrl?: string | null
+}
+```
+
+The report is stored in `bug_reports` with the reporter's `user_id`, email, and display name so admins can follow up.
+
+### 7.10 Memories API (`/api/memories`)
+
+**Methods:** GET, POST, DELETE
+**Purpose:** Manage the personalization memories the AI uses to tailor responses for the user.
+
+### 7.11 Subscription API (`/api/subscription`)
+
+**Methods:** GET, POST
+**Purpose:** Read the current user's plan and limits, and update the subscription record.
+
+### 7.12 Sessions API (`/api/sessions`, `/api/sessions/register`)
+
+**Methods:** GET, DELETE, POST
+**Purpose:** Register a session on login, list active sessions, and revoke individual sessions from Settings.
+
+### 7.13 Admin APIs (`/api/admin/*`)
+
+All admin routes are guarded by `verifyAdmin` (`lib/admin/auth.ts`) and are intended to be consumed by the **separate admin dashboard application**. They cover stats, user management, subscriptions, AI usage, rate-limit violations, bug-report triage, the audit log, and system settings. See the table in section 3.2.4.
+
 ---
 
 ## 8. Database Structure
@@ -1043,13 +1141,21 @@ Zequel uses **Supabase PostgreSQL** with Row Level Security (RLS) enabled on all
 
 | Table | Purpose | RLS |
 |-------|---------|-----|
-| `profiles` | User profile information | Yes |
-| `documents` | Uploaded document metadata | Yes |
+| `profiles` | User profile information and role | Yes |
+| `preferences` | User settings (theme, language, defaults) | Yes |
+| `documents` | Uploaded document metadata and extracted text | Yes |
 | `conversations` | Chat conversation metadata | Yes |
 | `messages` | Chat messages | Yes |
-| `preferences` | User settings | Yes |
-| `subscriptions` | Subscription plans | Yes |
+| `otp_codes` | One-time verification codes | Yes |
+| `queries` | Research query history and results | Yes |
 | `ai_usage_logs` | AI request logging | Yes |
+| `subscriptions` | Subscription plans and limits | Yes |
+| `rate_limit_violations` | Rate-limit violation tracking | Yes |
+| `system_settings` | Global system configuration | Yes |
+| `admin_audit_logs` | Admin action audit trail | Yes |
+| `user_sessions` | Active user sessions | Yes |
+| `memories` | AI personalization memories | Yes |
+| `bug_reports` | User-submitted bug reports | Yes |
 
 ### 8.3 Table Schemas
 
@@ -1288,12 +1394,19 @@ Research mode provides structured analysis outputs for academic research.
 
 **Component:** `SettingsClient`
 
+Organized into tabs:
+
+- **Account** — profile editing (display name, username, avatar), active session management, and a **Data** section to export your data or delete your account (OTP-gated)
+- **Preferences** — theme (light/dark/system) and interface language
+- **Help** — Support (Help Center, in-app **Report a Bug** form), Resources, and Legal links
+
 **Features:**
 - Profile editing (display name, username, avatar)
-- Theme preference (light/dark/system)
-- Output format default selection
-- Auto-citation toggle
-- Account deletion
+- Theme and language preferences
+- Active session listing and revocation
+- Export account data (emailed as JSON)
+- OTP-gated account deletion
+- In-app bug reporting routed to the admin dashboard
 
 ### 9.5 Responsive Design
 
@@ -1460,17 +1573,13 @@ All database queries use parameterized statements via Supabase client, preventin
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
-5. **Run database migrations**
+5. **Run database setup**
 
-   Execute each SQL file in `/scripts` directory in Supabase SQL editor:
+   Open the Supabase SQL editor and run the consolidated schema script:
    ```
-   001_create_profiles.sql
-   002_profile_trigger.sql
-   003_create_documents.sql
-   004_create_preferences.sql
-   005_create_storage_bucket.sql
-   006_create_security_tables.sql
+   scripts/init.sql
    ```
+   It is idempotent and safe to re-run — it creates all tables, indexes, RLS policies, the `handle_new_user` trigger, and storage buckets.
 
 6. **Start development server**
    ```bash
@@ -1559,8 +1668,7 @@ No `vercel.json` required - default settings work optimally:
 | Limitation | Details | Workaround |
 |------------|---------|------------|
 | **Single document selection** | Only one document can be selected for analysis at a time | Upload combined documents or use Research mode with multiple documents |
-| **In-memory rate limiting** | Rate limits reset on server restart; not shared across instances | Future: Redis implementation |
-| **In-memory OTP storage** | OTPs lost on restart; single instance only | Future: Database or Redis storage |
+| **In-memory rate limiting** | The fast-path rate limiter resets on server restart and is per-instance | Violations are also persisted to `rate_limit_violations`; Redis planned for full multi-instance limits |
 | **Context window** | AI context limited to ~80,000 chars per document | Automatic truncation with notice |
 | **File size limit** | Maximum 10MB per document | Split large documents |
 | **Supported formats** | PDF, TXT, MD only | Convert other formats externally |
@@ -1589,13 +1697,14 @@ No `vercel.json` required - default settings work optimally:
 
 ## 14. Future Improvements and Roadmap
 
-### 14.1 Phase 1: Admin Dashboard (Next)
+### 14.1 Phase 1: Admin Dashboard (In Progress)
 
-- **Separate deployable admin app**
-- User management (view, ban, upgrade)
-- Subscription management
-- Usage analytics dashboard
-- AI usage monitoring
+The admin **API layer** is implemented in this app under `/api/admin/*` (stats, users, subscriptions, AI usage, rate limits, bug reports, audit log, system settings). Remaining work:
+
+- **Separate deployable admin app** consuming these endpoints
+- Richer user management UI (view, ban, upgrade)
+- Subscription management UI
+- Usage analytics and AI monitoring dashboards
 - System health metrics
 
 ### 14.2 Phase 2: Enhanced AI Features
@@ -1724,7 +1833,7 @@ export function DocumentPanel() { ... }
 **Organization:** Absalex Labs  
 **Project:** Zequel  
 **Documentation Version:** 1.0.0  
-**Last Updated:** March 2026
+**Last Updated:** June 2026
 
 For support, contact the Absalex Labs team.
 

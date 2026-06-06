@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       textLength: extractedText.length,
     })
   } catch (error) {
-    console.error('[v0] Extract text error:', error)
+    console.error('[Zequel] Extract text error:', error)
     return NextResponse.json({ 
       error: 'Failed to extract text',
       details: error instanceof Error ? error.message : 'Unknown error'

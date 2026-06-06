@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   // Handle OAuth errors
   if (error) {
-    console.error('[v0] Auth error:', error, errorDescription)
+    console.error('[Zequel] Auth error:', error, errorDescription)
     return NextResponse.redirect(
       new URL(
         `/auth/error?error=${encodeURIComponent(error)}&description=${encodeURIComponent(errorDescription || '')}`,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
       if (exchangeError) {
-        console.error('[v0] Code exchange error:', exchangeError)
+        console.error('[Zequel] Code exchange error:', exchangeError)
         return NextResponse.redirect(
           new URL(
             `/auth/error?error=${encodeURIComponent(exchangeError.message)}`,
@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
         }
       } catch (sessionError) {
         // Don't block OAuth flow if session registration fails
-        console.warn('[v0] Session registration failed:', sessionError)
+        console.warn('[Zequel] Session registration failed:', sessionError)
       }
 
       // Successfully authenticated, redirect to workspace
       return NextResponse.redirect(new URL('/workspace', request.url))
     } catch (err) {
-      console.error('[v0] Auth callback error:', err)
+      console.error('[Zequel] Auth callback error:', err)
       return NextResponse.redirect(
         new URL(
           `/auth/error?error=Authentication+failed`,
@@ -69,6 +69,6 @@ export async function GET(request: NextRequest) {
   }
 
   // No code or error provided
-  console.warn('[v0] Auth callback called without code or error')
+  console.warn('[Zequel] Auth callback called without code or error')
   return NextResponse.redirect(new URL('/auth/login', request.url))
 }

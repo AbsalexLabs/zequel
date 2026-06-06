@@ -59,13 +59,13 @@ export async function POST(request: Request) {
     })
 
     if (insertError) {
-      console.error('[v0] Bug report insert error:', insertError)
+      console.error('[Zequel] Bug report insert error:', insertError)
       return NextResponse.json({ error: 'Failed to submit bug report' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[v0] Bug report error:', error)
+    console.error('[Zequel] Bug report error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to submit bug report' },
       { status: 500 }

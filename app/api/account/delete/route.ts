@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await service.auth.admin.deleteUser(user.id)
 
     if (deleteError) {
-      console.error('[v0] Account deletion error:', deleteError)
+      console.error('[Zequel] Account deletion error:', deleteError)
       return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 })
     }
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[v0] Delete account error:', error)
+    console.error('[Zequel] Delete account error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete account' },
       { status: 500 }

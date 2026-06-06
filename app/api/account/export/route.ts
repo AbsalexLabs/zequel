@@ -96,13 +96,13 @@ export async function POST() {
     })
 
     if (sendError) {
-      console.error('[v0] Export email send error:', sendError)
+      console.error('[Zequel] Export email send error:', sendError)
       return NextResponse.json({ error: 'Failed to send export email' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[v0] Export data error:', error)
+    console.error('[Zequel] Export data error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to export data' },
       { status: 500 }

@@ -20,7 +20,7 @@ export default function RootPage() {
         } = await supabase.auth.getUser()
         setDestination(user ? '/workspace' : '/auth/login')
       } catch (error) {
-        console.error('[v0] Auth check failed:', error)
+        console.error('[Zequel] Auth check failed:', error)
         // Default to login page if auth fails
         setDestination('/auth/login')
       }

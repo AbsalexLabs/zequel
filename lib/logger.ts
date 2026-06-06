@@ -1,6 +1,6 @@
 /**
  * Centralized logging utility with consistent formatting
- * All logs use [v0] prefix for easy identification in logs
+ * All logs use [Zequel] prefix for easy identification in logs
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -24,7 +24,7 @@ const LOG_LEVEL_SYMBOLS = {
  */
 function formatLogMessage(level: LogLevel, context: LogContext, message: string): string {
   const parts = [
-    `[v0]`,
+    `[Zequel]`,
     `[${level.toUpperCase()}]`,
     context.operation,
   ]
