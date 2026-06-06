@@ -32,7 +32,6 @@ import {
   Palette,
   FileOutput,
   CreditCard,
-  Settings2,
   Languages,
   LifeBuoy,
   Bug,
@@ -911,60 +910,27 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
             </div>
           )}
 
-          {/* ========== MORE ========== */}
-          {activeCategory === 'more' && (
+          {/* ========== HELP ========== */}
+          {activeCategory === 'help' && (
             <div className="flex flex-col gap-8">
-              {/* ----- Preferences ----- */}
-              <div className="flex flex-col gap-6">
-                <SectionHeader title="Preferences" description="General application preferences." />
-
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <Languages className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div>
-                      <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Language</p>
-                      <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Choose your preferred interface language.</p>
-                    </div>
-                  </div>
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger className="h-9 w-44 rounded-md border-border font-mono text-[11px] uppercase tracking-wider">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover text-popover-foreground">
-                      <SelectItem value="en" className="font-mono text-[11px] uppercase tracking-wider">English</SelectItem>
-                      <SelectItem value="es" className="font-mono text-[11px] uppercase tracking-wider">Español</SelectItem>
-                      <SelectItem value="fr" className="font-mono text-[11px] uppercase tracking-wider">Français</SelectItem>
-                      <SelectItem value="de" className="font-mono text-[11px] uppercase tracking-wider">Deutsch</SelectItem>
-                      <SelectItem value="pt" className="font-mono text-[11px] uppercase tracking-wider">Português</SelectItem>
-                      <SelectItem value="ar" className="font-mono text-[11px] uppercase tracking-wider">العربية</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator />
-
               {/* ----- Support ----- */}
               <div className="flex flex-col gap-2">
                 <SectionHeader title="Support" description="Get help and share feedback." />
                 <div className="flex flex-col overflow-hidden rounded-lg border border-border">
-                  <MoreRow icon={LifeBuoy} label="Help Center" description="Browse guides and FAQs." />
-                  <Separator />
-                  <MoreRow icon={Bug} label="Report a Bug" description="Let us know what went wrong." />
-                </div>
-              </div>
-
-              {/* ----- Data ----- */}
-              <div className="flex flex-col gap-2">
-                <SectionHeader title="Data" description="Manage your personal data." />
-                <div className="flex flex-col overflow-hidden rounded-lg border border-border">
-                  <MoreRow icon={Download} label="Export Data" description="Download a copy of your data." />
+                  <MoreRow
+                    icon={LifeBuoy}
+                    label="Help Center"
+                    description="Browse guides and FAQs."
+                    href="https://mrcoolweb3.xyz/help"
+                    external
+                  />
                   <Separator />
                   <MoreRow
-                    icon={Trash2}
-                    label="Delete Account"
-                    description="Permanently remove your account and data."
-                    destructive
+                    icon={Bug}
+                    label="Report a Bug"
+                    description="Let us know what went wrong."
+                    href="mailto:support@mrcoolweb3.xyz?subject=Zequel%20Bug%20Report"
+                    external
                   />
                 </div>
               </div>
@@ -973,9 +939,21 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
               <div className="flex flex-col gap-2">
                 <SectionHeader title="Resources" description="Links and reference material." />
                 <div className="flex flex-col overflow-hidden rounded-lg border border-border">
-                  <MoreRow icon={Globe} label="Website" description="Visit the Zequel website." external />
+                  <MoreRow
+                    icon={Globe}
+                    label="Website"
+                    description="Visit the Zequel website."
+                    href="https://mrcoolweb3.xyz"
+                    external
+                  />
                   <Separator />
-                  <MoreRow icon={BookOpen} label="Documentation" description="Read the product documentation." external />
+                  <MoreRow
+                    icon={BookOpen}
+                    label="Documentation"
+                    description="Read the product documentation."
+                    href="https://mrcoolweb3.xyz/docs"
+                    external
+                  />
                 </div>
               </div>
 
@@ -983,9 +961,21 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
               <div className="flex flex-col gap-2">
                 <SectionHeader title="Legal" description="Policies and agreements." />
                 <div className="flex flex-col overflow-hidden rounded-lg border border-border">
-                  <MoreRow icon={ScrollText} label="Terms of Use" description="Review our terms of service." external />
+                  <MoreRow
+                    icon={ScrollText}
+                    label="Terms of Use"
+                    description="Review our terms of service."
+                    href="https://mrcoolweb3.xyz/terms"
+                    external
+                  />
                   <Separator />
-                  <MoreRow icon={Shield} label="Privacy Policy" description="Learn how we handle your data." external />
+                  <MoreRow
+                    icon={Shield}
+                    label="Privacy Policy"
+                    description="Learn how we handle your data."
+                    href="https://mrcoolweb3.xyz/privacy"
+                    external
+                  />
                 </div>
               </div>
             </div>
@@ -1035,20 +1025,19 @@ function MoreRow({
   icon: Icon,
   label,
   description,
+  href,
   external = false,
   destructive = false,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   description: string
+  href?: string
   external?: boolean
   destructive?: boolean
 }) {
-  return (
-    <button
-      type="button"
-      className="group flex w-full items-center justify-between gap-4 bg-background px-4 py-3.5 text-left transition-colors hover:bg-secondary/40"
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <Icon
           className={cn(
@@ -1073,6 +1062,29 @@ function MoreRow({
       ) : (
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
       )}
+    </>
+  )
+
+  const className =
+    'group flex w-full items-center justify-between gap-4 bg-background px-4 py-3.5 text-left transition-colors hover:bg-secondary/40'
+
+  if (href) {
+    const isMailto = href.startsWith('mailto:')
+    return (
+      <a
+        href={href}
+        target={isMailto ? undefined : '_blank'}
+        rel={isMailto ? undefined : 'noopener noreferrer'}
+        className={className}
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <button type="button" className={className}>
+      {content}
     </button>
   )
 }
