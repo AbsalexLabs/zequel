@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS public.preferences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   theme TEXT DEFAULT 'dark',
+  language TEXT DEFAULT 'en',
   default_output_format TEXT DEFAULT 'markdown',
   auto_citation BOOLEAN DEFAULT TRUE,
   -- Personalization / memory settings
@@ -54,6 +55,11 @@ CREATE TABLE IF NOT EXISTS public.preferences (
 );
 
 -- Add missing personalization columns to preferences (safe for existing installs)
+DO $$ BEGIN
+  ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
 DO $$ BEGIN
   ALTER TABLE public.preferences ADD COLUMN IF NOT EXISTS reference_saved_memories BOOLEAN DEFAULT TRUE;
 EXCEPTION WHEN duplicate_column THEN NULL;
@@ -143,13 +149,34 @@ CREATE TABLE IF NOT EXISTS public.otp_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL,
   code TEXT NOT NULL,
-  purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'reset_password', 'change_password')),
+  purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'reset_password', 'change_password', 'delete_account')),
   used BOOLEAN DEFAULT FALSE,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_codes_unique_unused ON public.otp_codes(email, code, purpose) WHERE used = FALSE;
+
+-- Migration: allow the 'delete_account' purpose for existing installs whose
+-- CHECK constraint predates account deletion. Drop the old constraint and
+-- recreate it with the expanded allow-list.
+DO $$
+DECLARE
+  con_name TEXT;
+BEGIN
+  SELECT conname INTO con_name
+  FROM pg_constraint
+  WHERE conrelid = 'public.otp_codes'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%purpose%';
+  IF con_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.otp_codes DROP CONSTRAINT %I', con_name);
+  END IF;
+  ALTER TABLE public.otp_codes
+    ADD CONSTRAINT otp_codes_purpose_check
+    CHECK (purpose IN ('signup', 'reset_password', 'change_password', 'delete_account'));
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- 7. Queries table (Research mode history)
 -- Columns match what /api/query writes and the research panel reads.

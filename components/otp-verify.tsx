@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 
 interface OtpVerifyProps {
   email: string
-  purpose: 'signup' | 'reset_password' | 'change_password'
+  purpose: 'signup' | 'reset_password' | 'change_password' | 'delete_account'
   onVerified: () => void
   onBack?: () => void
 }

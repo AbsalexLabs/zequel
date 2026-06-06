@@ -7,14 +7,16 @@ export function otpEmailHtml({
   purpose,
 }: {
   code: string
-  purpose: 'signup' | 'reset_password' | 'change_password'
+  purpose: 'signup' | 'reset_password' | 'change_password' | 'delete_account'
 }) {
   const purposeLabel =
     purpose === 'signup'
       ? 'verify your email'
       : purpose === 'reset_password'
         ? 'reset your password'
-        : 'confirm your password change'
+        : purpose === 'delete_account'
+          ? 'confirm your account deletion'
+          : 'confirm your password change'
 
   const digits = code.split('')
 

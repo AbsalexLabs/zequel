@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email and purpose required' }, { status: 400 })
     }
 
-    if (!['signup', 'reset_password', 'change_password'].includes(purpose)) {
+    if (!['signup', 'reset_password', 'change_password', 'delete_account'].includes(purpose)) {
       return NextResponse.json({ error: 'Invalid purpose' }, { status: 400 })
     }
 
@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       signup: 'Verify your Zequel account',
       reset_password: 'Reset your Zequel password',
       change_password: 'Confirm your password change',
+      delete_account: 'Confirm your Zequel account deletion',
     }
 
     // Send via Resend
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       from: 'Zequel <noreply@mrcoolweb3.xyz>',
       to: email,
       subject: subjectMap[purpose] || 'Your Zequel verification code',
-      html: otpEmailHtml({ code, purpose: purpose as 'signup' | 'reset_password' | 'change_password' }),
+      html: otpEmailHtml({ code, purpose: purpose as 'signup' | 'reset_password' | 'change_password' | 'delete_account' }),
     })
 
     if (sendError) {

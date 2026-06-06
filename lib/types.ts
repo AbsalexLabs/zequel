@@ -35,6 +35,7 @@ export interface UserPreferences {
   id: string
   user_id: string
   theme: 'light' | 'dark'
+  language?: string | null
   default_output_format: OutputFormat
   auto_citation: boolean
   // Personalization / memory settings

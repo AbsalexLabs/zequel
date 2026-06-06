@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { ZequelLogo } from '@/components/zequel-logo'
 import { OtpVerify } from '@/components/otp-verify'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { SessionsPanel } from '@/components/settings/sessions-panel'
 import { SubscriptionPanel } from '@/components/settings/subscription-panel'
 import { MemoriesDialog, type Memory } from '@/components/settings/memories-dialog'
@@ -57,9 +58,9 @@ const CATEGORIES = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Shield },
   { id: 'subscription', label: 'Subscription', icon: CreditCard },
-  { id: 'theme', label: 'Theme', icon: Palette },
+  { id: 'preferences', label: 'Preferences', icon: Palette },
   { id: 'output', label: 'Output', icon: FileOutput },
-  { id: 'more', label: 'More', icon: Settings2 },
+  { id: 'help', label: 'Help', icon: LifeBuoy },
 ] as const
 
 type Category = (typeof CATEGORIES)[number]['id']
@@ -102,8 +103,19 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   )
   const [autoCitation, setAutoCitation] = useState(preferences?.auto_citation ?? true)
 
-  // Language (UI only for now)
-  const [language, setLanguage] = useState('en')
+  // Language (persisted to the preferences table)
+  const [language, setLanguage] = useState(preferences?.language || 'en')
+
+  // Export data flow
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
+
+  // Delete account flow: idle -> sending OTP -> verify -> deleting
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'otp_verify'>('idle')
+  const [isSendingDeleteOtp, setIsSendingDeleteOtp] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteCode, setDeleteCode] = useState('')
 
   // Personalization / memory state — persisted to the `preferences` table
   const [referenceMemories, setReferenceMemories] = useState(
@@ -279,6 +291,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         .from('preferences')
         .update({
           theme: theme as 'light' | 'dark',
+          language: language || 'en',
           default_output_format: defaultFormat,
           auto_citation: autoCitation,
           reference_saved_memories: referenceMemories,
@@ -309,6 +322,68 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/auth/login')
+  }
+
+  // Export data: emails the user a JSON copy of their data
+  const handleExportData = async () => {
+    setIsExporting(true)
+    setExportMessage('')
+    try {
+      const res = await fetch('/api/account/export', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to export data')
+      setExportMessage(`A copy has been emailed to ${userEmail}`)
+      setTimeout(() => setExportMessage(''), 6000)
+    } catch (err) {
+      setExportMessage(err instanceof Error ? err.message : 'Failed to export data')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Delete account: send OTP -> verify -> delete
+  const handleStartDelete = async () => {
+    setDeleteError('')
+    setIsSendingDeleteOtp(true)
+    try {
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, purpose: 'delete_account' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send code')
+      setDeleteStep('otp_verify')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to send code')
+    } finally {
+      setIsSendingDeleteOtp(false)
+    }
+  }
+
+  const handleConfirmDelete = async (code: string) => {
+    setDeleteError('')
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account')
+      // Account gone — send them to signup/home
+      router.push('/auth/login')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account')
+      setIsDeleting(false)
+    }
+  }
+
+  const cancelDelete = () => {
+    setDeleteStep('idle')
+    setDeleteError('')
+    setDeleteCode('')
   }
 
   const displayInitials = (() => {
@@ -510,6 +585,133 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
 
               <Separator />
 
+              {/* ----- Data ----- */}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">Data</p>
+                  <p className="mt-1 font-sans text-[13px] leading-relaxed text-muted-foreground">
+                    Export a copy of your data or permanently delete your account.
+                  </p>
+                </div>
+
+                {/* Export */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Export Data</p>
+                      <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Email yourself a JSON copy of your data.</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportData}
+                    disabled={isExporting}
+                    className="h-8 shrink-0 rounded-md border-border font-mono text-[11px] uppercase tracking-wider text-foreground hover:bg-secondary"
+                  >
+                    {isExporting ? 'Sending...' : 'Export'}
+                  </Button>
+                </div>
+                {exportMessage && (
+                  <p className="rounded-md bg-secondary/50 px-3 py-2 font-mono text-[11px] text-foreground">{exportMessage}</p>
+                )}
+
+                {/* Delete Account */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Trash2 className="h-4 w-4 shrink-0 text-confidence-low" />
+                    <div>
+                      <p className="font-mono text-[11px] uppercase tracking-wider text-confidence-low">Delete Account</p>
+                      <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Permanently remove your account and all data.</p>
+                    </div>
+                  </div>
+                  {deleteStep === 'idle' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteStep('confirm')}
+                      className="h-8 shrink-0 rounded-md border-confidence-low/40 font-mono text-[11px] uppercase tracking-wider text-confidence-low hover:bg-confidence-low/10"
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </div>
+
+                {/* Step 1: confirmation warning */}
+                {deleteStep === 'confirm' && (
+                  <div className="flex flex-col gap-3 rounded-lg border border-confidence-low/30 bg-confidence-low/5 p-5">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-confidence-low">Confirm Deletion</p>
+                    <p className="font-sans text-[13px] leading-relaxed text-foreground">
+                      This action is permanent. All your documents, conversations, research, and memories will be erased
+                      and cannot be recovered. We&apos;ll email a verification code to{' '}
+                      <span className="font-medium">{userEmail}</span> to confirm.
+                    </p>
+                    {deleteError && <p className="font-mono text-[10px] text-confidence-low">{deleteError}</p>}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        onClick={handleStartDelete}
+                        disabled={isSendingDeleteOtp}
+                        className="h-8 rounded-md bg-confidence-low font-mono text-[11px] uppercase tracking-wider text-background hover:bg-confidence-low/90"
+                      >
+                        {isSendingDeleteOtp ? 'Sending Code...' : 'Send Code'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={cancelDelete}
+                        className="h-8 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: OTP verification + final delete */}
+                {deleteStep === 'otp_verify' && (
+                  <div className="flex flex-col gap-5 rounded-lg border border-confidence-low/30 bg-confidence-low/5 p-5">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-confidence-low">Verify Deletion</p>
+                      <p className="mt-2 font-sans text-sm text-muted-foreground">
+                        {'Enter the 6-digit code sent to '}
+                        <span className="font-medium text-foreground">{userEmail}</span>
+                      </p>
+                    </div>
+                    <div className="flex justify-center">
+                      <InputOTP maxLength={6} value={deleteCode} onChange={setDeleteCode}>
+                        <InputOTPGroup>
+                          {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <InputOTPSlot
+                              key={i}
+                              index={i}
+                              className="h-12 w-11 border-border bg-background font-mono text-lg font-bold text-foreground"
+                            />
+                          ))}
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                    {deleteError && <p className="text-center font-mono text-[11px] text-confidence-low">{deleteError}</p>}
+                    <Button
+                      onClick={() => handleConfirmDelete(deleteCode)}
+                      disabled={isDeleting || deleteCode.length !== 6}
+                      className="h-10 w-full rounded-md bg-confidence-low font-mono text-xs uppercase tracking-wider text-background hover:bg-confidence-low/90 disabled:opacity-40"
+                    >
+                      {isDeleting ? 'Deleting Account...' : 'Permanently Delete Account'}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={cancelDelete}
+                      className="font-mono text-[11px] text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
               {/* Active Sessions */}
               <SessionsPanel />
             </div>
@@ -520,10 +722,10 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
             <SubscriptionPanel userId={userId} />
           )}
 
-          {/* ========== THEME ========== */}
-          {activeCategory === 'theme' && (
+          {/* ========== PREFERENCES ========== */}
+          {activeCategory === 'preferences' && (
             <div className="flex flex-col gap-6">
-              <SectionHeader title="Theme" description="Customize the look and feel of your workspace." />
+              <SectionHeader title="Preferences" description="Customize the appearance and language of your workspace." />
 
               <div className="flex items-center justify-between">
                 <div>
@@ -547,6 +749,31 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Languages className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Language</p>
+                    <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Choose your preferred interface language.</p>
+                  </div>
+                </div>
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger className="h-9 w-44 rounded-md border-border font-mono text-[11px] uppercase tracking-wider">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-popover-foreground">
+                    <SelectItem value="en" className="font-mono text-[11px] uppercase tracking-wider">English</SelectItem>
+                    <SelectItem value="es" className="font-mono text-[11px] uppercase tracking-wider">Español</SelectItem>
+                    <SelectItem value="fr" className="font-mono text-[11px] uppercase tracking-wider">Français</SelectItem>
+                    <SelectItem value="de" className="font-mono text-[11px] uppercase tracking-wider">Deutsch</SelectItem>
+                    <SelectItem value="pt" className="font-mono text-[11px] uppercase tracking-wider">Português</SelectItem>
+                    <SelectItem value="ar" className="font-mono text-[11px] uppercase tracking-wider">العربية</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <Separator />
