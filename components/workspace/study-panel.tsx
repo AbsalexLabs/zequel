@@ -247,8 +247,14 @@ export function StudyPanel() {
       })
 
       if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(`API error: ${res.status} - ${errorText}`)
+        let serverMessage = ''
+        try {
+          const errData = await res.json()
+          serverMessage = errData?.error || ''
+        } catch {
+          serverMessage = await res.text().catch(() => '')
+        }
+        throw new Error(serverMessage || `API error: ${res.status}`)
       }
 
       const reader = res.body?.getReader()
@@ -292,13 +298,17 @@ export function StudyPanel() {
         })
         if (isFirst) setTimeout(() => refreshConversationTitle(convId), 1500)
       }
-    } catch {
+    } catch (err) {
       stopStreamRenderer()
+      const message =
+        err instanceof Error && err.message && !err.message.startsWith('API error')
+          ? err.message
+          : 'An error occurred while processing your request. Please try again.'
       addMessage({
         id: crypto.randomUUID(),
         conversation_id: convId,
         role: 'assistant',
-        content: 'An error occurred while processing your request. Please try again.',
+        content: message,
         created_at: new Date().toISOString(),
       })
     } finally {
