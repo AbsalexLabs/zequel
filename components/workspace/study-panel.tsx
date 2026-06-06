@@ -704,11 +704,22 @@ export function StudyPanel() {
 
     for (const f of valid) {
       if (f.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          setAttachedFiles((prev) => [...prev, { file: f, preview: reader.result as string }])
-        }
-        reader.readAsDataURL(f)
+        // Compress/downscale images before encoding. Camera photos can be
+        // several megabytes; the raw base64 data URL would blow past the
+        // request size limit and make uploads slow. Resizing to a max edge
+        // also matches the optimal input size for vision models.
+        compressImageToDataUrl(f)
+          .then((preview) => {
+            setAttachedFiles((prev) => [...prev, { file: f, preview }])
+          })
+          .catch(() => {
+            // Fallback to the original file if compression fails
+            const reader = new FileReader()
+            reader.onload = () => {
+              setAttachedFiles((prev) => [...prev, { file: f, preview: reader.result as string }])
+            }
+            reader.readAsDataURL(f)
+          })
       } else {
         setAttachedFiles((prev) => [...prev, { file: f }])
       }
@@ -1080,6 +1091,53 @@ function EditableTitle({ title, onSave }: { title: string; onSave: (t: string) =
       <Pencil className="h-2.5 w-2.5 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
     </button>
   )
+}
+
+/* Compress and downscale an image file into a JPEG data URL.
+   Camera photos are often several megabytes; encoding them raw as base64
+   exceeds the request size limit and is slow to upload. We cap the longest
+   edge at 1568px (a good size for vision models) and re-encode as JPEG. */
+function compressImageToDataUrl(
+  file: File,
+  maxEdge = 1568,
+  quality = 0.8
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      let { width, height } = img
+      if (width > maxEdge || height > maxEdge) {
+        if (width >= height) {
+          height = Math.round((height * maxEdge) / width)
+          width = maxEdge
+        } else {
+          width = Math.round((width * maxEdge) / height)
+          height = maxEdge
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Canvas not supported'))
+        return
+      }
+      ctx.drawImage(img, 0, 0, width, height)
+      try {
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      } catch (err) {
+        reject(err as Error)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Failed to load image'))
+    }
+    img.src = objectUrl
+  })
 }
 
 /* Extract images and document references from message content (markdown image syntax and DOCS marker) */
