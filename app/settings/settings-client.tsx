@@ -75,6 +75,22 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     preferences?.default_output_format || 'summarize'
   )
   const [autoCitation, setAutoCitation] = useState(preferences?.auto_citation ?? true)
+
+  // Personalization / memory state (UI only for now — not yet persisted)
+  // TODO: integrate with backend. Plan:
+  //   1. Add columns to `preferences`: reference_saved_memories (bool),
+  //      reference_chat_history (bool), nickname (text), occupation (text),
+  //      about_you (text). Persist them in handleSave alongside other prefs.
+  //   2. Build a `memories` table (id, user_id, content, created_at) + a
+  //      "Manage memories" modal to list/delete saved memories.
+  //   3. Inject these values into the system prompt in lib/ai/prompt-builder.ts
+  //      when the corresponding toggles are enabled.
+  const [referenceMemories, setReferenceMemories] = useState(true)
+  const [referenceHistory, setReferenceHistory] = useState(true)
+  const [nickname, setNickname] = useState('')
+  const [occupation, setOccupation] = useState('')
+  const [aboutYou, setAboutYou] = useState('')
+
   const [isSaving, setIsSaving] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
@@ -505,6 +521,87 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                   <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Automatically include source citations in output.</p>
                 </div>
                 <Switch checked={autoCitation} onCheckedChange={setAutoCitation} />
+              </div>
+
+              <Separator />
+
+              {/* ----- Personalization / Memory ----- */}
+              <div>
+                <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-foreground">Personalization</h3>
+                <p className="mt-1 font-sans text-[13px] leading-relaxed text-muted-foreground">
+                  Help Zequel tailor responses to you. These details are kept in mind across conversations.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-muted/30 p-4">
+                <div className="flex flex-col gap-0.5">
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Manage Memories</p>
+                  <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">View and delete what Zequel has remembered about you.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled
+                  className="h-9 shrink-0 rounded-md font-mono text-[11px] uppercase tracking-wider"
+                >
+                  Manage
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Reference Saved Memories</p>
+                  <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Lets Zequel save and use memories when responding.</p>
+                </div>
+                <Switch checked={referenceMemories} onCheckedChange={setReferenceMemories} />
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Reference Chat History</p>
+                  <p className="mt-0.5 font-sans text-[12px] text-muted-foreground/70">Lets Zequel reference recent conversations when responding.</p>
+                </div>
+                <Switch checked={referenceHistory} onCheckedChange={setReferenceHistory} />
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="nickname" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Your Nickname</label>
+                <Input
+                  id="nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  maxLength={50}
+                  placeholder="What should Zequel call you?"
+                  className="h-9 rounded-md border-border font-sans text-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="occupation" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Your Occupation</label>
+                <Input
+                  id="occupation"
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
+                  maxLength={100}
+                  placeholder="e.g. Student, Researcher, Engineer"
+                  className="h-9 rounded-md border-border font-sans text-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="about-you" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">More About You</label>
+                <textarea
+                  id="about-you"
+                  value={aboutYou}
+                  onChange={(e) => setAboutYou(e.target.value)}
+                  maxLength={1500}
+                  rows={4}
+                  placeholder="Interests, values, or preferences to keep in mind"
+                  className="flex w-full resize-y rounded-md border border-border bg-transparent px-3 py-2 font-sans text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <span className="self-end font-mono text-[10px] text-muted-foreground/50">{aboutYou.length}/1500</span>
               </div>
 
               <Separator />
