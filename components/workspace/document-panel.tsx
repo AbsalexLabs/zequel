@@ -335,6 +335,7 @@ function DocumentItem({
             aria-label="View parsed text"
           >
             <Eye className="h-3.5 w-3.5" />
+            Parsed
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={(e) => {
