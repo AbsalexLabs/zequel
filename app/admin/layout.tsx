@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { AdminSessionProvider } from "@/components/admin/admin-session"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminTopbar } from "@/components/admin/admin-topbar"
+import { Toaster } from "@/components/ui/sonner"
 
 export const metadata: Metadata = {
   title: "Zequel Control Center",
@@ -22,6 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </main>
         </div>
       </div>
+      <Toaster />
     </AdminSessionProvider>
   )
 }
