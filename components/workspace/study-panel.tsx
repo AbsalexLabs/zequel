@@ -40,6 +40,7 @@ import {
   Download,
 } from 'lucide-react'
 import type { Conversation, Message, Document } from '@/lib/types'
+import { mapMessageRow } from '@/lib/types'
 import { UpgradeDialog, type RequiredPlan } from './upgrade-dialog'
 
 interface AttachedFile {
@@ -202,7 +203,7 @@ export function StudyPanel() {
       .select('*')
       .eq('conversation_id', conv.id)
       .order('created_at', { ascending: true })
-    setMessages((data as Message[]) || [])
+    setMessages((data || []).map(mapMessageRow))
     shouldAutoScroll.current = true
   }
 
@@ -575,9 +576,17 @@ export function StudyPanel() {
           activeVersionIndex: updatedVersions.length - 1,
         })
 
-        // Update in database (store latest content)
+        // Update in database (store latest content + full version history so
+        // the version arrows survive a page reload)
         const supabase = createClient()
-        await supabase.from('messages').update({ content: newContent }).eq('id', msgToRegenerate.id)
+        await supabase
+          .from('messages')
+          .update({
+            content: newContent,
+            versions: updatedVersions,
+            active_version_index: updatedVersions.length - 1,
+          })
+          .eq('id', msgToRegenerate.id)
       }
     } catch {
       setStreamingContent('')
@@ -601,9 +610,14 @@ export function StudyPanel() {
       activeVersionIndex: newIndex,
     })
 
-    // Update in database
+    // Update in database (persist both the displayed content and which
+    // version is active so the selection is restored after a reload)
     const supabase = createClient()
-    supabase.from('messages').update({ content: newContent }).eq('id', messageId).then(() => {})
+    supabase
+      .from('messages')
+      .update({ content: newContent, active_version_index: newIndex })
+      .eq('id', messageId)
+      .then(() => {})
   }
 
   const handleBranchNewChat = async (messageIndex: number) => {
@@ -649,7 +663,7 @@ export function StudyPanel() {
       .select('*')
       .eq('conversation_id', newConv.id)
       .order('created_at', { ascending: true })
-    setMessages((newMessages as Message[]) || [])
+      setMessages((newMessages || []).map(mapMessageRow))
   }
 
   const handleEditMessage = async (messageIndex: number) => {

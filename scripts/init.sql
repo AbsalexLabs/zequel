@@ -128,20 +128,49 @@ CREATE TABLE IF NOT EXISTS public.messages (
   conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   role TEXT NOT NULL,
   content TEXT NOT NULL,
-  versions TEXT[] DEFAULT ARRAY[]::TEXT[],
-  activeVersionIndex INTEGER DEFAULT 0,
+  -- Alternative responses produced by "regenerate", stored as an array of
+  -- { id, content, created_at } objects. JSONB (not TEXT[]) so the full
+  -- version objects survive a round-trip and the version arrows persist
+  -- after a reload.
+  versions JSONB DEFAULT '[]'::jsonb,
+  active_version_index INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Add missing columns to messages
 DO $$ BEGIN
-  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS versions TEXT[] DEFAULT ARRAY[]::TEXT[];
+  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS versions JSONB DEFAULT '[]'::jsonb;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS activeVersionIndex INTEGER DEFAULT 0;
+  ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS active_version_index INTEGER DEFAULT 0;
 EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+
+-- Migration: older installs stored `versions` as TEXT[] and used a
+-- mixed-case `activeVersionIndex` column (which Postgres folds to
+-- `activeversionindex`). Normalize both so the app's snake_case JSONB
+-- contract holds.
+DO $$ BEGIN
+  ALTER TABLE public.messages ALTER COLUMN versions TYPE JSONB USING
+    CASE
+      WHEN versions IS NULL THEN '[]'::jsonb
+      ELSE to_jsonb(versions)
+    END;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'activeversionindex'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'messages' AND column_name = 'active_version_index'
+  ) THEN
+    ALTER TABLE public.messages RENAME COLUMN activeversionindex TO active_version_index;
+  END IF;
 END $$;
 
 -- 6. OTP Codes table
