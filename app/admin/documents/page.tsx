@@ -1,44 +1,70 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { FileText, Globe, FileType } from "lucide-react"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { documents } from "@/lib/admin-dashboard/mock-data"
+import { Button } from "@/components/ui/button"
+import {
+  DocIcon,
+  DocumentRowActions,
+  UploadDocumentDialog,
+  type DocumentPatch,
+} from "@/components/admin/document-manager"
+import { documents as seedDocuments } from "@/lib/admin-dashboard/mock-data"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { DocumentRecord } from "@/lib/admin-dashboard/types"
 
-function DocIcon({ type }: { type: string }) {
-  if (type === "web") return <Globe className="size-4 text-muted-foreground" />
-  if (type === "md" || type === "txt") return <FileType className="size-4 text-muted-foreground" />
-  return <FileText className="size-4 text-muted-foreground" />
-}
-
 export default function DocumentsPage() {
+  const [rows, setRows] = useState<DocumentRecord[]>(seedDocuments)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [type, setType] = useState("all")
   const [status, setStatus] = useState("all")
 
   const filtered = useMemo(() => {
-    return documents.filter((d) => {
+    return rows.filter((d) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || d.name.toLowerCase().includes(q) || d.owner.toLowerCase().includes(q)
       const matchesType = type === "all" || d.type === type
       const matchesStatus = status === "all" || d.status === status
       return matchesSearch && matchesType && matchesStatus
     })
-  }, [search, type, status])
+  }, [rows, search, type, status])
 
-  const indexed = documents.filter((d) => d.status === "indexed").length
-  const processing = documents.filter((d) => d.status === "processing").length
-  const failed = documents.filter((d) => d.status === "failed").length
-  const totalPages = documents.reduce((a, d) => a + d.pages, 0)
+  const indexed = rows.filter((d) => d.status === "indexed").length
+  const processing = rows.filter((d) => d.status === "processing").length
+  const failed = rows.filter((d) => d.status === "failed").length
+  const totalPages = rows.reduce((a, d) => a + d.pages, 0)
+
+  function patchDocument(id: string, patch: DocumentPatch, message: string) {
+    setRows((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)))
+    toast.success(message)
+  }
+
+  function deleteDocument(id: string, message: string) {
+    setRows((prev) => prev.filter((d) => d.id !== id))
+    toast.success(message)
+  }
+
+  function addDocument(doc: DocumentRecord, message: string) {
+    setRows((prev) => [doc, ...prev])
+    toast.success(message)
+  }
+
+  function exportDocument(_id: string, message: string) {
+    toast.success(message)
+  }
 
   return (
     <>
-      <PageHeader title="Documents" description="Indexed corpus, ingestion pipeline, and document health." />
+      <PageHeader title="Documents" description="Indexed corpus, ingestion pipeline, and document health.">
+        <Button size="sm" onClick={() => setUploadOpen(true)}>
+          Upload document
+        </Button>
+      </PageHeader>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Indexed" value={formatNumber(indexed)} />
@@ -123,14 +149,29 @@ export default function DocumentsPage() {
                 header: "Uploaded",
                 cell: (d) => <span className="text-sm text-muted-foreground">{relativeTime(d.uploadedAt)}</span>,
               },
+              {
+                key: "actions",
+                header: "",
+                className: "w-10 text-right",
+                cell: (d) => (
+                  <DocumentRowActions
+                    doc={d}
+                    onPatch={patchDocument}
+                    onDelete={deleteDocument}
+                    onExport={exportDocument}
+                  />
+                ),
+              },
             ]}
           />
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {documents.length} documents
+          Showing {filtered.length} of {rows.length} documents
         </p>
       </div>
+
+      <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} onUpload={addDocument} />
     </>
   )
 }

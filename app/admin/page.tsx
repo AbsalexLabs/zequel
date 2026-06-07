@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { ActivityFeed } from "@/components/admin/activity-feed"
 import { AreaTrend, DonutBreakdown } from "@/components/admin/charts"
-import { Button } from "@/components/ui/button"
+import { OverviewActions } from "@/components/admin/overview-actions"
 import {
   overviewStats as s,
   requestVolumeSeries,
@@ -21,10 +21,7 @@ export default function OverviewPage() {
         title="Control Center"
         description="Real-time operational view of the Zequel research platform — usage, revenue, and system health."
       >
-        <Button variant="outline" size="sm">
-          Last 30 days
-        </Button>
-        <Button size="sm">Export report</Button>
+        <OverviewActions />
       </PageHeader>
 
       {/* Primary stats */}
