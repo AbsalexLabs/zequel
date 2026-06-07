@@ -1,0 +1,29 @@
+import type { Metadata } from "next"
+import { AdminSessionProvider } from "@/components/admin/admin-session"
+import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminTopbar } from "@/components/admin/admin-topbar"
+
+export const metadata: Metadata = {
+  title: "Zequel Control Center",
+  description: "Operational dashboard for the Zequel research platform.",
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminSessionProvider>
+      <div className="flex min-h-screen bg-background">
+        <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
+          <div className="sticky top-0 h-screen">
+            <AdminSidebar />
+          </div>
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AdminTopbar />
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-7xl space-y-8">{children}</div>
+          </main>
+        </div>
+      </div>
+    </AdminSessionProvider>
+  )
+}
