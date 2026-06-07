@@ -11,12 +11,16 @@ import { ResearchPanel } from './research-panel'
 import { StudyPanel } from './study-panel'
 import { EvidencePanel } from './evidence-panel'
 import { ConversationsPanel } from './conversations-panel'
+import { CodingFilesPanel } from './coding/coding-files-panel'
+import { CodingEditorPanel } from './coding/coding-editor-panel'
+import { CodingAssistantPanel } from './coding/coding-assistant-panel'
+import { useCodingBootstrap } from './coding/use-coding-bootstrap'
 import { useWorkspaceStore } from '@/lib/store'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import type { Profile } from '@/lib/types'
+import type { Profile, CodingActionId, WorkspaceMode } from '@/lib/types'
 import {
   FileText,
   Search,
@@ -24,6 +28,8 @@ import {
   GraduationCap,
   FlaskConical,
   MessageSquare,
+  Code2,
+  Bot,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -59,36 +65,39 @@ export function WorkspaceShell({
   )
 }
 
-/* Mode Switcher — equal-width buttons, centered */
-function ModeSwitcher() {
+/* Mode Switcher — responsive: labels on desktop, icon-only on small screens */
+function ModeSwitcher({ compact = false }: { compact?: boolean }) {
   const { mode, setMode } = useWorkspaceStore()
+
+  const modes: {
+    id: WorkspaceMode
+    label: string
+    icon: React.ReactNode
+  }[] = [
+    { id: 'study', label: 'Study', icon: <GraduationCap className="h-3.5 w-3.5" /> },
+    { id: 'research', label: 'Research', icon: <FlaskConical className="h-3.5 w-3.5" /> },
+    { id: 'coding', label: 'Coding', icon: <Code2 className="h-3.5 w-3.5" /> },
+  ]
 
   return (
     <div className="flex items-center rounded-md border border-border bg-secondary/50 p-0.5">
-      <button
-        onClick={() => setMode('study')}
-        className={cn(
-          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
-          mode === 'study'
-            ? 'bg-foreground text-background shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <GraduationCap className="h-3.5 w-3.5" />
-        Study
-      </button>
-      <button
-        onClick={() => setMode('research')}
-        className={cn(
-          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
-          mode === 'research'
-            ? 'bg-foreground text-background shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <FlaskConical className="h-3.5 w-3.5" />
-        Research
-      </button>
+      {modes.map((m) => (
+        <button
+          key={m.id}
+          onClick={() => setMode(m.id)}
+          aria-label={m.label}
+          className={cn(
+            'flex items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
+            compact ? 'w-9' : 'w-16 sm:w-24',
+            mode === m.id
+              ? 'bg-foreground text-background shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {m.icon}
+          {!compact && <span className="hidden sm:inline">{m.label}</span>}
+        </button>
+      ))}
     </div>
   )
 }
@@ -98,23 +107,30 @@ function DesktopWorkspace({
   userEmail,
   profile,
 }: WorkspaceShellProps) {
-  const { mode } = useWorkspaceStore()
+  const { mode, setPendingCodingAction } = useWorkspaceStore()
+
+  // Bootstrap the coding project/files/messages the first time Coding Mode opens.
+  useCodingBootstrap(mode === 'coding')
 
   return (
     <div className="h-svh w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Left Panel — Document Control (22%) */}
+        {/* Left Panel — Documents (study/research) or Project Files (coding) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
-          <DocumentPanel
-            onUploadClick={onUploadClick}
-            userEmail={userEmail}
-            profile={profile}
-          />
+          {mode === 'coding' ? (
+            <CodingFilesPanel userEmail={userEmail} profile={profile} />
+          ) : (
+            <DocumentPanel
+              onUploadClick={onUploadClick}
+              userEmail={userEmail}
+              profile={profile}
+            />
+          )}
         </ResizablePanel>
 
         <ResizableHandle />
 
-        {/* Center Panel — Study or Research (56%) */}
+        {/* Center Panel — Study, Research, or Coding editor (56%) */}
         <ResizablePanel defaultSize={56} minSize={40}>
           <div className="flex h-full flex-col overflow-hidden">
             {/* Mode Switcher Bar — centered */}
@@ -124,17 +140,23 @@ function DesktopWorkspace({
             <Separator className="shrink-0" />
             {/* Panel Content */}
             <div className="min-h-0 flex-1 overflow-hidden">
-              {mode === 'study' ? <StudyPanel /> : <ResearchPanel />}
+              {mode === 'study' && <StudyPanel />}
+              {mode === 'research' && <ResearchPanel />}
+              {mode === 'coding' && (
+                <CodingEditorPanel onAction={setPendingCodingAction} />
+              )}
             </div>
           </div>
         </ResizablePanel>
 
         <ResizableHandle />
 
-        {/* Right Panel — Conversations (study) or Evidence (research) */}
+        {/* Right Panel — Conversations (study), Evidence (research), Assistant (coding) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
           <div className="h-full overflow-hidden">
-            {mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />}
+            {mode === 'study' && <ConversationsPanel />}
+            {mode === 'research' && <EvidencePanel />}
+            {mode === 'coding' && <CodingAssistantPanel />}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -165,18 +187,32 @@ function MobileWorkspace({
   userEmail,
   profile,
 }: WorkspaceShellProps) {
-  const { activeMobileTab, setActiveMobileTab, mode } = useWorkspaceStore()
+  const { activeMobileTab, setActiveMobileTab, mode, setPendingCodingAction } =
+    useWorkspaceStore()
+
+  // Bootstrap coding data on mobile too.
+  useCodingBootstrap(mode === 'coding')
+
+  // On mobile, running a quick action also jumps to the Assistant tab so the
+  // user sees the streamed response (the assistant panel isn't mounted while
+  // the editor tab is active).
+  const handleMobileAction = (action: CodingActionId) => {
+    setPendingCodingAction(action)
+    setActiveMobileTab('evidence')
+  }
 
   return (
     <div className="flex h-svh w-full flex-col bg-background">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5">
-        <span className="font-mono text-xs font-semibold text-foreground">Zequel</span>
-        <div className="flex items-center gap-2">
-          <ModeSwitcher />
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <span className="shrink-0 font-mono text-xs font-semibold text-foreground">
+          Zequel
+        </span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <ModeSwitcher compact />
           <ThemeToggle />
-          <Link href="/settings">
-            <Avatar className="h-6 w-6">
+          <Link href="/settings" className="shrink-0">
+            <Avatar className="h-7 w-7">
               {profile?.avatar_url ? (
                 <AvatarImage
                   src={profile.avatar_url}
@@ -195,18 +231,33 @@ function MobileWorkspace({
       {/* Content Area */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
-          {activeMobileTab === 'documents' && (
-            <DocumentPanel
-              onUploadClick={onUploadClick}
-              userEmail={userEmail}
-              profile={profile}
-              hideHeader
-            />
-          )}
+          {activeMobileTab === 'documents' &&
+            (mode === 'coding' ? (
+              <CodingFilesPanel hideHeader userEmail={userEmail} profile={profile} />
+            ) : (
+              <DocumentPanel
+                onUploadClick={onUploadClick}
+                userEmail={userEmail}
+                profile={profile}
+                hideHeader
+              />
+            ))}
           {activeMobileTab === 'research' &&
-            (mode === 'study' ? <StudyPanel /> : <ResearchPanel />)}
+            (mode === 'study' ? (
+              <StudyPanel />
+            ) : mode === 'research' ? (
+              <ResearchPanel />
+            ) : (
+              <CodingEditorPanel onAction={handleMobileAction} />
+            ))}
           {activeMobileTab === 'evidence' &&
-            (mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />)}
+            (mode === 'study' ? (
+              <ConversationsPanel />
+            ) : mode === 'research' ? (
+              <EvidencePanel />
+            ) : (
+              <CodingAssistantPanel />
+            ))}
         </div>
       </div>
 
@@ -215,7 +266,7 @@ function MobileWorkspace({
       <nav className="flex items-center bg-background" role="tablist">
         <MobileTab
           icon={<FileText className="h-4 w-4" />}
-          label="Documents"
+          label={mode === 'coding' ? 'Files' : 'Documents'}
           isActive={activeMobileTab === 'documents'}
           onClick={() => setActiveMobileTab('documents')}
         />
@@ -223,11 +274,13 @@ function MobileWorkspace({
           icon={
             mode === 'study' ? (
               <GraduationCap className="h-4 w-4" />
-            ) : (
+            ) : mode === 'research' ? (
               <Search className="h-4 w-4" />
+            ) : (
+              <Code2 className="h-4 w-4" />
             )
           }
-          label={mode === 'study' ? 'Study' : 'Research'}
+          label={mode === 'study' ? 'Study' : mode === 'research' ? 'Research' : 'Editor'}
           isActive={activeMobileTab === 'research'}
           onClick={() => setActiveMobileTab('research')}
         />
@@ -235,11 +288,13 @@ function MobileWorkspace({
           icon={
             mode === 'study' ? (
               <MessageSquare className="h-4 w-4" />
-            ) : (
+            ) : mode === 'research' ? (
               <BookOpen className="h-4 w-4" />
+            ) : (
+              <Bot className="h-4 w-4" />
             )
           }
-          label={mode === 'study' ? 'Chats' : 'Evidence'}
+          label={mode === 'study' ? 'Chats' : mode === 'research' ? 'Evidence' : 'Assistant'}
           isActive={activeMobileTab === 'evidence'}
           onClick={() => setActiveMobileTab('evidence')}
         />

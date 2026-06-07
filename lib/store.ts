@@ -7,6 +7,11 @@ import type {
   WorkspaceMode,
   Conversation,
   Message,
+  CodingProject,
+  CodingFolder,
+  CodingFile,
+  CodingMessage,
+  CodingActionId,
 } from './types'
 
 interface WorkspaceState {
@@ -62,6 +67,53 @@ interface WorkspaceState {
   // Mobile panels
   activeMobileTab: 'documents' | 'research' | 'evidence'
   setActiveMobileTab: (tab: 'documents' | 'research' | 'evidence') => void
+
+  // ─── Coding Mode ──────────────────────────────────────────────────────────
+  // Projects (a project behaves like a repo)
+  codingProjects: CodingProject[]
+  setCodingProjects: (projects: CodingProject[]) => void
+  addCodingProject: (project: CodingProject) => void
+  updateCodingProject: (id: string, updates: Partial<CodingProject>) => void
+  removeCodingProject: (id: string) => void
+
+  codingProject: CodingProject | null
+  setCodingProject: (project: CodingProject | null) => void
+
+  // Folders (nestable within a project)
+  codingFolders: CodingFolder[]
+  setCodingFolders: (folders: CodingFolder[]) => void
+  addCodingFolder: (folder: CodingFolder) => void
+  updateCodingFolder: (id: string, updates: Partial<CodingFolder>) => void
+  removeCodingFolder: (id: string) => void
+
+  expandedFolderIds: string[]
+  toggleFolderExpanded: (id: string) => void
+  setFolderExpanded: (id: string, expanded: boolean) => void
+
+  codingFiles: CodingFile[]
+  setCodingFiles: (files: CodingFile[]) => void
+  addCodingFile: (file: CodingFile) => void
+  updateCodingFile: (id: string, updates: Partial<CodingFile>) => void
+  removeCodingFile: (id: string) => void
+
+  activeCodingFileId: string | null
+  setActiveCodingFileId: (id: string | null) => void
+
+  codingMessages: CodingMessage[]
+  setCodingMessages: (msgs: CodingMessage[]) => void
+  addCodingMessage: (msg: CodingMessage) => void
+
+  isCodingStreaming: boolean
+  setIsCodingStreaming: (v: boolean) => void
+
+  learningMode: boolean
+  setLearningMode: (v: boolean) => void
+
+  // A quick action queued from the editor toolbar. The assistant panel consumes
+  // it once mounted — this survives the mobile tab switch where the assistant
+  // is not rendered at dispatch time.
+  pendingCodingAction: CodingActionId | null
+  setPendingCodingAction: (action: CodingActionId | null) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -148,4 +200,121 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   activeMobileTab: 'research',
   setActiveMobileTab: (tab) => set({ activeMobileTab: tab }),
+
+  // ─── Coding Mode ──────────────────────────────────────────────────────────
+  codingProjects: [],
+  setCodingProjects: (projects) => set({ codingProjects: projects }),
+  addCodingProject: (project) =>
+    set((state) => ({ codingProjects: [project, ...state.codingProjects] })),
+  updateCodingProject: (id, updates) =>
+    set((state) => ({
+      codingProjects: state.codingProjects.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+      codingProject:
+        state.codingProject?.id === id
+          ? { ...state.codingProject, ...updates }
+          : state.codingProject,
+    })),
+  removeCodingProject: (id) =>
+    set((state) => ({
+      codingProjects: state.codingProjects.filter((p) => p.id !== id),
+    })),
+
+  codingProject: null,
+  setCodingProject: (project) => set({ codingProject: project }),
+
+  codingFolders: [],
+  setCodingFolders: (folders) => set({ codingFolders: folders }),
+  addCodingFolder: (folder) =>
+    set((state) => ({
+      codingFolders: [...state.codingFolders, folder],
+      expandedFolderIds: folder.parent_id
+        ? Array.from(new Set([...state.expandedFolderIds, folder.parent_id]))
+        : state.expandedFolderIds,
+    })),
+  updateCodingFolder: (id, updates) =>
+    set((state) => ({
+      codingFolders: state.codingFolders.map((f) =>
+        f.id === id ? { ...f, ...updates } : f
+      ),
+    })),
+  removeCodingFolder: (id) =>
+    set((state) => {
+      // Cascade delete: collect this folder and all descendants.
+      const toRemove = new Set<string>([id])
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const f of state.codingFolders) {
+          if (f.parent_id && toRemove.has(f.parent_id) && !toRemove.has(f.id)) {
+            toRemove.add(f.id)
+            changed = true
+          }
+        }
+      }
+      const removedFileActive = state.codingFiles.some(
+        (f) => f.id === state.activeCodingFileId && f.folder_id && toRemove.has(f.folder_id)
+      )
+      return {
+        codingFolders: state.codingFolders.filter((f) => !toRemove.has(f.id)),
+        codingFiles: state.codingFiles.filter(
+          (f) => !(f.folder_id && toRemove.has(f.folder_id))
+        ),
+        activeCodingFileId: removedFileActive ? null : state.activeCodingFileId,
+      }
+    }),
+
+  expandedFolderIds: [],
+  toggleFolderExpanded: (id) =>
+    set((state) => ({
+      expandedFolderIds: state.expandedFolderIds.includes(id)
+        ? state.expandedFolderIds.filter((fid) => fid !== id)
+        : [...state.expandedFolderIds, id],
+    })),
+  setFolderExpanded: (id, expanded) =>
+    set((state) => ({
+      expandedFolderIds: expanded
+        ? Array.from(new Set([...state.expandedFolderIds, id]))
+        : state.expandedFolderIds.filter((fid) => fid !== id),
+    })),
+
+  codingFiles: [],
+  setCodingFiles: (files) => set({ codingFiles: files }),
+  addCodingFile: (file) =>
+    set((state) => ({
+      codingFiles: [...state.codingFiles, file],
+      expandedFolderIds: file.folder_id
+        ? Array.from(new Set([...state.expandedFolderIds, file.folder_id]))
+        : state.expandedFolderIds,
+    })),
+  updateCodingFile: (id, updates) =>
+    set((state) => ({
+      codingFiles: state.codingFiles.map((f) =>
+        f.id === id ? { ...f, ...updates } : f
+      ),
+    })),
+  removeCodingFile: (id) =>
+    set((state) => ({
+      codingFiles: state.codingFiles.filter((f) => f.id !== id),
+      activeCodingFileId:
+        state.activeCodingFileId === id ? null : state.activeCodingFileId,
+    })),
+
+  activeCodingFileId: null,
+  setActiveCodingFileId: (id) => set({ activeCodingFileId: id }),
+
+  codingMessages: [],
+  setCodingMessages: (msgs) => set({ codingMessages: msgs }),
+  addCodingMessage: (msg) =>
+    set((state) => ({ codingMessages: [...state.codingMessages, msg] })),
+
+  isCodingStreaming: false,
+  setIsCodingStreaming: (v) => set({ isCodingStreaming: v }),
+
+  learningMode: false,
+  setLearningMode: (v) => set({ learningMode: v }),
+
+  pendingCodingAction: null,
+  setPendingCodingAction: (action) => set({ pendingCodingAction: action }),
 }))
