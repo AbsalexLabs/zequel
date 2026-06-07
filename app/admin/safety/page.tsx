@@ -1,12 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill, SeverityPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { safetyEvents } from "@/lib/admin-dashboard/mock-data"
+import { SafetyRowActions, type SafetyPatch } from "@/components/admin/safety-manager"
+import { safetyEvents as seedEvents } from "@/lib/admin-dashboard/mock-data"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { SafetyEvent } from "@/lib/admin-dashboard/types"
 
@@ -19,30 +21,36 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 export default function SafetyPage() {
+  const [rows, setRows] = useState<SafetyEvent[]>(seedEvents)
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("all")
   const [severity, setSeverity] = useState("all")
 
   const filtered = useMemo(() => {
-    return safetyEvents.filter((e) => {
+    return rows.filter((e) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || e.user.toLowerCase().includes(q) || e.detail.toLowerCase().includes(q)
       const matchesCategory = category === "all" || e.category === category
       const matchesSeverity = severity === "all" || e.severity === severity
       return matchesSearch && matchesCategory && matchesSeverity
     })
-  }, [search, category, severity])
+  }, [rows, search, category, severity])
 
-  const critical = safetyEvents.filter((e) => e.severity === "critical").length
-  const blocked = safetyEvents.filter((e) => e.action === "blocked").length
-  const pendingReview = safetyEvents.filter((e) => e.action === "flagged").length
+  const critical = rows.filter((e) => e.severity === "critical").length
+  const blocked = rows.filter((e) => e.action === "blocked").length
+  const pendingReview = rows.filter((e) => e.action === "flagged").length
 
   const byCategory = Object.entries(
-    safetyEvents.reduce<Record<string, number>>((acc, e) => {
+    rows.reduce<Record<string, number>>((acc, e) => {
       acc[e.category] = (acc[e.category] ?? 0) + 1
       return acc
     }, {}),
   ).sort((a, b) => b[1] - a[1])
+
+  function patchEvent(id: string, patch: SafetyPatch, message: string) {
+    setRows((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+    toast.success(message)
+  }
 
   return (
     <>
@@ -52,7 +60,7 @@ export default function SafetyPage() {
       />
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Events" value={formatNumber(safetyEvents.length)} hint="in view" />
+        <StatCard label="Total Events" value={formatNumber(rows.length)} hint="in view" />
         <StatCard label="Critical" value={formatNumber(critical)} />
         <StatCard label="Blocked" value={formatNumber(blocked)} />
         <StatCard label="Pending Review" value={formatNumber(pendingReview)} />
@@ -65,7 +73,7 @@ export default function SafetyPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
           {byCategory.map(([cat, count]) => {
-            const pct = Math.round((count / safetyEvents.length) * 100)
+            const pct = rows.length ? Math.round((count / rows.length) * 100) : 0
             return (
               <div key={cat} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
@@ -147,9 +155,19 @@ export default function SafetyPage() {
                 header: "Detected",
                 cell: (e) => <span className="text-sm text-muted-foreground">{relativeTime(e.createdAt)}</span>,
               },
+              {
+                key: "actions",
+                header: "",
+                className: "w-10 text-right",
+                cell: (e) => <SafetyRowActions event={e} onPatch={patchEvent} />,
+              },
             ]}
           />
         </DataTableCard>
+
+        <p className="text-xs text-muted-foreground">
+          Showing {filtered.length} of {rows.length} events
+        </p>
       </div>
     </>
   )
