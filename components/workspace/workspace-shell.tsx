@@ -20,7 +20,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import type { Profile, CodingActionId } from '@/lib/types'
+import type { Profile, CodingActionId, WorkspaceMode } from '@/lib/types'
 import {
   FileText,
   Search,
@@ -32,12 +32,6 @@ import {
   Bot,
 } from 'lucide-react'
 import Link from 'next/link'
-
-// Dispatches a quick-action from the editor toolbar to the assistant panel,
-// which listens for this event and runs the corresponding AI request.
-function emitCodingAction(action: CodingActionId) {
-  window.dispatchEvent(new CustomEvent('zequel:coding-action', { detail: action }))
-}
 
 interface WorkspaceShellProps {
   onUploadClick: () => void
@@ -71,48 +65,39 @@ export function WorkspaceShell({
   )
 }
 
-/* Mode Switcher — equal-width buttons, centered */
-function ModeSwitcher() {
+/* Mode Switcher — responsive: labels on desktop, icon-only on small screens */
+function ModeSwitcher({ compact = false }: { compact?: boolean }) {
   const { mode, setMode } = useWorkspaceStore()
+
+  const modes: {
+    id: WorkspaceMode
+    label: string
+    icon: React.ReactNode
+  }[] = [
+    { id: 'study', label: 'Study', icon: <GraduationCap className="h-3.5 w-3.5" /> },
+    { id: 'research', label: 'Research', icon: <FlaskConical className="h-3.5 w-3.5" /> },
+    { id: 'coding', label: 'Coding', icon: <Code2 className="h-3.5 w-3.5" /> },
+  ]
 
   return (
     <div className="flex items-center rounded-md border border-border bg-secondary/50 p-0.5">
-      <button
-        onClick={() => setMode('study')}
-        className={cn(
-          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
-          mode === 'study'
-            ? 'bg-foreground text-background shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <GraduationCap className="h-3.5 w-3.5" />
-        Study
-      </button>
-      <button
-        onClick={() => setMode('research')}
-        className={cn(
-          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
-          mode === 'research'
-            ? 'bg-foreground text-background shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <FlaskConical className="h-3.5 w-3.5" />
-        Research
-      </button>
-      <button
-        onClick={() => setMode('coding')}
-        className={cn(
-          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
-          mode === 'coding'
-            ? 'bg-foreground text-background shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-      >
-        <Code2 className="h-3.5 w-3.5" />
-        Coding
-      </button>
+      {modes.map((m) => (
+        <button
+          key={m.id}
+          onClick={() => setMode(m.id)}
+          aria-label={m.label}
+          className={cn(
+            'flex items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
+            compact ? 'w-9' : 'w-16 sm:w-24',
+            mode === m.id
+              ? 'bg-foreground text-background shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {m.icon}
+          {!compact && <span className="hidden sm:inline">{m.label}</span>}
+        </button>
+      ))}
     </div>
   )
 }
@@ -122,7 +107,7 @@ function DesktopWorkspace({
   userEmail,
   profile,
 }: WorkspaceShellProps) {
-  const { mode } = useWorkspaceStore()
+  const { mode, setPendingCodingAction } = useWorkspaceStore()
 
   // Bootstrap the coding project/files/messages the first time Coding Mode opens.
   useCodingBootstrap(mode === 'coding')
@@ -133,7 +118,7 @@ function DesktopWorkspace({
         {/* Left Panel — Documents (study/research) or Project Files (coding) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
           {mode === 'coding' ? (
-            <CodingFilesPanel />
+            <CodingFilesPanel userEmail={userEmail} profile={profile} />
           ) : (
             <DocumentPanel
               onUploadClick={onUploadClick}
@@ -158,7 +143,7 @@ function DesktopWorkspace({
               {mode === 'study' && <StudyPanel />}
               {mode === 'research' && <ResearchPanel />}
               {mode === 'coding' && (
-                <CodingEditorPanel onAction={emitCodingAction} />
+                <CodingEditorPanel onAction={setPendingCodingAction} />
               )}
             </div>
           </div>
@@ -202,21 +187,32 @@ function MobileWorkspace({
   userEmail,
   profile,
 }: WorkspaceShellProps) {
-  const { activeMobileTab, setActiveMobileTab, mode } = useWorkspaceStore()
+  const { activeMobileTab, setActiveMobileTab, mode, setPendingCodingAction } =
+    useWorkspaceStore()
 
   // Bootstrap coding data on mobile too.
   useCodingBootstrap(mode === 'coding')
 
+  // On mobile, running a quick action also jumps to the Assistant tab so the
+  // user sees the streamed response (the assistant panel isn't mounted while
+  // the editor tab is active).
+  const handleMobileAction = (action: CodingActionId) => {
+    setPendingCodingAction(action)
+    setActiveMobileTab('evidence')
+  }
+
   return (
     <div className="flex h-svh w-full flex-col bg-background">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5">
-        <span className="font-mono text-xs font-semibold text-foreground">Zequel</span>
-        <div className="flex items-center gap-2">
-          <ModeSwitcher />
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <span className="shrink-0 font-mono text-xs font-semibold text-foreground">
+          Zequel
+        </span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <ModeSwitcher compact />
           <ThemeToggle />
-          <Link href="/settings">
-            <Avatar className="h-6 w-6">
+          <Link href="/settings" className="shrink-0">
+            <Avatar className="h-7 w-7">
               {profile?.avatar_url ? (
                 <AvatarImage
                   src={profile.avatar_url}
@@ -237,7 +233,7 @@ function MobileWorkspace({
         <div className="absolute inset-0 overflow-hidden">
           {activeMobileTab === 'documents' &&
             (mode === 'coding' ? (
-              <CodingFilesPanel />
+              <CodingFilesPanel hideHeader userEmail={userEmail} profile={profile} />
             ) : (
               <DocumentPanel
                 onUploadClick={onUploadClick}
@@ -252,7 +248,7 @@ function MobileWorkspace({
             ) : mode === 'research' ? (
               <ResearchPanel />
             ) : (
-              <CodingEditorPanel onAction={emitCodingAction} />
+              <CodingEditorPanel onAction={handleMobileAction} />
             ))}
           {activeMobileTab === 'evidence' &&
             (mode === 'study' ? (

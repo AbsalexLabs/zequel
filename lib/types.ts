@@ -135,10 +135,21 @@ export interface CodingProject {
   updated_at: string
 }
 
+export interface CodingFolder {
+  id: string
+  project_id: string
+  user_id: string
+  parent_id: string | null
+  name: string
+  created_at: string
+  updated_at: string
+}
+
 export interface CodingFile {
   id: string
   project_id: string
   user_id: string
+  folder_id: string | null
   name: string
   language: CodingLanguage
   content: string

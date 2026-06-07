@@ -25,6 +25,7 @@ export function CodingAssistantPanel() {
   const {
     codingProject,
     codingFiles,
+    codingFolders,
     activeCodingFileId,
     codingMessages,
     addCodingMessage,
@@ -32,6 +33,8 @@ export function CodingAssistantPanel() {
     isCodingStreaming,
     setIsCodingStreaming,
     documents,
+    pendingCodingAction,
+    setPendingCodingAction,
   } = useWorkspaceStore()
 
   const [input, setInput] = useState('')
@@ -49,16 +52,32 @@ export function CodingAssistantPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [codingMessages, streamingContent])
 
-  // Listen for quick-action events dispatched from the editor toolbar.
+  // Consume a quick action queued from the editor toolbar (works across the
+  // mobile tab switch because it lives in the store, not a transient event).
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<CodingActionId>).detail
-      if (detail) void send(undefined, detail)
+    if (pendingCodingAction && !isCodingStreaming && codingProject) {
+      const action = pendingCodingAction
+      setPendingCodingAction(null)
+      void send(undefined, action)
     }
-    window.addEventListener('zequel:coding-action', handler as EventListener)
-    return () => window.removeEventListener('zequel:coding-action', handler as EventListener)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codingProject, codingFiles, activeCodingFileId, learningMode, selectedDocIds, isCodingStreaming])
+  }, [pendingCodingAction, isCodingStreaming, codingProject])
+
+  // Builds the full slash-path of a file using the folder hierarchy, so the AI
+  // understands where each file lives within the project.
+  const filePath = (folderId: string | null, name: string): string => {
+    const parts: string[] = [name]
+    let current = folderId
+    const guard = new Set<string>()
+    while (current && !guard.has(current)) {
+      guard.add(current)
+      const folder = codingFolders.find((f) => f.id === current)
+      if (!folder) break
+      parts.unshift(folder.name)
+      current = folder.parent_id
+    }
+    return parts.join('/')
+  }
 
   const send = async (text?: string, action?: CodingActionId) => {
     if (!codingProject || isCodingStreaming) return
@@ -78,7 +97,7 @@ export function CodingAssistantPanel() {
 
     const activeFile = codingFiles.find((f) => f.id === activeCodingFileId)
     const projectFiles = codingFiles.map((f) => ({
-      name: f.name,
+      name: filePath(f.folder_id, f.name),
       language: f.language,
       content: f.content,
     }))
@@ -95,7 +114,7 @@ export function CodingAssistantPanel() {
           project_id: codingProject.id,
           message: action ? undefined : message,
           active_file_id: activeFile?.id ?? null,
-          active_file_name: activeFile?.name ?? null,
+          active_file_name: activeFile ? filePath(activeFile.folder_id, activeFile.name) : null,
           active_language: activeFile?.language,
           active_file_content: activeFile?.content ?? null,
           project_files: projectFiles,
