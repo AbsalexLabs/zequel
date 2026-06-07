@@ -139,12 +139,54 @@ export interface Message {
   activeVersionIndex?: number
 }
 
+// Coerces a single raw version entry into a MessageVersion. Entries can come
+// back as proper objects (JSONB) or as stringified JSON (legacy TEXT[] rows).
+function normalizeVersion(raw: unknown): MessageVersion | null {
+  let v = raw
+  if (typeof v === 'string') {
+    // Legacy TEXT[] rows stored each version as a JSON string. Try to parse;
+    // if it's just a plain string, treat it as the content itself.
+    try {
+      v = JSON.parse(v)
+    } catch {
+      return { id: crypto.randomUUID(), content: v as string, created_at: new Date().toISOString() }
+    }
+  }
+  if (v && typeof v === 'object') {
+    const obj = v as Record<string, unknown>
+    if (typeof obj.content === 'string') {
+      return {
+        id: typeof obj.id === 'string' ? obj.id : crypto.randomUUID(),
+        content: obj.content,
+        created_at: typeof obj.created_at === 'string' ? obj.created_at : new Date().toISOString(),
+      }
+    }
+  }
+  return null
+}
+
 // Normalizes a raw Supabase `messages` row into a Message. The DB column is
 // `active_version_index` (snake_case) and `versions` is JSONB; this keeps the
 // regenerate version arrows working after a page reload.
 export function mapMessageRow(row: Record<string, unknown>): Message {
-  const rawVersions = row.versions
-  const versions = Array.isArray(rawVersions) ? (rawVersions as MessageVersion[]) : []
+  let rawVersions = row.versions
+  // A JSONB column can occasionally surface as a JSON string; parse it.
+  if (typeof rawVersions === 'string') {
+    try {
+      rawVersions = JSON.parse(rawVersions)
+    } catch {
+      rawVersions = []
+    }
+  }
+  const versions = Array.isArray(rawVersions)
+    ? (rawVersions.map(normalizeVersion).filter(Boolean) as MessageVersion[])
+    : []
+
+  const rawIndex = (row.active_version_index as number | undefined) ?? 0
+  // Clamp the active index so it always points at a real version.
+  const activeVersionIndex =
+    versions.length > 0 ? Math.min(Math.max(rawIndex, 0), versions.length - 1) : 0
+
   return {
     id: row.id as string,
     conversation_id: row.conversation_id as string,
@@ -152,7 +194,7 @@ export function mapMessageRow(row: Record<string, unknown>): Message {
     content: row.content as string,
     created_at: row.created_at as string,
     versions,
-    activeVersionIndex: (row.active_version_index as number | undefined) ?? 0,
+    activeVersionIndex,
   }
 }
 
