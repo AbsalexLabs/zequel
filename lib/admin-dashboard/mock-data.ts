@@ -6,6 +6,8 @@ import type {
   DocumentRecord,
   SafetyEvent,
   Subscription,
+  SubscriptionEvent,
+  SubscriptionTier,
   SupportTicket,
   TimeSeriesPoint,
 } from "./types"
@@ -113,11 +115,17 @@ export const users: AdminUser[] = Array.from({ length: 48 }).map((_, i) => {
   }
 })
 
+// Pricing model used to compute MRR when granting / changing plans.
+export const TIER_MRR: Record<SubscriptionTier, number> = { free: 0, pro: 29, team: 99, enterprise: 1200 }
+export const TIER_SEATS: Record<SubscriptionTier, number> = { free: 1, pro: 1, team: 12, enterprise: 80 }
+
+export function computeMrr(tier: SubscriptionTier): number {
+  return TIER_MRR[tier] * (tier === "enterprise" ? 1 : TIER_SEATS[tier])
+}
+
 export const subscriptions: Subscription[] = users
   .filter((u) => u.tier !== "free")
   .map((u, i) => {
-    const mrrByTier: Record<string, number> = { pro: 29, team: 99, enterprise: 1200 }
-    const seatsByTier: Record<string, number> = { pro: 1, team: 12, enterprise: 80 }
     const statuses = ["active", "active", "active", "trialing", "past_due", "canceled"] as const
     return {
       id: `sub_${(2000 + i).toString(36)}`,
@@ -125,12 +133,74 @@ export const subscriptions: Subscription[] = users
       email: u.email,
       tier: u.tier,
       status: statuses[(i * 3) % statuses.length],
-      mrr: mrrByTier[u.tier] * (u.tier === "enterprise" ? 1 : seatsByTier[u.tier]),
-      seats: seatsByTier[u.tier],
+      mrr: TIER_MRR[u.tier] * (u.tier === "enterprise" ? 1 : TIER_SEATS[u.tier]),
+      seats: TIER_SEATS[u.tier],
       renewsAt: daysAgo(-(5 + (i % 25))),
       startedAt: daysAgo(120 - i * 2),
     }
   })
+
+// Per-subscription event history. New admin actions get prepended at runtime.
+const HISTORY_TIERS: SubscriptionTier[] = ["pro", "team", "enterprise"]
+
+export const subscriptionEvents: SubscriptionEvent[] = subscriptions.flatMap((sub, i) => {
+  const events: SubscriptionEvent[] = [
+    {
+      id: `subevt_${sub.id}_grant`,
+      subscriptionId: sub.id,
+      type: "granted",
+      toTier: sub.tier,
+      actor: "Billing System",
+      note: "Initial plan activated",
+      createdAt: sub.startedAt,
+    },
+  ]
+  if (i % 2 === 0) {
+    const from = HISTORY_TIERS[i % HISTORY_TIERS.length]
+    if (from !== sub.tier) {
+      events.push({
+        id: `subevt_${sub.id}_change`,
+        subscriptionId: sub.id,
+        type: "tier_changed",
+        fromTier: from,
+        toTier: sub.tier,
+        actor: "Dr. Elena Royce",
+        note: "Upgraded after sales review",
+        createdAt: daysAgo(60 - (i % 30)),
+      })
+    }
+  }
+  if (sub.status === "past_due") {
+    events.push({
+      id: `subevt_${sub.id}_fail`,
+      subscriptionId: sub.id,
+      type: "payment_failed",
+      actor: "Billing System",
+      note: "Card declined on renewal attempt",
+      createdAt: daysAgo(3 + (i % 5)),
+    })
+  }
+  if (sub.status === "canceled") {
+    events.push({
+      id: `subevt_${sub.id}_revoke`,
+      subscriptionId: sub.id,
+      type: "revoked",
+      fromTier: sub.tier,
+      actor: "Marcus Vaughn",
+      note: "Revoked at customer request",
+      createdAt: daysAgo(2 + (i % 6)),
+    })
+  } else if (sub.status === "active" && i % 3 === 0) {
+    events.push({
+      id: `subevt_${sub.id}_renew`,
+      subscriptionId: sub.id,
+      type: "renewed",
+      actor: "Billing System",
+      createdAt: daysAgo(8 + (i % 20)),
+    })
+  }
+  return events
+})
 
 const MODELS = ["zequel-synthesis-2", "zequel-reason-1.5", "zequel-vision-1", "zequel-embed-3"]
 const REQ_TYPES = ["completion", "synthesis", "vision", "embedding"] as const

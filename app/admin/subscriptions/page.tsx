@@ -8,35 +8,54 @@ import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AreaTrend } from "@/components/admin/charts"
-import { subscriptions, revenueSeries } from "@/lib/admin-dashboard/mock-data"
+import { SubscriptionRowActions, type ManageResult } from "@/components/admin/subscription-manager"
+import { useAdminSession } from "@/components/admin/admin-session"
+import { subscriptions as seedSubs, subscriptionEvents as seedEvents, revenueSeries } from "@/lib/admin-dashboard/mock-data"
 import { formatCurrency, formatDate, formatNumber } from "@/lib/admin-dashboard/format"
-import type { Subscription } from "@/lib/admin-dashboard/types"
+import type { Subscription, SubscriptionEvent } from "@/lib/admin-dashboard/types"
 
-const TIER_LABEL: Record<string, string> = { pro: "Pro", team: "Team", enterprise: "Enterprise" }
+const TIER_LABEL: Record<string, string> = { free: "Free", pro: "Pro", team: "Team", enterprise: "Enterprise" }
 
 export default function SubscriptionsPage() {
+  const { session } = useAdminSession()
+  const canRevoke = session.role === "superadmin"
+
+  const [subs, setSubs] = useState<Subscription[]>(seedSubs)
+  const [events, setEvents] = useState<SubscriptionEvent[]>(seedEvents)
   const [search, setSearch] = useState("")
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
 
   const filtered = useMemo(() => {
-    return subscriptions.filter((sub) => {
+    return subs.filter((sub) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || sub.user.toLowerCase().includes(q) || sub.email.toLowerCase().includes(q)
       const matchesTier = tier === "all" || sub.tier === tier
       const matchesStatus = status === "all" || sub.status === status
       return matchesSearch && matchesTier && matchesStatus
     })
-  }, [search, tier, status])
+  }, [subs, search, tier, status])
 
-  const mrr = subscriptions.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0)
-  const activeSubs = subscriptions.filter((s) => s.status === "active").length
-  const pastDue = subscriptions.filter((s) => s.status === "past_due").length
-  const trialing = subscriptions.filter((s) => s.status === "trialing").length
+  const mrr = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0)
+  const activeSubs = subs.filter((s) => s.status === "active").length
+  const pastDue = subs.filter((s) => s.status === "past_due").length
+  const trialing = subs.filter((s) => s.status === "trialing").length
+
+  function applyChange(subId: string, result: ManageResult) {
+    setSubs((prev) =>
+      prev.map((s) =>
+        s.id === subId ? { ...s, status: result.status, tier: result.tier, mrr: result.mrr, seats: result.seats } : s,
+      ),
+    )
+    setEvents((prev) => [
+      { ...result.event, id: `subevt_${subId}_${Date.now()}`, subscriptionId: subId },
+      ...prev,
+    ])
+  }
 
   return (
     <>
-      <PageHeader title="Subscriptions" description="Plans, billing status, seats, and recurring revenue.">
+      <PageHeader title="Subscriptions" description="Grant, change, or revoke plans and review billing history.">
         <Button variant="outline" size="sm">
           Export CSV
         </Button>
@@ -133,12 +152,26 @@ export default function SubscriptionsPage() {
                 header: "Renews",
                 cell: (s) => <span className="text-sm text-muted-foreground">{formatDate(s.renewsAt)}</span>,
               },
+              {
+                key: "actions",
+                header: "",
+                className: "text-right",
+                cell: (s) => (
+                  <SubscriptionRowActions
+                    subscription={s}
+                    events={events.filter((e) => e.subscriptionId === s.id)}
+                    canRevoke={canRevoke}
+                    actor={session.name}
+                    onApply={applyChange}
+                  />
+                ),
+              },
             ]}
           />
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {subscriptions.length} subscriptions
+          Showing {filtered.length} of {subs.length} subscriptions
         </p>
       </div>
     </>
