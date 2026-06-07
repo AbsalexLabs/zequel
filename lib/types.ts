@@ -111,7 +111,61 @@ export interface QueryHistoryItem {
   created_at: string
 }
 
-export type WorkspaceMode = 'study' | 'research'
+export type WorkspaceMode = 'study' | 'research' | 'coding'
+
+// ─── Coding Mode ────────────────────────────────────────────────────────────
+
+// Supported languages in Coding Mode. Keep in sync with CODING_LANGUAGES.
+export type CodingLanguage =
+  | 'javascript'
+  | 'typescript'
+  | 'python'
+  | 'html'
+  | 'css'
+  | 'java'
+  | 'cpp'
+  | 'sql'
+
+export interface CodingProject {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CodingFile {
+  id: string
+  project_id: string
+  user_id: string
+  name: string
+  language: CodingLanguage
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CodingMessage {
+  id: string
+  project_id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  created_at: string
+}
+
+// Quick actions surfaced in the Coding Mode editor toolbar. The `id` is sent
+// to the coding API to select the matching instruction template.
+export type CodingActionId =
+  | 'explain'
+  | 'find_bugs'
+  | 'refactor'
+  | 'optimize'
+  | 'document'
+  | 'review'
+  | 'generate_tests'
+  | 'improve_performance'
+  | 'analyze_project'
 
 export interface Conversation {
   id: string

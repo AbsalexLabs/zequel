@@ -11,12 +11,16 @@ import { ResearchPanel } from './research-panel'
 import { StudyPanel } from './study-panel'
 import { EvidencePanel } from './evidence-panel'
 import { ConversationsPanel } from './conversations-panel'
+import { CodingFilesPanel } from './coding/coding-files-panel'
+import { CodingEditorPanel } from './coding/coding-editor-panel'
+import { CodingAssistantPanel } from './coding/coding-assistant-panel'
+import { useCodingBootstrap } from './coding/use-coding-bootstrap'
 import { useWorkspaceStore } from '@/lib/store'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import type { Profile } from '@/lib/types'
+import type { Profile, CodingActionId } from '@/lib/types'
 import {
   FileText,
   Search,
@@ -24,8 +28,16 @@ import {
   GraduationCap,
   FlaskConical,
   MessageSquare,
+  Code2,
+  Bot,
 } from 'lucide-react'
 import Link from 'next/link'
+
+// Dispatches a quick-action from the editor toolbar to the assistant panel,
+// which listens for this event and runs the corresponding AI request.
+function emitCodingAction(action: CodingActionId) {
+  window.dispatchEvent(new CustomEvent('zequel:coding-action', { detail: action }))
+}
 
 interface WorkspaceShellProps {
   onUploadClick: () => void
@@ -89,6 +101,18 @@ function ModeSwitcher() {
         <FlaskConical className="h-3.5 w-3.5" />
         Research
       </button>
+      <button
+        onClick={() => setMode('coding')}
+        className={cn(
+          'flex w-24 items-center justify-center gap-1.5 rounded-[5px] py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all',
+          mode === 'coding'
+            ? 'bg-foreground text-background shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+      >
+        <Code2 className="h-3.5 w-3.5" />
+        Coding
+      </button>
     </div>
   )
 }
@@ -100,21 +124,28 @@ function DesktopWorkspace({
 }: WorkspaceShellProps) {
   const { mode } = useWorkspaceStore()
 
+  // Bootstrap the coding project/files/messages the first time Coding Mode opens.
+  useCodingBootstrap(mode === 'coding')
+
   return (
     <div className="h-svh w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Left Panel — Document Control (22%) */}
+        {/* Left Panel — Documents (study/research) or Project Files (coding) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
-          <DocumentPanel
-            onUploadClick={onUploadClick}
-            userEmail={userEmail}
-            profile={profile}
-          />
+          {mode === 'coding' ? (
+            <CodingFilesPanel />
+          ) : (
+            <DocumentPanel
+              onUploadClick={onUploadClick}
+              userEmail={userEmail}
+              profile={profile}
+            />
+          )}
         </ResizablePanel>
 
         <ResizableHandle />
 
-        {/* Center Panel — Study or Research (56%) */}
+        {/* Center Panel — Study, Research, or Coding editor (56%) */}
         <ResizablePanel defaultSize={56} minSize={40}>
           <div className="flex h-full flex-col overflow-hidden">
             {/* Mode Switcher Bar — centered */}
@@ -124,17 +155,23 @@ function DesktopWorkspace({
             <Separator className="shrink-0" />
             {/* Panel Content */}
             <div className="min-h-0 flex-1 overflow-hidden">
-              {mode === 'study' ? <StudyPanel /> : <ResearchPanel />}
+              {mode === 'study' && <StudyPanel />}
+              {mode === 'research' && <ResearchPanel />}
+              {mode === 'coding' && (
+                <CodingEditorPanel onAction={emitCodingAction} />
+              )}
             </div>
           </div>
         </ResizablePanel>
 
         <ResizableHandle />
 
-        {/* Right Panel — Conversations (study) or Evidence (research) */}
+        {/* Right Panel — Conversations (study), Evidence (research), Assistant (coding) */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
           <div className="h-full overflow-hidden">
-            {mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />}
+            {mode === 'study' && <ConversationsPanel />}
+            {mode === 'research' && <EvidencePanel />}
+            {mode === 'coding' && <CodingAssistantPanel />}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -167,6 +204,9 @@ function MobileWorkspace({
 }: WorkspaceShellProps) {
   const { activeMobileTab, setActiveMobileTab, mode } = useWorkspaceStore()
 
+  // Bootstrap coding data on mobile too.
+  useCodingBootstrap(mode === 'coding')
+
   return (
     <div className="flex h-svh w-full flex-col bg-background">
       {/* Top Bar */}
@@ -195,18 +235,33 @@ function MobileWorkspace({
       {/* Content Area */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
-          {activeMobileTab === 'documents' && (
-            <DocumentPanel
-              onUploadClick={onUploadClick}
-              userEmail={userEmail}
-              profile={profile}
-              hideHeader
-            />
-          )}
+          {activeMobileTab === 'documents' &&
+            (mode === 'coding' ? (
+              <CodingFilesPanel />
+            ) : (
+              <DocumentPanel
+                onUploadClick={onUploadClick}
+                userEmail={userEmail}
+                profile={profile}
+                hideHeader
+              />
+            ))}
           {activeMobileTab === 'research' &&
-            (mode === 'study' ? <StudyPanel /> : <ResearchPanel />)}
+            (mode === 'study' ? (
+              <StudyPanel />
+            ) : mode === 'research' ? (
+              <ResearchPanel />
+            ) : (
+              <CodingEditorPanel onAction={emitCodingAction} />
+            ))}
           {activeMobileTab === 'evidence' &&
-            (mode === 'study' ? <ConversationsPanel /> : <EvidencePanel />)}
+            (mode === 'study' ? (
+              <ConversationsPanel />
+            ) : mode === 'research' ? (
+              <EvidencePanel />
+            ) : (
+              <CodingAssistantPanel />
+            ))}
         </div>
       </div>
 
@@ -215,7 +270,7 @@ function MobileWorkspace({
       <nav className="flex items-center bg-background" role="tablist">
         <MobileTab
           icon={<FileText className="h-4 w-4" />}
-          label="Documents"
+          label={mode === 'coding' ? 'Files' : 'Documents'}
           isActive={activeMobileTab === 'documents'}
           onClick={() => setActiveMobileTab('documents')}
         />
@@ -223,11 +278,13 @@ function MobileWorkspace({
           icon={
             mode === 'study' ? (
               <GraduationCap className="h-4 w-4" />
-            ) : (
+            ) : mode === 'research' ? (
               <Search className="h-4 w-4" />
+            ) : (
+              <Code2 className="h-4 w-4" />
             )
           }
-          label={mode === 'study' ? 'Study' : 'Research'}
+          label={mode === 'study' ? 'Study' : mode === 'research' ? 'Research' : 'Editor'}
           isActive={activeMobileTab === 'research'}
           onClick={() => setActiveMobileTab('research')}
         />
@@ -235,11 +292,13 @@ function MobileWorkspace({
           icon={
             mode === 'study' ? (
               <MessageSquare className="h-4 w-4" />
-            ) : (
+            ) : mode === 'research' ? (
               <BookOpen className="h-4 w-4" />
+            ) : (
+              <Bot className="h-4 w-4" />
             )
           }
-          label={mode === 'study' ? 'Chats' : 'Evidence'}
+          label={mode === 'study' ? 'Chats' : mode === 'research' ? 'Evidence' : 'Assistant'}
           isActive={activeMobileTab === 'evidence'}
           onClick={() => setActiveMobileTab('evidence')}
         />

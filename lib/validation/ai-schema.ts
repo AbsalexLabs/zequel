@@ -20,6 +20,58 @@ export const queryRequestSchema = z.object({
   document_ids: z.array(z.string().uuid()).min(1, 'At least one document required').max(5, 'Max 5 documents'),
 })
 
+// Coding Mode chat request validation
+const codingLanguageEnum = z.enum([
+  'javascript',
+  'typescript',
+  'python',
+  'html',
+  'css',
+  'java',
+  'cpp',
+  'sql',
+])
+
+export const codingChatRequestSchema = z.object({
+  project_id: z.string().uuid('Invalid project ID'),
+  message: z.string().max(8000, 'Message too long (max 8000 chars)').optional().nullable(),
+  // The active file being worked on (drives the "current file" context)
+  active_file_id: z.string().uuid().nullable().optional(),
+  active_file_name: z.string().max(200).optional().nullable(),
+  active_language: codingLanguageEnum.optional(),
+  active_file_content: z.string().max(200000).optional().nullable(),
+  // Lightweight listing of all project files (name + language + content)
+  project_files: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        language: codingLanguageEnum,
+        content: z.string().max(200000),
+      })
+    )
+    .max(50)
+    .optional(),
+  // Optional uploaded documents to use as requirements/context
+  document_ids: z.array(z.string().uuid()).max(10).optional(),
+  // Quick action id (explain, find_bugs, analyze_project, etc.) or null for free chat
+  action: z
+    .enum([
+      'explain',
+      'find_bugs',
+      'refactor',
+      'optimize',
+      'document',
+      'review',
+      'generate_tests',
+      'improve_performance',
+      'analyze_project',
+    ])
+    .nullable()
+    .optional(),
+  // Whether the Socratic tutor (Learning Mode) prompt should be used
+  learning_mode: z.boolean().optional(),
+})
+
 // Document extraction request validation
 export const extractRequestSchema = z.object({
   documentId: z.string().uuid('Invalid document ID'),

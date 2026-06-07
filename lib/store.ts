@@ -7,6 +7,9 @@ import type {
   WorkspaceMode,
   Conversation,
   Message,
+  CodingProject,
+  CodingFile,
+  CodingMessage,
 } from './types'
 
 interface WorkspaceState {
@@ -62,6 +65,29 @@ interface WorkspaceState {
   // Mobile panels
   activeMobileTab: 'documents' | 'research' | 'evidence'
   setActiveMobileTab: (tab: 'documents' | 'research' | 'evidence') => void
+
+  // ─── Coding Mode ──────────────────────────────────────────────────────────
+  codingProject: CodingProject | null
+  setCodingProject: (project: CodingProject | null) => void
+
+  codingFiles: CodingFile[]
+  setCodingFiles: (files: CodingFile[]) => void
+  addCodingFile: (file: CodingFile) => void
+  updateCodingFile: (id: string, updates: Partial<CodingFile>) => void
+  removeCodingFile: (id: string) => void
+
+  activeCodingFileId: string | null
+  setActiveCodingFileId: (id: string | null) => void
+
+  codingMessages: CodingMessage[]
+  setCodingMessages: (msgs: CodingMessage[]) => void
+  addCodingMessage: (msg: CodingMessage) => void
+
+  isCodingStreaming: boolean
+  setIsCodingStreaming: (v: boolean) => void
+
+  learningMode: boolean
+  setLearningMode: (v: boolean) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -148,4 +174,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   activeMobileTab: 'research',
   setActiveMobileTab: (tab) => set({ activeMobileTab: tab }),
+
+  // ─── Coding Mode ──────────────────────────────────────────────────────────
+  codingProject: null,
+  setCodingProject: (project) => set({ codingProject: project }),
+
+  codingFiles: [],
+  setCodingFiles: (files) => set({ codingFiles: files }),
+  addCodingFile: (file) =>
+    set((state) => ({ codingFiles: [...state.codingFiles, file] })),
+  updateCodingFile: (id, updates) =>
+    set((state) => ({
+      codingFiles: state.codingFiles.map((f) =>
+        f.id === id ? { ...f, ...updates } : f
+      ),
+    })),
+  removeCodingFile: (id) =>
+    set((state) => ({
+      codingFiles: state.codingFiles.filter((f) => f.id !== id),
+      activeCodingFileId:
+        state.activeCodingFileId === id ? null : state.activeCodingFileId,
+    })),
+
+  activeCodingFileId: null,
+  setActiveCodingFileId: (id) => set({ activeCodingFileId: id }),
+
+  codingMessages: [],
+  setCodingMessages: (msgs) => set({ codingMessages: msgs }),
+  addCodingMessage: (msg) =>
+    set((state) => ({ codingMessages: [...state.codingMessages, msg] })),
+
+  isCodingStreaming: false,
+  setIsCodingStreaming: (v) => set({ isCodingStreaming: v }),
+
+  learningMode: false,
+  setLearningMode: (v) => set({ learningMode: v }),
 }))
