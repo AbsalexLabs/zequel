@@ -22,16 +22,37 @@ export interface AdminUser {
   aiRequests: number
 }
 
+export type SubscriptionStatus = "active" | "past_due" | "canceled" | "trialing"
+
 export interface Subscription {
   id: string
   user: string
   email: string
   tier: SubscriptionTier
-  status: "active" | "past_due" | "canceled" | "trialing"
+  status: SubscriptionStatus
   mrr: number
   seats: number
   renewsAt: string
   startedAt: string
+}
+
+export type SubscriptionEventType =
+  | "granted"
+  | "tier_changed"
+  | "renewed"
+  | "payment_failed"
+  | "revoked"
+  | "reactivated"
+
+export interface SubscriptionEvent {
+  id: string
+  subscriptionId: string
+  type: SubscriptionEventType
+  fromTier?: SubscriptionTier
+  toTier?: SubscriptionTier
+  actor: string
+  note?: string
+  createdAt: string
 }
 
 export interface AiUsageRecord {
