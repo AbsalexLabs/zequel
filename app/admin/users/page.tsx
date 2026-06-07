@@ -1,33 +1,33 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { MoreHorizontal } from "lucide-react"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { users } from "@/lib/admin-dashboard/mock-data"
+import { UserRowActions, InviteUserDialog, type UserPatch } from "@/components/admin/user-manager"
+import { useAdminSession } from "@/components/admin/admin-session"
+import { users as seedUsers } from "@/lib/admin-dashboard/mock-data"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { AdminUser } from "@/lib/admin-dashboard/types"
 
 const TIER_LABEL: Record<string, string> = { free: "Free", pro: "Pro", team: "Team", enterprise: "Enterprise" }
 
 export default function UsersPage() {
+  const { session } = useAdminSession()
+  const canManageRoles = session.role === "superadmin"
+
+  const [rows, setRows] = useState<AdminUser[]>(seedUsers)
+  const [inviteOpen, setInviteOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
   const [role, setRole] = useState("all")
 
   const filtered = useMemo(() => {
-    return users.filter((u) => {
+    return rows.filter((u) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
       const matchesTier = tier === "all" || u.tier === tier
@@ -35,20 +35,32 @@ export default function UsersPage() {
       const matchesRole = role === "all" || u.role === role
       return matchesSearch && matchesTier && matchesStatus && matchesRole
     })
-  }, [search, tier, status, role])
+  }, [rows, search, tier, status, role])
 
-  const activeCount = users.filter((u) => u.status === "active").length
-  const adminCount = users.filter((u) => u.role !== "user").length
-  const suspendedCount = users.filter((u) => u.status === "suspended").length
+  const activeCount = rows.filter((u) => u.status === "active").length
+  const adminCount = rows.filter((u) => u.role !== "user").length
+  const suspendedCount = rows.filter((u) => u.status === "suspended").length
+
+  function patchUser(id: string, patch: UserPatch, message: string) {
+    setRows((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
+    toast.success(message)
+  }
+
+  function addUser(user: AdminUser, message: string) {
+    setRows((prev) => [user, ...prev])
+    toast.success(message)
+  }
 
   return (
     <>
       <PageHeader title="Users" description="Manage accounts, roles, access, and platform activity.">
-        <Button size="sm">Invite user</Button>
+        <Button size="sm" onClick={() => setInviteOpen(true)}>
+          Invite user
+        </Button>
       </PageHeader>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Users" value={formatNumber(users.length)} hint="in view" />
+        <StatCard label="Total Users" value={formatNumber(rows.length)} hint="in view" />
         <StatCard label="Active" value={formatNumber(activeCount)} />
         <StatCard label="Privileged" value={formatNumber(adminCount)} hint="admin + superadmin" />
         <StatCard label="Suspended" value={formatNumber(suspendedCount)} />
@@ -153,21 +165,8 @@ export default function UsersPage() {
                 key: "actions",
                 header: "",
                 className: "w-10 text-right",
-                cell: () => (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8" aria-label="User actions">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View profile</DropdownMenuItem>
-                      <DropdownMenuItem>Edit role</DropdownMenuItem>
-                      <DropdownMenuItem>Change tier</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">Suspend</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                cell: (u) => (
+                  <UserRowActions user={u} canManageRoles={canManageRoles} onPatch={patchUser} />
                 ),
               },
             ]}
@@ -175,9 +174,11 @@ export default function UsersPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {users.length} users
+          Showing {filtered.length} of {rows.length} users
         </p>
       </div>
+
+      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvite={addUser} />
     </>
   )
 }
