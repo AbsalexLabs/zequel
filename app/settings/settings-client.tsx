@@ -30,11 +30,12 @@ import {
   Camera,
   User,
   Shield,
-  Palette,
   FileOutput,
   CreditCard,
   Languages,
   LifeBuoy,
+  HelpCircle,
+  SlidersHorizontal,
   Bug,
   Download,
   Trash2,
@@ -44,6 +45,13 @@ import {
   ExternalLink,
   ChevronRight,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -58,9 +66,9 @@ const CATEGORIES = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'account', label: 'Account', icon: Shield },
   { id: 'subscription', label: 'Subscription', icon: CreditCard },
-  { id: 'preferences', label: 'Preferences', icon: Palette },
+  { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
   { id: 'output', label: 'Output', icon: FileOutput },
-  { id: 'help', label: 'Help', icon: LifeBuoy },
+  { id: 'help', label: 'Help', icon: HelpCircle },
 ] as const
 
 type Category = (typeof CATEGORIES)[number]['id']
@@ -390,7 +398,14 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
   const toggleBugForm = () => {
     setBugError('')
     setBugSuccess('')
-    setBugOpen((prev) => !prev)
+    setBugOpen((prev) => {
+      // When closing, clear the form fields so it opens fresh next time.
+      if (prev) {
+        setBugSubject('')
+        setBugDescription('')
+      }
+      return !prev
+    })
   }
 
   // Delete account: send OTP -> verify -> delete
@@ -983,78 +998,8 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     label="Report a Bug"
                     description="Let us know what went wrong."
                     onClick={toggleBugForm}
-                    active={bugOpen}
                   />
                 </div>
-
-                {/* Inline bug report form -> submitted to the admin dashboard */}
-                {bugOpen && (
-                  <div className="mt-2 flex flex-col gap-4 rounded-lg border border-border bg-secondary/20 p-5">
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Report a Bug</p>
-                      <p className="mt-2 font-sans text-[13px] leading-relaxed text-muted-foreground">
-                        {'Tell us what went wrong. This is sent to our team along with your account details ('}
-                        <span className="font-medium text-foreground">{userEmail}</span>
-                        {') so we can follow up.'}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="bug-subject" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                        Subject
-                      </label>
-                      <Input
-                        id="bug-subject"
-                        value={bugSubject}
-                        onChange={(e) => setBugSubject(e.target.value)}
-                        placeholder="Brief summary of the issue"
-                        maxLength={150}
-                        disabled={isSubmittingBug || !!bugSuccess}
-                        className="h-9 rounded-md border-border bg-background font-sans text-sm"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="bug-description" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                        Description
-                      </label>
-                      <Textarea
-                        id="bug-description"
-                        value={bugDescription}
-                        onChange={(e) => setBugDescription(e.target.value)}
-                        placeholder="What happened? What did you expect to happen? Steps to reproduce?"
-                        maxLength={5000}
-                        rows={5}
-                        disabled={isSubmittingBug || !!bugSuccess}
-                        className="resize-none rounded-md border-border bg-background font-sans text-sm leading-relaxed"
-                      />
-                    </div>
-
-                    {bugError && <p className="font-mono text-[10px] text-confidence-low">{bugError}</p>}
-                    {bugSuccess && (
-                      <p className="rounded-md bg-secondary/60 px-3 py-2 font-mono text-[11px] text-foreground">{bugSuccess}</p>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={handleSubmitBug}
-                        disabled={isSubmittingBug || !!bugSuccess}
-                        className="h-9 rounded-md bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background hover:bg-foreground/90"
-                      >
-                        {isSubmittingBug ? 'Sending...' : 'Send Report'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={toggleBugForm}
-                        disabled={isSubmittingBug}
-                        className="h-9 font-mono text-xs uppercase tracking-wider text-muted-foreground"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* ----- Resources ----- */}
@@ -1118,6 +1063,77 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
         onDelete={deleteMemory}
         onDeleteAll={deleteAllMemories}
       />
+
+      {/* Report a bug modal -> submitted to the admin dashboard */}
+      <Dialog open={bugOpen} onOpenChange={(open) => (open ? setBugOpen(true) : toggleBugForm())}>
+        <DialogContent className="max-w-lg border-border bg-background">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm uppercase tracking-wider">Report a Bug</DialogTitle>
+            <DialogDescription className="font-sans text-[13px] leading-relaxed text-muted-foreground">
+              {'Tell us what went wrong. This is sent to our team along with your account details ('}
+              <span className="font-medium text-foreground">{userEmail}</span>
+              {') so we can follow up.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="bug-subject" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                Subject
+              </label>
+              <Input
+                id="bug-subject"
+                value={bugSubject}
+                onChange={(e) => setBugSubject(e.target.value)}
+                placeholder="Brief summary of the issue"
+                maxLength={150}
+                disabled={isSubmittingBug || !!bugSuccess}
+                className="h-9 rounded-md border-border bg-background font-sans text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="bug-description" className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                Description
+              </label>
+              <Textarea
+                id="bug-description"
+                value={bugDescription}
+                onChange={(e) => setBugDescription(e.target.value)}
+                placeholder="What happened? What did you expect to happen? Steps to reproduce?"
+                maxLength={5000}
+                rows={5}
+                disabled={isSubmittingBug || !!bugSuccess}
+                className="resize-none rounded-md border-border bg-background font-sans text-sm leading-relaxed"
+              />
+            </div>
+
+            {bugError && <p className="font-mono text-[10px] text-confidence-low">{bugError}</p>}
+            {bugSuccess && (
+              <p className="rounded-md bg-secondary/60 px-3 py-2 font-mono text-[11px] text-foreground">{bugSuccess}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={toggleBugForm}
+                disabled={isSubmittingBug}
+                className="h-9 font-mono text-xs uppercase tracking-wider text-muted-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitBug}
+                disabled={isSubmittingBug || !!bugSuccess}
+                className="h-9 rounded-md bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background hover:bg-foreground/90"
+              >
+                {isSubmittingBug ? 'Sending...' : 'Send Report'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

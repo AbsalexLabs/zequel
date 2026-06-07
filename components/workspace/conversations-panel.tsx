@@ -23,7 +23,8 @@ import {
   X,
   GitBranch,
 } from 'lucide-react'
-import type { Conversation, Message } from '@/lib/types'
+import type { Conversation } from '@/lib/types'
+import { mapMessageRow } from '@/lib/types'
 
 export function ConversationsPanel() {
   const {
@@ -45,7 +46,7 @@ export function ConversationsPanel() {
       .select('*')
       .eq('conversation_id', conv.id)
       .order('created_at', { ascending: true })
-    setMessages((data as Message[]) || [])
+    setMessages((data || []).map(mapMessageRow))
   }
 
   const startNewConversation = async () => {

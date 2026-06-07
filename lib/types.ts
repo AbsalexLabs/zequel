@@ -139,6 +139,23 @@ export interface Message {
   activeVersionIndex?: number
 }
 
+// Normalizes a raw Supabase `messages` row into a Message. The DB column is
+// `active_version_index` (snake_case) and `versions` is JSONB; this keeps the
+// regenerate version arrows working after a page reload.
+export function mapMessageRow(row: Record<string, unknown>): Message {
+  const rawVersions = row.versions
+  const versions = Array.isArray(rawVersions) ? (rawVersions as MessageVersion[]) : []
+  return {
+    id: row.id as string,
+    conversation_id: row.conversation_id as string,
+    role: row.role as Message['role'],
+    content: row.content as string,
+    created_at: row.created_at as string,
+    versions,
+    activeVersionIndex: (row.active_version_index as number | undefined) ?? 0,
+  }
+}
+
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
   summarize: 'Summarize',
   extract_claims: 'Extract Claims',
