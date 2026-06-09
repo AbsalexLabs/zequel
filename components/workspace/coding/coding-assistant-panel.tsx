@@ -7,6 +7,7 @@ import { UpgradeDialog, type RequiredPlan } from '../upgrade-dialog'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -14,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Bot, Send, Loader2, FileText, Paperclip, FileCode2, X } from 'lucide-react'
+import { Bot, Send, Loader2, FileText, Paperclip, FileCode2, X, GraduationCap } from 'lucide-react'
 import { FileIcon } from './file-icon'
 import type { CodingActionId, CodingMessage } from '@/lib/types'
 
@@ -31,6 +32,7 @@ export function CodingAssistantPanel() {
     codingMessages,
     addCodingMessage,
     learningMode,
+    setLearningMode,
     isCodingStreaming,
     setIsCodingStreaming,
     documents,
@@ -251,13 +253,27 @@ export function CodingAssistantPanel() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4 text-foreground" />
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground">
             Coding Assistant
           </span>
         </div>
+
+        {/* Learning Mode toggle */}
+        <label className="flex shrink-0 cursor-pointer items-center gap-2">
+          <GraduationCap
+            className={cn(
+              'h-3.5 w-3.5',
+              learningMode ? 'text-foreground' : 'text-muted-foreground'
+            )}
+          />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Learning Mode
+          </span>
+          <Switch checked={learningMode} onCheckedChange={setLearningMode} />
+        </label>
       </div>
 
       {/* Messages */}
