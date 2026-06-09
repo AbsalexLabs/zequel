@@ -894,7 +894,7 @@ function MoveSubmenu({
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="max-h-64 w-52 overflow-y-auto">
         <DropdownMenuItem
-          onClick={() => onMove(null)}
+          onSelect={() => onMove(null)}
           disabled={currentParentId === null}
           className="gap-2 font-mono text-xs"
         >
@@ -907,7 +907,7 @@ function MoveSubmenu({
           .map((opt) => (
             <DropdownMenuItem
               key={opt.id}
-              onClick={() => onMove(opt.id)}
+              onSelect={() => onMove(opt.id)}
               disabled={opt.id === currentParentId}
               className="gap-2 font-mono text-xs"
               style={{ paddingLeft: `${opt.depth * 10 + 8}px` }}
