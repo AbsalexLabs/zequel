@@ -18,8 +18,8 @@ export const CMS_NAV: CmsNavItem[] = [
   { label: "Blog", href: "/admin/cms/blog", icon: "Newspaper", group: "Content" },
   { label: "Changelog", href: "/admin/cms/changelog", icon: "GitCommitVertical", group: "Content" },
   { label: "FAQ", href: "/admin/cms/faq", icon: "HelpCircle", group: "Content" },
-  { label: "Contact Messages", href: "/admin/cms/messages", icon: "Mail", group: "Inbox" },
-  { label: "Feature Requests", href: "/admin/cms/requests", icon: "Lightbulb", group: "Inbox" },
-  { label: "Bug Reports", href: "/admin/cms/bugs", icon: "Bug", group: "Inbox" },
+  { label: "Contact Messages", href: "/admin/cms/contact", icon: "Mail", group: "Inbox" },
+  { label: "Feature Requests", href: "/admin/cms/feature-requests", icon: "Lightbulb", group: "Inbox" },
+  { label: "Bug Reports", href: "/admin/cms/bug-reports", icon: "Bug", group: "Inbox" },
   { label: "Media Library", href: "/admin/cms/media", icon: "Image", group: "Assets" },
 ]

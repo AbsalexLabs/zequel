@@ -132,9 +132,9 @@ export default function CmsOverviewPage() {
               <span className="text-sm font-medium text-foreground">Inbox</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <InboxStat label="Messages" value={newMessages} href="/admin/cms/messages" icon={Mail} />
-              <InboxStat label="Requests" value={openRequests} href="/admin/cms/requests" icon={Lightbulb} />
-              <InboxStat label="Bugs" value={openBugs} href="/admin/cms/bugs" icon={Bug} />
+              <InboxStat label="Messages" value={newMessages} href="/admin/cms/contact" icon={Mail} />
+              <InboxStat label="Requests" value={openRequests} href="/admin/cms/feature-requests" icon={Lightbulb} />
+              <InboxStat label="Bugs" value={openBugs} href="/admin/cms/bug-reports" icon={Bug} />
             </div>
           </Card>
         </div>
