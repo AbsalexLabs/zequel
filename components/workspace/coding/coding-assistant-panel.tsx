@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Bot, Send, Loader2, Sparkles, FileText, Paperclip, FileCode2, X } from 'lucide-react'
-import { FileLanguageIcon } from './file-language-icon'
+import { FileIcon } from './file-icon'
 import type { CodingActionId, CodingMessage } from '@/lib/types'
 
 export interface CodingAssistantHandle {
@@ -294,12 +294,7 @@ export function CodingAssistantPanel() {
                     }
                     className="gap-2 font-sans text-xs"
                   >
-                    <FileLanguageIcon
-                      language={file.language}
-                      kind={file.kind}
-                      mimeType={file.mime_type}
-                      size={14}
-                    />
+                    <FileIcon fileName={file.name} size={14} />
                     <span className="truncate">{filePath(file.folder_id, file.name)}</span>
                   </DropdownMenuCheckboxItem>
                 ))
@@ -352,12 +347,7 @@ export function CodingAssistantPanel() {
                 key={id}
                 className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground"
               >
-                <FileLanguageIcon
-                  language={file.language}
-                  kind={file.kind}
-                  mimeType={file.mime_type}
-                  size={12}
-                />
+                <FileIcon fileName={file.name} size={12} />
                 <span className="max-w-[120px] truncate">{file.name}</span>
                 <button
                   type="button"

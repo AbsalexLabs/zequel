@@ -13,8 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { FileLanguageIcon } from './file-language-icon'
-import { LanguagePicker } from './language-picker'
+import { FileIcon, FolderIcon } from './file-icon'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,7 +39,6 @@ import {
   FilePlus,
   FolderPlus,
   Folder,
-  FolderOpen,
   MoreVertical,
   Pencil,
   Trash2,
@@ -58,7 +56,6 @@ import {
 import type {
   CodingFile,
   CodingFolder,
-  CodingLanguage,
   CodingProject,
   Profile,
 } from '@/lib/types'
@@ -123,7 +120,6 @@ export function CodingFilesPanel({
 
   const [createTarget, setCreateTarget] = useState<CreateTarget>(null)
   const [newName, setNewName] = useState('')
-  const [newLang, setNewLang] = useState<CodingLanguage>('javascript')
   const [renaming, setRenaming] = useState<{ type: 'file' | 'folder'; id: string } | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [creatingProject, setCreatingProject] = useState(false)
@@ -212,14 +208,11 @@ export function CodingFilesPanel({
   // ─── Files ─────────────────────────────────────────────────────────────
   const handleCreateFile = async (parentId: string | null) => {
     if (!codingProject || busy) return
-    const meta = getLanguageMeta(newLang)
     const trimmed = newName.trim()
-    const name = trimmed
-      ? trimmed.includes('.')
-        ? trimmed
-        : `${trimmed}.${meta.extension}`
-      : `untitled.${meta.extension}`
-    const language = trimmed.includes('.') ? languageFromFileName(name) : newLang
+    // The user just types a filename with an extension (e.g. "index.html").
+    // If they omit an extension, default to a plain .txt file.
+    const name = trimmed ? (trimmed.includes('.') ? trimmed : `${trimmed}.txt`) : 'untitled.txt'
+    const language = languageFromFileName(name)
 
     setBusy(true)
     const user = await getUser()
@@ -318,7 +311,6 @@ export function CodingFilesPanel({
 
   const resetCreate = () => {
     setNewName('')
-    setNewLang('javascript')
     setCreateTarget(null)
   }
 
@@ -493,9 +485,9 @@ export function CodingFilesPanel({
                       <ChevronRight className="h-3 w-3 shrink-0" />
                     )}
                     {expanded ? (
-                      <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                      <FolderIcon open size={16} />
                     ) : (
-                      <Folder className="h-3.5 w-3.5 shrink-0" />
+                      <FolderIcon size={16} />
                     )}
                     <span className="truncate font-mono text-xs">{folder.name}</span>
                   </button>
@@ -558,12 +550,7 @@ export function CodingFilesPanel({
                     onClick={() => setActiveCodingFileId(file.id)}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
-                    <FileLanguageIcon
-                      language={file.language}
-                      kind={file.kind}
-                      mimeType={file.mime_type}
-                      size={16}
-                    />
+                    <FileIcon fileName={file.name} size={16} />
                     <span className="truncate font-mono text-xs">{file.name}</span>
                   </button>
                   <FileMenu
@@ -599,17 +586,10 @@ export function CodingFilesPanel({
             if (e.key === 'Enter') submitCreate()
             if (e.key === 'Escape') resetCreate()
           }}
-          placeholder={createTarget?.kind === 'folder' ? 'folder name' : 'filename'}
+          placeholder={createTarget?.kind === 'folder' ? 'folder name' : 'filename.ext'}
           className="h-8 font-mono text-xs"
         />
         <div className="flex items-center gap-2">
-          {createTarget?.kind === 'file' && (
-            <LanguagePicker
-              value={newLang}
-              onChange={setNewLang}
-              triggerClassName="h-8 flex-1"
-            />
-          )}
           <Button
             size="sm"
             onClick={submitCreate}
