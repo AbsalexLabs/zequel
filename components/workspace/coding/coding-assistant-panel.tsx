@@ -14,7 +14,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Bot, Send, Loader2, Sparkles, FileText, Paperclip, FileCode2, X } from 'lucide-react'
+import { Bot, Send, Loader2, FileText, Paperclip, FileCode2, X } from 'lucide-react'
 import { FileIcon } from './file-icon'
 import type { CodingActionId, CodingMessage } from '@/lib/types'
 
@@ -49,10 +49,34 @@ export function CodingAssistantPanel() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const bufferRef = useRef('')
+  // Coalesce token updates into one render per animation frame so the UI stays
+  // responsive and the text streams in smoothly instead of in rough bursts.
+  const rafRef = useRef<number | null>(null)
+
+  const flushStreamingContent = () => {
+    rafRef.current = null
+    setStreamingContent(bufferRef.current)
+  }
+
+  const scheduleStreamingUpdate = () => {
+    if (rafRef.current !== null) return
+    rafRef.current = requestAnimationFrame(flushStreamingContent)
+  }
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [codingMessages, streamingContent])
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Use instant scrolling while tokens stream in (smooth scroll repeatedly
+    // interrupts itself and looks janky); ease only on completed messages.
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: isCodingStreaming ? 'auto' : 'smooth',
+    })
+  }, [codingMessages, streamingContent, isCodingStreaming])
 
   // Consume a quick action queued from the editor toolbar (works across the
   // mobile tab switch because it lives in the store, not a transient event).
@@ -180,7 +204,7 @@ export function CodingAssistantPanel() {
               const parsed = JSON.parse(data)
               if (parsed.content) {
                 bufferRef.current += parsed.content
-                setStreamingContent(bufferRef.current)
+                scheduleStreamingUpdate()
               }
             } catch {
               /* skip */
@@ -211,6 +235,10 @@ export function CodingAssistantPanel() {
         created_at: new Date().toISOString(),
       })
     } finally {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
       setIsCodingStreaming(false)
       setStreamingContent('')
       bufferRef.current = ''
@@ -230,12 +258,6 @@ export function CodingAssistantPanel() {
             Coding Assistant
           </span>
         </div>
-        {learningMode && (
-          <span className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-            <Sparkles className="h-3 w-3" />
-            Tutor
-          </span>
-        )}
       </div>
 
       {/* Messages */}
