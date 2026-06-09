@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Bot, Send, Loader2, Sparkles, FileText, Paperclip, FileCode2, X } from 'lucide-react'
-import { FileLanguageIcon } from './file-language-icon'
+import { FileIcon } from './file-icon'
 import type { CodingActionId, CodingMessage } from '@/lib/types'
 
 export interface CodingAssistantHandle {
@@ -348,7 +348,6 @@ export function CodingAssistantPanel() {
                 className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground"
               >
                 <FileIcon fileName={file.name} size={12} />
-                />
                 <span className="max-w-[120px] truncate">{file.name}</span>
                 <button
                   type="button"
