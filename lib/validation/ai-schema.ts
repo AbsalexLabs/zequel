@@ -20,17 +20,10 @@ export const queryRequestSchema = z.object({
   document_ids: z.array(z.string().uuid()).min(1, 'At least one document required').max(5, 'Max 5 documents'),
 })
 
-// Coding Mode chat request validation
-const codingLanguageEnum = z.enum([
-  'javascript',
-  'typescript',
-  'python',
-  'html',
-  'css',
-  'java',
-  'cpp',
-  'sql',
-])
+// Coding Mode chat request validation.
+// Language is stored as free text (users are not limited to a fixed list), so
+// we validate it as a bounded string rather than a strict enum.
+const codingLanguageSchema = z.string().min(1).max(40)
 
 export const codingChatRequestSchema = z.object({
   project_id: z.string().uuid('Invalid project ID'),
@@ -38,19 +31,21 @@ export const codingChatRequestSchema = z.object({
   // The active file being worked on (drives the "current file" context)
   active_file_id: z.string().uuid().nullable().optional(),
   active_file_name: z.string().max(200).optional().nullable(),
-  active_language: codingLanguageEnum.optional(),
+  active_language: codingLanguageSchema.optional(),
   active_file_content: z.string().max(200000).optional().nullable(),
   // Lightweight listing of all project files (name + language + content)
   project_files: z
     .array(
       z.object({
         name: z.string().max(200),
-        language: codingLanguageEnum,
+        language: codingLanguageSchema,
         content: z.string().max(200000),
       })
     )
     .max(50)
     .optional(),
+  // File paths the user explicitly attached so the AI focuses on them
+  attached_files: z.array(z.string().max(200)).max(20).optional(),
   // Optional uploaded documents to use as requirements/context
   document_ids: z.array(z.string().uuid()).max(10).optional(),
   // Quick action id (explain, find_bugs, analyze_project, etc.) or null for free chat

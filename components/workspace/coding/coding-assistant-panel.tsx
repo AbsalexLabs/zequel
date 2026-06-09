@@ -14,7 +14,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Bot, Send, Loader2, Sparkles, FileText, Paperclip } from 'lucide-react'
+import { Bot, Send, Loader2, Sparkles, FileText, Paperclip, FileCode2, X } from 'lucide-react'
+import { FileLanguageIcon } from './file-language-icon'
 import type { CodingActionId, CodingMessage } from '@/lib/types'
 
 export interface CodingAssistantHandle {
@@ -40,6 +41,7 @@ export function CodingAssistantPanel() {
   const [input, setInput] = useState('')
   const [streamingContent, setStreamingContent] = useState('')
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([])
+  const [attachedFileIds, setAttachedFileIds] = useState<string[]>([])
   const [upgrade, setUpgrade] = useState<{ open: boolean; plan: RequiredPlan; message?: string }>({
     open: false,
     plan: 'premium_pro',
@@ -85,7 +87,15 @@ export function CodingAssistantPanel() {
     if (!message && !action) return
 
     // Optimistically render the user's turn.
-    const userLabel = action ? `[Action] ${CODING_ACTIONS[action].label}` : message
+    const attachedNames = codingFiles
+      .filter((f) => attachedFileIds.includes(f.id))
+      .map((f) => filePath(f.folder_id, f.name))
+    const attachSuffix = attachedNames.length
+      ? `\n\n${attachedNames.map((n) => `@${n}`).join(' ')}`
+      : ''
+    const userLabel = action
+      ? `[Action] ${CODING_ACTIONS[action].label}${attachSuffix}`
+      : `${message}${attachSuffix}`
     addCodingMessage({
       id: crypto.randomUUID(),
       project_id: codingProject.id,
@@ -96,11 +106,22 @@ export function CodingAssistantPanel() {
     if (!action) setInput('')
 
     const activeFile = codingFiles.find((f) => f.id === activeCodingFileId)
+    // Only send editable text files to the model. Uploaded binary assets
+    // (images, etc.) have no useful text content, so we send a short
+    // placeholder noting they exist instead of empty bodies.
     const projectFiles = codingFiles.map((f) => ({
       name: filePath(f.folder_id, f.name),
       language: f.language,
-      content: f.content,
+      content:
+        f.kind === 'upload'
+          ? `[uploaded ${f.mime_type || 'binary'} asset - not shown]`
+          : f.content,
     }))
+
+    // Files the user explicitly attached for this turn so the AI focuses on them.
+    const attachedFiles = codingFiles
+      .filter((f) => attachedFileIds.includes(f.id))
+      .map((f) => filePath(f.folder_id, f.name))
 
     setIsCodingStreaming(true)
     setStreamingContent('')
@@ -118,6 +139,7 @@ export function CodingAssistantPanel() {
           active_language: activeFile?.language,
           active_file_content: activeFile?.content ?? null,
           project_files: projectFiles,
+          attached_files: attachedFiles,
           document_ids: selectedDocIds,
           action: action ?? null,
           learning_mode: learningMode,
@@ -192,6 +214,7 @@ export function CodingAssistantPanel() {
       setIsCodingStreaming(false)
       setStreamingContent('')
       bufferRef.current = ''
+      setAttachedFileIds([])
     }
   }
 
@@ -237,14 +260,59 @@ export function CodingAssistantPanel() {
 
       {/* Composer */}
       <div className="shrink-0 border-t border-border p-3">
-        {/* Document attach */}
-        {parsedDocs.length > 0 && (
-          <div className="mb-2 flex items-center gap-2">
+        {/* Attach context: project files + parsed documents */}
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+                <FileCode2 className="h-3 w-3" />
+                Files
+                {attachedFileIds.length > 0 && (
+                  <span className="rounded bg-foreground px-1 text-background">
+                    {attachedFileIds.length}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 w-64 overflow-y-auto">
+              <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider">
+                Attach project files
+              </DropdownMenuLabel>
+              {codingFiles.length === 0 ? (
+                <div className="px-2 py-1.5 font-sans text-xs text-muted-foreground">
+                  No files yet
+                </div>
+              ) : (
+                codingFiles.map((file) => (
+                  <DropdownMenuCheckboxItem
+                    key={file.id}
+                    checked={attachedFileIds.includes(file.id)}
+                    onCheckedChange={(checked) =>
+                      setAttachedFileIds((prev) =>
+                        checked ? [...prev, file.id] : prev.filter((id) => id !== file.id)
+                      )
+                    }
+                    className="gap-2 font-sans text-xs"
+                  >
+                    <FileLanguageIcon
+                      language={file.language}
+                      kind={file.kind}
+                      mimeType={file.mime_type}
+                      size={14}
+                    />
+                    <span className="truncate">{filePath(file.folder_id, file.name)}</span>
+                  </DropdownMenuCheckboxItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {parsedDocs.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
                   <Paperclip className="h-3 w-3" />
-                  Documents
+                  Docs
                   {selectedDocIds.length > 0 && (
                     <span className="rounded bg-foreground px-1 text-background">
                       {selectedDocIds.length}
@@ -273,8 +341,36 @@ export function CodingAssistantPanel() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        )}
+          )}
+
+          {/* Attached file chips */}
+          {attachedFileIds.map((id) => {
+            const file = codingFiles.find((f) => f.id === id)
+            if (!file) return null
+            return (
+              <span
+                key={id}
+                className="flex items-center gap-1 rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground"
+              >
+                <FileLanguageIcon
+                  language={file.language}
+                  kind={file.kind}
+                  mimeType={file.mime_type}
+                  size={12}
+                />
+                <span className="max-w-[120px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedFileIds((prev) => prev.filter((x) => x !== id))}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={`Remove ${file.name}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )
+          })}
+        </div>
 
         <div className="flex items-end gap-2 rounded-lg border border-border bg-secondary/30 p-2">
           <textarea
