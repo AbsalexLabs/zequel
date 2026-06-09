@@ -75,6 +75,7 @@ export function DataTable<T>({
   rows,
   rowKey,
   empty = "No records found.",
+  onRowClick,
 }: {
   columns: {
     key: string
@@ -85,6 +86,7 @@ export function DataTable<T>({
   rows: T[]
   rowKey: (row: T) => string
   empty?: string
+  onRowClick?: (row: T) => void
 }) {
   return (
     <Table>
@@ -112,7 +114,11 @@ export function DataTable<T>({
           </TableRow>
         ) : (
           rows.map((row) => (
-            <TableRow key={rowKey(row)} className="border-border">
+            <TableRow
+              key={rowKey(row)}
+              className={cn("border-border", onRowClick && "cursor-pointer")}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+            >
               {columns.map((c) => (
                 <TableCell key={c.key} className={cn("px-4 py-3", c.className)}>
                   {c.cell(row)}
