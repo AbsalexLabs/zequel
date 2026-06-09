@@ -5,6 +5,7 @@ export type AdminRole = 'admin' | 'superadmin'
 export interface AdminUser {
   id: string
   email: string
+  name: string
   role: AdminRole
 }
 
@@ -20,7 +21,7 @@ export async function verifyAdmin(): Promise<{ user: AdminUser | null; error: st
   // Get user's role from profiles
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', user.id)
     .single()
 
@@ -36,6 +37,7 @@ export async function verifyAdmin(): Promise<{ user: AdminUser | null; error: st
     user: {
       id: user.id,
       email: user.email || '',
+      name: (profile.full_name as string | null) || user.email?.split('@')[0] || 'Admin',
       role: profile.role as AdminRole,
     },
     error: null,
