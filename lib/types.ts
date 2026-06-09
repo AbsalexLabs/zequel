@@ -115,16 +115,42 @@ export type WorkspaceMode = 'study' | 'research' | 'coding'
 
 // ─── Coding Mode ────────────────────────────────────────────────────────────
 
-// Supported languages in Coding Mode. Keep in sync with CODING_LANGUAGES.
-export type CodingLanguage =
+// Languages Coding Mode understands. `language` is stored as free text in the
+// DB (no constraint), so users are not limited to these — the union lists the
+// well-known ids for editor support while still allowing any other string.
+export type KnownCodingLanguage =
   | 'javascript'
   | 'typescript'
+  | 'jsx'
+  | 'tsx'
   | 'python'
   | 'html'
   | 'css'
+  | 'scss'
   | 'java'
   | 'cpp'
+  | 'c'
+  | 'csharp'
+  | 'go'
+  | 'rust'
+  | 'php'
+  | 'ruby'
+  | 'swift'
+  | 'kotlin'
   | 'sql'
+  | 'json'
+  | 'yaml'
+  | 'markdown'
+  | 'shell'
+  | 'dart'
+  | 'r'
+  | 'xml'
+  | 'plaintext'
+
+export type CodingLanguage = KnownCodingLanguage | (string & {})
+
+// A file is either editable text/code or an uploaded binary asset (image, etc.)
+export type CodingFileKind = 'text' | 'upload'
 
 export interface CodingProject {
   id: string
@@ -153,6 +179,10 @@ export interface CodingFile {
   name: string
   language: CodingLanguage
   content: string
+  // 'text' = editable code; 'upload' = binary asset stored in Supabase Storage
+  kind: CodingFileKind
+  storage_path: string | null
+  mime_type: string | null
   created_at: string
   updated_at: string
 }
