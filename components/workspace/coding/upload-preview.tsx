@@ -46,7 +46,11 @@ export function UploadPreview({ file }: { file: CodingFile }) {
     }
   }, [file.storage_path])
 
-  const isImage = (file.mime_type ?? '').startsWith('image/')
+  const mime = file.mime_type ?? ''
+  const isImage = mime.startsWith('image/')
+  const isPdf = mime === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  const isVideo = mime.startsWith('video/')
+  const isAudio = mime.startsWith('audio/')
 
   if (status === 'loading') {
     return (
@@ -67,19 +71,55 @@ export function UploadPreview({ file }: { file: CodingFile }) {
     )
   }
 
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 overflow-auto p-6">
-      {isImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
+  // PDFs and images open directly in the editor surface (full height).
+  if (isPdf) {
+    return (
+      <div className="flex h-full flex-col">
+        <iframe
+          src={url}
+          title={file.name}
+          className="min-h-0 w-full flex-1 border-0 bg-background"
+        />
+      </div>
+    )
+  }
+
+  if (isImage) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 overflow-auto bg-secondary/20 p-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url || '/placeholder.svg'}
           alt={file.name}
-          className="max-h-[70%] max-w-full rounded-md border border-border object-contain"
+          className="max-h-full max-w-full rounded-md border border-border object-contain"
         />
+        <a href={url} download={file.name} target="_blank" rel="noreferrer">
+          <Button variant="outline" size="sm" className="gap-2 font-mono text-xs">
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </Button>
+        </a>
+      </div>
+    )
+  }
+
+  if (isVideo) {
+    return (
+      <div className="flex h-full items-center justify-center bg-secondary/20 p-6">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video src={url} controls className="max-h-full max-w-full rounded-md border border-border" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-4 overflow-auto p-6">
+      {isAudio ? (
+        <audio src={url} controls className="w-full max-w-md" />
       ) : (
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <FileText className="h-10 w-10" />
-          <span className="font-mono text-xs">{file.mime_type || 'file'}</span>
+          <span className="font-mono text-xs">{mime || 'file'}</span>
         </div>
       )}
       <a href={url} download={file.name} target="_blank" rel="noreferrer">

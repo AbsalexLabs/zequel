@@ -20,11 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +69,35 @@ type DeleteTarget = { type: 'file' | 'folder' | 'project'; id: string; name: str
 
 const UPLOAD_BUCKET = 'coding-files'
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024 // 10MB
+
+// Extensions that are always treated as binary assets (stored, never editable),
+// even though some could technically be read as text.
+const BINARY_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico', 'svg', 'tiff',
+  'pdf', 'zip', 'rar', '7z', 'gz', 'tar', 'mp3', 'wav', 'ogg', 'flac',
+  'mp4', 'mov', 'webm', 'avi', 'mkv', 'woff', 'woff2', 'ttf', 'otf', 'eot',
+  'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'exe', 'dll', 'bin', 'dmg',
+])
+
+// Decide whether an uploaded file should become an editable text/code file
+// (treated exactly like a created file) or be stored as a binary asset.
+function isTextLikeUpload(file: File): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (BINARY_EXTENSIONS.has(ext)) return false
+  const mime = file.type
+  if (mime) {
+    if (mime.startsWith('text/')) return true
+    if (mime.startsWith('image/') || mime.startsWith('audio/') || mime.startsWith('video/'))
+      return false
+    if (mime === 'application/pdf') return false
+    // Common text-based application types
+    if (/(json|xml|javascript|typescript|x-sh|x-yaml|yaml|sql|csv|toml)/.test(mime)) return true
+  }
+  // Fall back to extension: anything we recognize as a language is editable.
+  if (languageFromFileName(file.name) !== 'plaintext') return true
+  // Unknown + no extension → default to editable plain text (e.g. "Dockerfile").
+  return ext === '' || ext === 'txt' || ext === 'log' || ext === 'env'
+}
 
 function getDisplayName(profile?: Profile | null, userEmail?: string) {
   if (profile?.full_name) return profile.full_name
@@ -128,6 +161,17 @@ export function CodingFilesPanel({
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
   // Folder targeted by the upload picker (null = project root).
   const [uploadParent, setUploadParent] = useState<string | null>(null)
+  // Item whose "Move to…" dialog is open.
+  const [moveTarget, setMoveTarget] = useState<
+    | { type: 'file'; id: string; name: string; currentParentId: string | null }
+    | { type: 'folder'; id: string; name: string; currentParentId: string | null }
+    | null
+  >(null)
+  // Drag-and-drop: the item currently being dragged and the folder hovered.
+  const [draggingItem, setDraggingItem] = useState<
+    { type: 'file' | 'folder'; id: string } | null
+  >(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null | 'root'>(null)
 
   const getUser = async () => {
     const supabase = createClient()
@@ -263,6 +307,48 @@ export function CodingFilesPanel({
         })
         continue
       }
+
+      // ── Text / code files become real editable files (like created ones) ──
+      if (isTextLikeUpload(file)) {
+        let content = ''
+        try {
+          content = await file.text()
+        } catch {
+          toast({
+            title: 'Could not read file',
+            description: file.name,
+            variant: 'destructive',
+          })
+          continue
+        }
+        const language = languageFromFileName(file.name)
+        const { data, error } = await supabase
+          .from('coding_files')
+          .insert({
+            project_id: codingProject.id,
+            user_id: user.id,
+            folder_id: uploadParent,
+            name: file.name,
+            language,
+            content,
+            kind: 'text',
+          })
+          .select()
+          .single()
+        if (data && !error) {
+          addCodingFile(data as CodingFile)
+          uploaded += 1
+        } else {
+          toast({
+            title: 'Upload failed',
+            description: file.name,
+            variant: 'destructive',
+          })
+        }
+        continue
+      }
+
+      // ── Binary assets (images, PDFs, etc.) are stored and previewed ──
       const safeName = file.name.replace(/[^\w.\-]+/g, '_')
       const path = `${user.id}/${codingProject.id}/${crypto.randomUUID()}-${safeName}`
       const { error: upErr } = await supabase.storage
@@ -394,6 +480,37 @@ export function CodingFilesPanel({
     await supabase.from('coding_folders').update({ parent_id: parentId }).eq('id', folder.id)
   }
 
+  // Unified move used by both the Move dialog and drag-and-drop.
+  const performMove = (
+    item: { type: 'file' | 'folder'; id: string },
+    destFolderId: string | null
+  ) => {
+    if (item.type === 'file') {
+      const file = codingFiles.find((f) => f.id === item.id)
+      if (file) void handleMoveFile(file, destFolderId)
+    } else {
+      const folder = codingFolders.find((f) => f.id === item.id)
+      if (folder) void handleMoveFolder(folder, destFolderId)
+    }
+  }
+
+  // ─── Drag & drop ─────────────────────────────────────────────────────────
+  const onDropInto = (destFolderId: string | null) => {
+    if (!draggingItem) return
+    // Folder can't be dropped onto itself or a descendant.
+    if (
+      draggingItem.type === 'folder' &&
+      destFolderId &&
+      collectFolderSubtree(draggingItem.id).has(destFolderId)
+    ) {
+      toast({ title: "Can't move a folder into itself", variant: 'destructive' })
+    } else {
+      performMove(draggingItem, destFolderId)
+    }
+    setDraggingItem(null)
+    setDropTargetId(null)
+  }
+
   // ─── Derived tree structures ─────────────────────────────────────────────
   const foldersByParent = useMemo(() => {
     const map = new Map<string | null, CodingFolder[]>()
@@ -472,7 +589,38 @@ export function CodingFilesPanel({
                 />
               ) : (
                 <div
-                  className="group flex items-center gap-1 rounded-md py-1.5 pr-1 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+                  draggable={!isRenaming}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move'
+                    setDraggingItem({ type: 'folder', id: folder.id })
+                  }}
+                  onDragEnd={() => {
+                    setDraggingItem(null)
+                    setDropTargetId(null)
+                  }}
+                  onDragOver={(e) => {
+                    if (!draggingItem) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    if (dropTargetId !== folder.id) setDropTargetId(folder.id)
+                  }}
+                  onDragLeave={(e) => {
+                    // Only clear if leaving the row entirely (not entering a child).
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDropTargetId((prev) => (prev === folder.id ? null : prev))
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onDropInto(folder.id)
+                  }}
+                  className={cn(
+                    'group flex items-center gap-1 rounded-md py-1.5 pr-1 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground',
+                    dropTargetId === folder.id &&
+                      'bg-foreground/10 ring-1 ring-inset ring-foreground/30',
+                    draggingItem?.id === folder.id && 'opacity-50'
+                  )}
                   style={indent}
                 >
                   <button
@@ -493,7 +641,6 @@ export function CodingFilesPanel({
                   </button>
                   <FolderMenu
                     folder={folder}
-                    folderOptions={folderOptions}
                     onNewFile={() => {
                       setCreateTarget({ kind: 'file', parentId: folder.id })
                       if (!expanded) toggleFolderExpanded(folder.id)
@@ -507,7 +654,14 @@ export function CodingFilesPanel({
                     onDelete={() =>
                       setDeleteTarget({ type: 'folder', id: folder.id, name: folder.name })
                     }
-                    onMove={(target) => handleMoveFolder(folder, target)}
+                    onMove={() =>
+                      setMoveTarget({
+                        type: 'folder',
+                        id: folder.id,
+                        name: folder.name,
+                        currentParentId: folder.parent_id,
+                      })
+                    }
                   />
                 </div>
               )}
@@ -538,11 +692,21 @@ export function CodingFilesPanel({
                 />
               ) : (
                 <div
+                  draggable={!isRenaming}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move'
+                    setDraggingItem({ type: 'file', id: file.id })
+                  }}
+                  onDragEnd={() => {
+                    setDraggingItem(null)
+                    setDropTargetId(null)
+                  }}
                   className={cn(
                     'group flex items-center gap-1 rounded-md py-1.5 pr-1 transition-colors',
                     isActive
                       ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
+                    draggingItem?.id === file.id && 'opacity-50'
                   )}
                   style={indent}
                 >
@@ -555,12 +719,18 @@ export function CodingFilesPanel({
                   </button>
                   <FileMenu
                     file={file}
-                    folderOptions={folderOptions}
                     onRename={() => startRename('file', file.id, file.name)}
                     onDelete={() =>
                       setDeleteTarget({ type: 'file', id: file.id, name: file.name })
                     }
-                    onMove={(target) => handleMoveFile(file, target)}
+                    onMove={() =>
+                      setMoveTarget({
+                        type: 'file',
+                        id: file.id,
+                        name: file.name,
+                        currentParentId: file.folder_id,
+                      })
+                    }
                   />
                 </div>
               )}
@@ -743,7 +913,29 @@ export function CodingFilesPanel({
       </div>
 
       {/* Tree */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto px-2 pb-3',
+          draggingItem && dropTargetId === 'root' && 'bg-foreground/5'
+        )}
+        onDragOver={(e) => {
+          if (!draggingItem) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          // Hovering empty tree space targets the project root.
+          if (e.target === e.currentTarget && dropTargetId !== 'root') {
+            setDropTargetId('root')
+          }
+        }}
+        onDrop={(e) => {
+          if (!draggingItem) return
+          // Only handle drops on the empty area (folder rows stop propagation).
+          if (e.target === e.currentTarget) {
+            e.preventDefault()
+            onDropInto(null)
+          }
+        }}
+      >
         {/* Root-level create row */}
         {createTarget && createTarget.parentId === null && renderCreateRow(0)}
 
@@ -825,6 +1017,69 @@ export function CodingFilesPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Move to folder picker */}
+      <Dialog
+        open={moveTarget !== null}
+        onOpenChange={(open) => !open && setMoveTarget(null)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm">
+              Move &ldquo;{moveTarget?.name}&rdquo;
+            </DialogTitle>
+            <DialogDescription className="font-sans text-xs">
+              Choose a destination folder.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto rounded-md border border-border">
+            <button
+              onClick={() => {
+                if (moveTarget) performMove(moveTarget, null)
+                setMoveTarget(null)
+              }}
+              disabled={moveTarget?.currentParentId === null}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <CornerUpLeft className="h-3.5 w-3.5 shrink-0" />
+              Project root
+            </button>
+            <Separator />
+            {folderOptions
+              .filter(
+                (opt) =>
+                  // Don't allow moving a folder into itself or its descendants.
+                  !(
+                    moveTarget?.type === 'folder' &&
+                    collectFolderSubtree(moveTarget.id).has(opt.id)
+                  )
+              )
+              .map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => {
+                    if (moveTarget) performMove(moveTarget, opt.id)
+                    setMoveTarget(null)
+                  }}
+                  disabled={opt.id === moveTarget?.currentParentId}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ paddingLeft: `${opt.depth * 14 + 12}px` }}
+                >
+                  <Folder className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{opt.label}</span>
+                  {opt.id === moveTarget?.currentParentId && (
+                    <Check className="ml-auto h-3.5 w-3.5 shrink-0" />
+                  )}
+                </button>
+              ))}
+            {folderOptions.length === 0 && (
+              <p className="px-3 py-4 text-center font-sans text-xs text-muted-foreground">
+                No folders yet. Create a folder first.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -874,61 +1129,8 @@ function RenameRow({
   )
 }
 
-// "Move to" submenu shared by file and folder menus.
-function MoveSubmenu({
-  folderOptions,
-  excludeIds,
-  currentParentId,
-  onMove,
-}: {
-  folderOptions: { id: string; label: string; depth: number }[]
-  excludeIds?: Set<string>
-  currentParentId: string | null
-  onMove: (target: string | null) => void
-}) {
-  return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger className="gap-2 font-sans text-xs">
-        <FolderInput className="h-3.5 w-3.5" />
-        Move to
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="max-h-64 w-52 overflow-y-auto">
-        <DropdownMenuItem
-          onSelect={() => onMove(null)}
-          disabled={currentParentId === null}
-          className="gap-2 font-mono text-xs"
-        >
-          <CornerUpLeft className="h-3.5 w-3.5" />
-          Project root
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {folderOptions
-          .filter((opt) => !excludeIds?.has(opt.id))
-          .map((opt) => (
-            <DropdownMenuItem
-              key={opt.id}
-              onSelect={() => onMove(opt.id)}
-              disabled={opt.id === currentParentId}
-              className="gap-2 font-mono text-xs"
-              style={{ paddingLeft: `${opt.depth * 10 + 8}px` }}
-            >
-              <Folder className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{opt.label}</span>
-            </DropdownMenuItem>
-          ))}
-        {folderOptions.length === 0 && (
-          <p className="px-2 py-2 font-sans text-[11px] text-muted-foreground">
-            No folders yet.
-          </p>
-        )}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
-  )
-}
-
 function FolderMenu({
   folder,
-  folderOptions,
   onNewFile,
   onNewFolder,
   onUpload,
@@ -937,16 +1139,13 @@ function FolderMenu({
   onMove,
 }: {
   folder: CodingFolder
-  folderOptions: { id: string; label: string; depth: number }[]
   onNewFile: () => void
   onNewFolder: () => void
   onUpload: () => void
   onRename: () => void
   onDelete: () => void
-  onMove: (target: string | null) => void
+  onMove: () => void
 }) {
-  // Exclude self (descendants are guarded in the move handler).
-  const excludeIds = new Set<string>([folder.id])
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -971,12 +1170,10 @@ function FolderMenu({
           Upload files
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <MoveSubmenu
-          folderOptions={folderOptions}
-          excludeIds={excludeIds}
-          currentParentId={folder.parent_id}
-          onMove={onMove}
-        />
+        <DropdownMenuItem onClick={onMove} className="gap-2 font-sans text-xs">
+          <FolderInput className="h-3.5 w-3.5" />
+          Move to…
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onRename} className="gap-2 font-sans text-xs">
           <Pencil className="h-3.5 w-3.5" />
           Rename
@@ -995,16 +1192,14 @@ function FolderMenu({
 
 function FileMenu({
   file,
-  folderOptions,
   onRename,
   onDelete,
   onMove,
 }: {
   file: CodingFile
-  folderOptions: { id: string; label: string; depth: number }[]
   onRename: () => void
   onDelete: () => void
-  onMove: (target: string | null) => void
+  onMove: () => void
 }) {
   return (
     <DropdownMenu>
@@ -1017,11 +1212,10 @@ function FileMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <MoveSubmenu
-          folderOptions={folderOptions}
-          currentParentId={file.folder_id}
-          onMove={onMove}
-        />
+        <DropdownMenuItem onClick={onMove} className="gap-2 font-sans text-xs">
+          <FolderInput className="h-3.5 w-3.5" />
+          Move to…
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={onRename} className="gap-2 font-sans text-xs">
           <Pencil className="h-3.5 w-3.5" />
           Rename
