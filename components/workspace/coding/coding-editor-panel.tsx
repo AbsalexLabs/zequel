@@ -9,12 +9,10 @@ import { FileIcon } from './file-icon'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
-import { Switch } from '@/components/ui/switch'
 import {
   FileCode2,
   Check,
   Loader2,
-  GraduationCap,
   ScanSearch,
   Bug,
   Wand2,
@@ -23,6 +21,7 @@ import {
   ClipboardCheck,
   FlaskConical,
   Zap,
+  X,
 } from 'lucide-react'
 import type { CodingActionId, CodingFile } from '@/lib/types'
 
@@ -46,15 +45,21 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
   const {
     codingFiles,
     activeCodingFileId,
+    setActiveCodingFileId,
+    openCodingFileIds,
+    closeCodingFile,
     updateCodingFile,
-    learningMode,
-    setLearningMode,
     isCodingStreaming,
   } = useWorkspaceStore()
 
   const activeFile = codingFiles.find((f) => f.id === activeCodingFileId) as
     | CodingFile
     | undefined
+
+  // Files currently open as tabs, in open order, skipping any that were deleted.
+  const openFiles = openCodingFileIds
+    .map((id) => codingFiles.find((f) => f.id === id))
+    .filter((f): f is CodingFile => Boolean(f))
 
   const isUpload = activeFile?.kind === 'upload'
 
@@ -90,7 +95,60 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
-      {/* Editor header: file name + language + learning toggle */}
+      {/* Open file tabs */}
+      {openFiles.length > 0 && (
+        <div className="flex shrink-0 items-center overflow-x-auto border-b border-border">
+          {openFiles.map((file) => {
+            const isActive = file.id === activeCodingFileId
+            return (
+              <div
+                key={file.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveCodingFileId(file.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setActiveCodingFileId(file.id)
+                  }
+                }}
+                onAuxClick={(e) => {
+                  // Middle-click closes the tab.
+                  if (e.button === 1) {
+                    e.preventDefault()
+                    closeCodingFile(file.id)
+                  }
+                }}
+                className={cn(
+                  'group flex shrink-0 cursor-pointer items-center gap-2 border-r border-border px-3 py-2 font-mono text-xs transition-colors',
+                  isActive
+                    ? 'bg-background text-foreground'
+                    : 'bg-secondary/30 text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                )}
+              >
+                <FileIcon fileName={file.name} size={14} />
+                <span className="max-w-[140px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    closeCodingFile(file.id)
+                  }}
+                  aria-label={`Close ${file.name}`}
+                  className={cn(
+                    'flex h-4 w-4 items-center justify-center rounded transition-colors hover:bg-secondary hover:text-foreground',
+                    isActive ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'
+                  )}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Editor header: language + save state */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {activeFile ? (
@@ -121,20 +179,6 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
             </span>
           )}
         </div>
-
-        {/* Learning Mode toggle */}
-        <label className="flex shrink-0 cursor-pointer items-center gap-2">
-          <GraduationCap
-            className={cn(
-              'h-3.5 w-3.5',
-              learningMode ? 'text-foreground' : 'text-muted-foreground'
-            )}
-          />
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Learning Mode
-          </span>
-          <Switch checked={learningMode} onCheckedChange={setLearningMode} />
-        </label>
       </div>
 
       {/* Quick action toolbar */}

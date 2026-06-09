@@ -99,6 +99,10 @@ interface WorkspaceState {
   activeCodingFileId: string | null
   setActiveCodingFileId: (id: string | null) => void
 
+  // Open editor tabs (file ids in the order they were opened).
+  openCodingFileIds: string[]
+  closeCodingFile: (id: string) => void
+
   codingMessages: CodingMessage[]
   setCodingMessages: (msgs: CodingMessage[]) => void
   addCodingMessage: (msg: CodingMessage) => void
@@ -256,11 +260,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       const removedFileActive = state.codingFiles.some(
         (f) => f.id === state.activeCodingFileId && f.folder_id && toRemove.has(f.folder_id)
       )
+      const removedFileIds = new Set(
+        state.codingFiles
+          .filter((f) => f.folder_id && toRemove.has(f.folder_id))
+          .map((f) => f.id)
+      )
       return {
         codingFolders: state.codingFolders.filter((f) => !toRemove.has(f.id)),
         codingFiles: state.codingFiles.filter(
           (f) => !(f.folder_id && toRemove.has(f.folder_id))
         ),
+        openCodingFileIds: state.openCodingFileIds.filter((fid) => !removedFileIds.has(fid)),
         activeCodingFileId: removedFileActive ? null : state.activeCodingFileId,
       }
     }),
@@ -297,12 +307,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   removeCodingFile: (id) =>
     set((state) => ({
       codingFiles: state.codingFiles.filter((f) => f.id !== id),
+      openCodingFileIds: state.openCodingFileIds.filter((fid) => fid !== id),
       activeCodingFileId:
         state.activeCodingFileId === id ? null : state.activeCodingFileId,
     })),
 
   activeCodingFileId: null,
-  setActiveCodingFileId: (id) => set({ activeCodingFileId: id }),
+  setActiveCodingFileId: (id) =>
+    set((state) => ({
+      activeCodingFileId: id,
+      // Opening a file adds it to the tab strip if not already present.
+      openCodingFileIds:
+        id && !state.openCodingFileIds.includes(id)
+          ? [...state.openCodingFileIds, id]
+          : state.openCodingFileIds,
+    })),
+
+  openCodingFileIds: [],
+  closeCodingFile: (id) =>
+    set((state) => {
+      const remaining = state.openCodingFileIds.filter((fid) => fid !== id)
+      let nextActive = state.activeCodingFileId
+      if (state.activeCodingFileId === id) {
+        // Focus the neighbouring tab (prefer the one to the left).
+        const idx = state.openCodingFileIds.indexOf(id)
+        nextActive = remaining[idx - 1] ?? remaining[idx] ?? remaining[remaining.length - 1] ?? null
+      }
+      return { openCodingFileIds: remaining, activeCodingFileId: nextActive }
+    }),
 
   codingMessages: [],
   setCodingMessages: (msgs) => set({ codingMessages: msgs }),
