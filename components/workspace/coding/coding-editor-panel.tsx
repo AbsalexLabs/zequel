@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import { CodeEditor } from './code-editor'
 import { UploadPreview } from './upload-preview'
-import { FileLanguageIcon } from './file-language-icon'
+import { FileIcon } from './file-icon'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
@@ -94,12 +94,7 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {activeFile ? (
-            <FileLanguageIcon
-              language={activeFile.language}
-              kind={activeFile.kind}
-              mimeType={activeFile.mime_type}
-              size={16}
-            />
+            <FileIcon fileName={activeFile.name} size={16} />
           ) : (
             <FileCode2 className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
