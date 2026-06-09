@@ -16,21 +16,37 @@ import type { CodingLanguage } from '@/lib/types'
 function languageExtension(language: CodingLanguage): Extension[] {
   switch (language) {
     case 'javascript':
+    case 'jsx':
       return [javascript({ jsx: true })]
     case 'typescript':
+    case 'tsx':
       return [javascript({ jsx: true, typescript: true })]
+    case 'json':
+      return [javascript()]
     case 'python':
       return [python()]
     case 'html':
+    case 'xml':
       return [html()]
     case 'css':
+    case 'scss':
       return [css()]
     case 'java':
+    case 'kotlin':
       return [java()]
     case 'cpp':
+    case 'c':
+    case 'csharp':
+    case 'go':
+    case 'rust':
+    case 'swift':
+    case 'dart':
       return [cpp()]
     case 'sql':
       return [sql()]
+    case 'plaintext':
+    case 'markdown':
+      return []
     default:
       return [javascript()]
   }

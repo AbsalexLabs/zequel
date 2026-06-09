@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import { CodeEditor } from './code-editor'
+import { UploadPreview } from './upload-preview'
+import { FileLanguageIcon } from './file-language-icon'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
@@ -54,6 +56,8 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
     | CodingFile
     | undefined
 
+  const isUpload = activeFile?.kind === 'upload'
+
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -89,13 +93,27 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
       {/* Editor header: file name + language + learning toggle */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <FileCode2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {activeFile ? (
+            <FileLanguageIcon
+              language={activeFile.language}
+              kind={activeFile.kind}
+              mimeType={activeFile.mime_type}
+              size={16}
+            />
+          ) : (
+            <FileCode2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
           <span className="truncate font-mono text-xs text-foreground">
             {activeFile ? activeFile.name : 'No file selected'}
           </span>
-          {activeFile && (
+          {activeFile && !isUpload && (
             <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
               {getLanguageMeta(activeFile.language).label}
+            </span>
+          )}
+          {activeFile && isUpload && (
+            <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+              Asset
             </span>
           )}
           {saveState === 'saving' && (
@@ -129,7 +147,7 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
         {TOOLBAR_ACTIONS.map(({ id, icon }) => (
           <button
             key={id}
-            disabled={!activeFile || isCodingStreaming}
+            disabled={!activeFile || isUpload || isCodingStreaming}
             onClick={() => onAction(id)}
             title={CODING_ACTIONS[id].label}
             className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -152,12 +170,16 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
       {/* Editor surface */}
       <div className="min-h-0 flex-1 overflow-hidden border-t border-border">
         {activeFile ? (
-          <CodeEditor
-            key={activeFile.id}
-            value={activeFile.content}
-            language={activeFile.language}
-            onChange={handleChange}
-          />
+          isUpload ? (
+            <UploadPreview key={activeFile.id} file={activeFile} />
+          ) : (
+            <CodeEditor
+              key={activeFile.id}
+              value={activeFile.content}
+              language={activeFile.language}
+              onChange={handleChange}
+            />
+          )
         ) : (
           <div className="flex h-full items-center justify-center">
             <p className="font-sans text-sm text-muted-foreground">

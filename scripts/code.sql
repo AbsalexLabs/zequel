@@ -91,6 +91,13 @@ create table if not exists public.coding_files (
 alter table public.coding_files
   add column if not exists folder_id uuid references public.coding_folders(id) on delete cascade;
 
+-- Upload support: a file is either editable text ('text') or an uploaded binary
+-- asset ('upload', e.g. an image) stored in the 'coding-files' storage bucket.
+alter table public.coding_files
+  add column if not exists kind text not null default 'text',
+  add column if not exists storage_path text,
+  add column if not exists mime_type text;
+
 create index if not exists coding_files_project_id_idx on public.coding_files(project_id);
 create index if not exists coding_files_user_id_idx on public.coding_files(user_id);
 create index if not exists coding_files_folder_id_idx on public.coding_files(folder_id);
@@ -136,3 +143,40 @@ create policy "coding_messages_insert_own" on public.coding_messages
 drop policy if exists "coding_messages_delete_own" on public.coding_messages;
 create policy "coding_messages_delete_own" on public.coding_messages
   for delete using (auth.uid() = user_id);
+
+-- ----------------------------------------------------------------------------
+-- 5. Storage bucket for uploaded coding assets (images, pdfs, etc.)
+--    Objects are namespaced by user id: "<auth.uid()>/<project_id>/<file>".
+--    RLS ensures each user can only touch objects under their own prefix.
+-- ----------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('coding-files', 'coding-files', false)
+on conflict (id) do nothing;
+
+drop policy if exists "coding_files_storage_select_own" on storage.objects;
+create policy "coding_files_storage_select_own" on storage.objects
+  for select using (
+    bucket_id = 'coding-files'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "coding_files_storage_insert_own" on storage.objects;
+create policy "coding_files_storage_insert_own" on storage.objects
+  for insert with check (
+    bucket_id = 'coding-files'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "coding_files_storage_update_own" on storage.objects;
+create policy "coding_files_storage_update_own" on storage.objects
+  for update using (
+    bucket_id = 'coding-files'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "coding_files_storage_delete_own" on storage.objects;
+create policy "coding_files_storage_delete_own" on storage.objects
+  for delete using (
+    bucket_id = 'coding-files'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

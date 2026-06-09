@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       active_language,
       active_file_content,
       project_files,
+      attached_files,
       document_ids,
       action,
       learning_mode,
@@ -139,6 +140,17 @@ export async function POST(request: Request) {
       chatMessages.push({
         role: 'system',
         content: `The user's project contains these files:\n${listing}\n\n--- PROJECT FILE CONTENTS ---\n${fileBlocks.join('\n\n')}`,
+      })
+    }
+
+    // Files the user explicitly attached for this turn — focus on these.
+    const attached = (attached_files as string[] | undefined) ?? []
+    if (attached.length > 0) {
+      chatMessages.push({
+        role: 'system',
+        content: `The user explicitly attached these file(s) for this request. Focus your work on them and treat them as the primary subject:\n${attached
+          .map((n) => `- ${n}`)
+          .join('\n')}`,
       })
     }
 
