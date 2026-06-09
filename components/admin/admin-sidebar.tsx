@@ -13,6 +13,7 @@ import {
   LifeBuoy,
   ScrollText,
   Settings2,
+  Globe,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -30,6 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
   LifeBuoy,
   ScrollText,
   Settings2,
+  Globe,
 }
 
 export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {

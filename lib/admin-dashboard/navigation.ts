@@ -69,6 +69,13 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Tickets and user reports",
   },
   {
+    label: "Website CMS",
+    href: "/admin/cms",
+    icon: "Globe",
+    minRole: "admin",
+    description: "Manage public site content",
+  },
+  {
     label: "Audit Logs",
     href: "/admin/audit",
     icon: "ScrollText",
