@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ZequelIcon } from '@/components/zequel-icon'
+import { ZequelMark } from '@/components/site/zequel-mark'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const NAV_LINKS = [
   { href: '/site/features', label: 'Features' },
@@ -40,7 +41,7 @@ export function SiteNav() {
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/site" className="flex items-center gap-2.5">
-          <ZequelIcon size={22} className="text-foreground" />
+          <ZequelMark size={24} className="text-foreground" />
           <span className="font-mono text-sm font-semibold tracking-[0.2em] text-foreground uppercase">Zequel</span>
         </Link>
 
@@ -60,6 +61,7 @@ export function SiteNav() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <Link
             href="/auth/login"
             className="font-mono text-xs tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:text-foreground"
@@ -74,15 +76,18 @@ export function SiteNav() {
           </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground md:hidden"
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          aria-expanded={open}
-        >
-          {open ? <X size={18} /> : <Menu size={18} />}
-        </button>
+        <div className="flex items-center gap-1.5 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-foreground"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}

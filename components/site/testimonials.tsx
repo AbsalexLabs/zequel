@@ -26,7 +26,7 @@ export function Testimonials() {
     <section className="border-t border-border bg-secondary/30">
       <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4">
-          <SectionLabel index="04">Voices</SectionLabel>
+          <SectionLabel index="05">Voices</SectionLabel>
           <h2 className="max-w-2xl text-balance text-3xl font-semibold tracking-[-0.025em] sm:text-4xl">
             Trusted by people who can&apos;t afford to be wrong
           </h2>
