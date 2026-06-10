@@ -40,7 +40,7 @@ export default function OverviewPage() {
   return (
     <>
       <PageHeader
-        title="Control Center"
+        title="Overview"
         description="Real-time operational view of the Zequel research platform — usage and system health."
       >
         <OverviewActions />

@@ -2,6 +2,15 @@ import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
 import { getEmailForUserId } from '@/lib/admin/emails'
+import { normalizePlan } from '@zequel/shared/security/subscription'
+
+// Entitlements per plan. Kept in sync with apps/platform/app/api/subscription/route.ts
+// so admin-driven plan changes grant the same limits a self-serve upgrade would.
+const PLAN_LIMITS: Record<'free' | 'premium_lite' | 'premium_pro', { requestLimit: number }> = {
+  free: { requestLimit: 20 },
+  premium_lite: { requestLimit: 200 },
+  premium_pro: { requestLimit: 1000 },
+}
 
 export async function GET(
   request: Request,
@@ -113,14 +122,30 @@ export async function PATCH(
     }
 
     case 'update_subscription': {
-      const { plan, expires_at } = data
+      // Normalize the requested plan so legacy / display values map to the
+      // canonical tiers used everywhere else (free | premium_lite | premium_pro).
+      const plan = normalizePlan(data.plan)
+      const limits = PLAN_LIMITS[plan]
 
-      // Upsert subscription
+      // Paid plans get a fresh 30-day expiry; free clears it. Admins can still
+      // pass an explicit expires_at to override (e.g. a comped plan).
+      const expires_at =
+        data.expires_at !== undefined
+          ? data.expires_at
+          : plan === 'free'
+            ? null
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+      // Write a COMPLETE subscription row. Previously only `plan` was set, which
+      // left `status`/`request_limit` stale — the label changed but the user's
+      // actual entitlements (and any prior "canceled" status) did not move.
       const { error: subError } = await supabase
         .from('subscriptions')
         .upsert({
           user_id: id,
           plan,
+          status: 'active',
+          request_limit: limits.requestLimit,
           expires_at,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
@@ -134,7 +159,7 @@ export async function PATCH(
         action: 'update_subscription',
         target_type: 'subscription',
         target_id: id,
-        details: { plan, expires_at },
+        details: { plan, request_limit: limits.requestLimit, expires_at },
       })
 
       return adminResponse({ success: true, message: 'Subscription updated' })
