@@ -1,8 +1,12 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { ProductFrame } from '@/components/site/product-frame'
+import { getHero } from '@/lib/site/content'
+import { HOME_HERO_FALLBACK } from '@/lib/site/fallbacks'
 
-export function Hero() {
+export async function Hero() {
+  const hero = await getHero('home', HOME_HERO_FALLBACK)
+
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto w-full max-w-6xl px-4 pt-20 pb-12 sm:px-6 sm:pt-28 lg:px-8">
@@ -10,32 +14,31 @@ export function Hero() {
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3.5 py-1.5 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
             <span className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
-              Research System v2.0
+              {hero.eyebrow}
             </span>
           </div>
 
           <h1 className="mt-7 max-w-4xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl lg:text-7xl">
-            Reasoning you can trace, evidence you can trust
+            {hero.headline}
           </h1>
 
           <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Zequel is a structured research workspace that turns scattered documents into evidence-backed answers —
-            every claim sourced, every synthesis traceable, every step accountable.
+            {hero.subhead}
           </p>
 
           <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
             <Link
-              href="/auth/sign-up"
+              href={hero.primaryCtaHref}
               className="group inline-flex h-11 items-center gap-2 rounded-md bg-primary px-6 font-mono text-xs tracking-[0.12em] text-primary-foreground uppercase transition-opacity hover:opacity-90"
             >
-              Start researching
+              {hero.primaryCtaLabel}
               <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href="/site/features"
+              href={hero.secondaryCtaHref}
               className="inline-flex h-11 items-center rounded-md border border-border bg-background px-6 font-mono text-xs tracking-[0.12em] text-foreground uppercase transition-colors hover:bg-secondary"
             >
-              Explore features
+              {hero.secondaryCtaLabel}
             </Link>
           </div>
 

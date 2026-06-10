@@ -113,8 +113,12 @@
   }
   html, body {
     @apply bg-background text-foreground;
-    overflow-x: hidden;
-    overscroll-behavior: none;
+  }
+  body {
+    /* Prevent horizontal overflow without turning body into a scroll
+       container — `clip` avoids the mobile touch-scroll lock that
+       `overflow-x: hidden` causes when set on both html and body. */
+    overflow-x: clip;
   }
 }
 

@@ -7,6 +7,9 @@ import { PartnershipSection } from '@/components/site/partnership-section'
 import { Testimonials } from '@/components/site/testimonials'
 import { CtaSection } from '@/components/site/cta-section'
 
+// Revalidate published CMS content periodically.
+export const revalidate = 60
+
 export default function SiteHomePage() {
   return (
     <>

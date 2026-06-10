@@ -13,6 +13,32 @@ const channels = [
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [form, setForm] = useState({ name: "", email: "", message: "" })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.")
+        return
+      }
+      setSent(true)
+    } catch {
+      setError("Network error. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <>
@@ -35,13 +61,7 @@ export default function ContactPage() {
                 </p>
               </div>
             ) : (
-              <form
-                className="mt-8 flex flex-col gap-5"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setSent(true)
-                }}
-              >
+              <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-2">
                   <label htmlFor="name" className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                     Name
@@ -49,6 +69,8 @@ export default function ContactPage() {
                   <input
                     id="name"
                     required
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className="h-11 border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-foreground"
                   />
                 </div>
@@ -60,6 +82,8 @@ export default function ContactPage() {
                     id="email"
                     type="email"
                     required
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     className="h-11 border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-foreground"
                   />
                 </div>
@@ -71,14 +95,22 @@ export default function ContactPage() {
                     id="message"
                     required
                     rows={5}
+                    value={form.message}
+                    onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                     className="resize-none border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-foreground"
                   />
                 </div>
+                {error && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {error}
+                  </p>
+                )}
                 <button
                   type="submit"
-                  className="mt-2 inline-flex h-11 items-center justify-center bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background transition-opacity hover:opacity-90"
+                  disabled={submitting}
+                  className="mt-2 inline-flex h-11 items-center justify-center bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
-                  Send message
+                  {submitting ? "Sending..." : "Send message"}
                 </button>
               </form>
             )}
