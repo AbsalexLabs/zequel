@@ -29,8 +29,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import { blogPosts as initialPosts } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { BlogPost, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "blog"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -58,7 +60,7 @@ function slugify(s: string) {
 }
 
 export default function CmsBlogPage() {
-  const [posts, setPosts] = useState<BlogPost[]>(initialPosts)
+  const { items: posts, isLoading, error, mutate } = useCmsList<BlogPost>(RESOURCE)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [editing, setEditing] = useState<BlogPost | null>(null)
@@ -87,29 +89,45 @@ export default function CmsBlogPage() {
     setOpen(true)
   }
 
-  function save(post: BlogPost) {
-    const now = new Date().toISOString()
+  async function save(post: BlogPost) {
     const withSlug = { ...post, slug: post.slug || slugify(post.title) }
-    if (post.id) {
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...withSlug, updatedAt: now } : p)))
-      toast.success(`"${post.title}" saved`)
-    } else {
-      const created: BlogPost = { ...withSlug, id: `post_${Math.random().toString(36).slice(2, 7)}`, updatedAt: now }
-      setPosts((prev) => [created, ...prev])
-      toast.success(`"${post.title}" created`)
+    const { id, updatedAt, ...payload } = withSlug
+    try {
+      if (id) {
+        await updateCmsItem<BlogPost>(RESOURCE, id, payload)
+        toast.success(`"${post.title}" saved`)
+      } else {
+        await createCmsItem<BlogPost>(RESOURCE, payload)
+        toast.success(`"${post.title}" created`)
+      }
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    const now = new Date().toISOString()
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, status: "published", publishedAt: now, updatedAt: now } : p)))
-    toast.success("Post published to blog")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<BlogPost>(RESOURCE, id, {
+        status: "published",
+        publishedAt: new Date().toISOString(),
+      })
+      await mutate()
+      toast.success("Post published to blog")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, title: string) {
-    setPosts((prev) => prev.filter((p) => p.id !== id))
-    toast.success(`"${title}" deleted`)
+  async function remove(id: string, title: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`"${title}" deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -128,6 +146,11 @@ export default function CmsBlogPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load posts: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -232,7 +255,7 @@ export default function CmsBlogPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {posts.length} posts
+          {isLoading ? "Loading posts…" : `Showing ${filtered.length} of ${posts.length} posts`}
         </p>
       </div>
 

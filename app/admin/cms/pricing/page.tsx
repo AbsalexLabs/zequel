@@ -28,8 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/admin-dashboard/format"
-import { pricingPlans as initialPlans } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { PricingPlan, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "pricing"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -54,7 +56,7 @@ const EMPTY: PricingPlan = {
 }
 
 export default function PricingPage() {
-  const [plans, setPlans] = useState<PricingPlan[]>(initialPlans)
+  const { items: plans, error, mutate } = useCmsList<PricingPlan>(RESOURCE)
   const [editing, setEditing] = useState<PricingPlan | null>(null)
   const [open, setOpen] = useState(false)
 
@@ -69,28 +71,41 @@ export default function PricingPage() {
     setOpen(true)
   }
 
-  function save(p: PricingPlan) {
-    const now = new Date().toISOString()
-    if (p.id) {
-      setPlans((prev) => prev.map((x) => (x.id === p.id ? { ...p, updatedAt: now } : x)))
-      toast.success(`${p.name} plan saved`)
-    } else {
-      setPlans((prev) => [...prev, { ...p, id: `plan_${Math.random().toString(36).slice(2, 7)}`, updatedAt: now }])
-      toast.success(`${p.name} plan created`)
+  async function save(p: PricingPlan) {
+    const { id, updatedAt, ...payload } = p
+    try {
+      if (id) {
+        await updateCmsItem<PricingPlan>(RESOURCE, id, payload)
+        toast.success(`${p.name} plan saved`)
+      } else {
+        await createCmsItem<PricingPlan>(RESOURCE, payload)
+        toast.success(`${p.name} plan created`)
+      }
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "published", updatedAt: new Date().toISOString() } : p)),
-    )
-    toast.success("Plan published")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<PricingPlan>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("Plan published")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, name: string) {
-    setPlans((prev) => prev.filter((p) => p.id !== id))
-    toast.success(`${name} plan deleted`)
+  async function remove(id: string, name: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`${name} plan deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -100,6 +115,12 @@ export default function PricingPage() {
           <Plus className="size-4" /> New plan
         </Button>
       </PageHeader>
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load pricing plans: {error.message}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {sorted.map((plan) => (

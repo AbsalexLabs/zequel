@@ -19,11 +19,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { relativeTime } from "@/lib/admin-dashboard/format"
-import { heroSections as initialHeroes } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, updateCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { HeroSection } from "@/lib/admin-dashboard/cms-types"
 
+const RESOURCE = "hero"
+
 export default function HeroPage() {
-  const [heroes, setHeroes] = useState<HeroSection[]>(initialHeroes)
+  const { items: heroes, error, mutate } = useCmsList<HeroSection>(RESOURCE)
   const [editing, setEditing] = useState<HeroSection | null>(null)
   const [open, setOpen] = useState(false)
 
@@ -32,17 +34,26 @@ export default function HeroPage() {
     setOpen(true)
   }
 
-  function save(hero: HeroSection) {
-    setHeroes((prev) => prev.map((h) => (h.id === hero.id ? { ...hero, updatedAt: new Date().toISOString() } : h)))
-    toast.success(`${hero.page} hero saved`)
-    setOpen(false)
+  async function save(hero: HeroSection) {
+    const { id, updatedAt, ...payload } = hero
+    try {
+      await updateCmsItem<HeroSection>(RESOURCE, id, payload)
+      await mutate()
+      toast.success(`${hero.page} hero saved`)
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
+    }
   }
 
-  function publish(id: string, page: string) {
-    setHeroes((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, status: "published", updatedAt: new Date().toISOString() } : h)),
-    )
-    toast.success(`${page} hero published`)
+  async function publish(id: string, page: string) {
+    try {
+      await updateCmsItem<HeroSection>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success(`${page} hero published`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
   return (
@@ -51,6 +62,12 @@ export default function HeroPage() {
         title="Hero Sections"
         description="The headline, sub-headline, and call-to-action shown at the top of each page."
       />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load hero sections: {error.message}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {heroes.map((hero) => (

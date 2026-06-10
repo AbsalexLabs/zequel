@@ -34,8 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatNumber } from "@/lib/admin-dashboard/format"
-import { featureItems as initialFeatures } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { FeatureItem, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "features"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -57,7 +59,7 @@ const EMPTY: FeatureItem = {
 }
 
 export default function FeaturesPage() {
-  const [features, setFeatures] = useState<FeatureItem[]>(initialFeatures)
+  const { items: features, isLoading, error, mutate } = useCmsList<FeatureItem>(RESOURCE)
   const [search, setSearch] = useState("")
   const [group, setGroup] = useState("all")
   const [editing, setEditing] = useState<FeatureItem | null>(null)
@@ -87,28 +89,41 @@ export default function FeaturesPage() {
     setOpen(true)
   }
 
-  function save(f: FeatureItem) {
-    const now = new Date().toISOString()
-    if (f.id) {
-      setFeatures((prev) => prev.map((x) => (x.id === f.id ? { ...f, updatedAt: now } : x)))
-      toast.success(`"${f.title}" saved`)
-    } else {
-      setFeatures((prev) => [...prev, { ...f, id: `feat_${Math.random().toString(36).slice(2, 7)}`, updatedAt: now }])
-      toast.success(`"${f.title}" created`)
+  async function save(f: FeatureItem) {
+    const { id, updatedAt, ...payload } = f
+    try {
+      if (id) {
+        await updateCmsItem<FeatureItem>(RESOURCE, id, payload)
+        toast.success(`"${f.title}" saved`)
+      } else {
+        await createCmsItem<FeatureItem>(RESOURCE, payload)
+        toast.success(`"${f.title}" created`)
+      }
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setFeatures((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: "published", updatedAt: new Date().toISOString() } : f)),
-    )
-    toast.success("Feature published")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<FeatureItem>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("Feature published")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, title: string) {
-    setFeatures((prev) => prev.filter((f) => f.id !== id))
-    toast.success(`"${title}" deleted`)
+  async function remove(id: string, title: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`"${title}" deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -127,6 +142,11 @@ export default function FeaturesPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load features: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -215,7 +235,7 @@ export default function FeaturesPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {features.length} features
+          {isLoading ? "Loading features…" : `Showing ${filtered.length} of ${features.length} features`}
         </p>
       </div>
 

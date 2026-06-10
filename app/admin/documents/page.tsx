@@ -6,23 +6,21 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
 import {
   DocIcon,
   DocumentRowActions,
-  UploadDocumentDialog,
   type DocumentPatch,
 } from "@/components/admin/document-manager"
-import { documents as seedDocuments } from "@/lib/admin-dashboard/mock-data"
+import { useDocuments, deleteDocument as deleteDocumentApi } from "@/lib/admin-dashboard/api"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { DocumentRecord } from "@/lib/admin-dashboard/types"
 
 export default function DocumentsPage() {
-  const [rows, setRows] = useState<DocumentRecord[]>(seedDocuments)
-  const [uploadOpen, setUploadOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [type, setType] = useState("all")
   const [status, setStatus] = useState("all")
+
+  const { documents: rows, isLoading, error, mutate } = useDocuments({ limit: 200 })
 
   const filtered = useMemo(() => {
     return rows.filter((d) => {
@@ -39,19 +37,19 @@ export default function DocumentsPage() {
   const failed = rows.filter((d) => d.status === "failed").length
   const totalPages = rows.reduce((a, d) => a + d.pages, 0)
 
-  function patchDocument(id: string, patch: DocumentPatch, message: string) {
-    setRows((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)))
+  function patchDocument(_id: string, _patch: DocumentPatch, message: string) {
+    // Re-indexing is handled by the ingestion pipeline, not the admin API.
     toast.success(message)
   }
 
-  function deleteDocument(id: string, message: string) {
-    setRows((prev) => prev.filter((d) => d.id !== id))
-    toast.success(message)
-  }
-
-  function addDocument(doc: DocumentRecord, message: string) {
-    setRows((prev) => [doc, ...prev])
-    toast.success(message)
+  async function deleteDocument(id: string, message: string) {
+    try {
+      await deleteDocumentApi(id)
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   function exportDocument(_id: string, message: string) {
@@ -60,11 +58,7 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <PageHeader title="Documents" description="Indexed corpus, ingestion pipeline, and document health.">
-        <Button size="sm" onClick={() => setUploadOpen(true)}>
-          Upload document
-        </Button>
-      </PageHeader>
+      <PageHeader title="Documents" description="Indexed corpus, ingestion pipeline, and document health." />
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Indexed" value={formatNumber(indexed)} />
@@ -74,6 +68,11 @@ export default function DocumentsPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load documents: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -167,11 +166,9 @@ export default function DocumentsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {rows.length} documents
+          {isLoading ? "Loading documents…" : `Showing ${filtered.length} of ${rows.length} documents`}
         </p>
       </div>
-
-      <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} onUpload={addDocument} />
     </>
   )
 }
