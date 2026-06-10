@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { History, Settings2, ArrowRight, Ban, BadgeCheck, CreditCard, RefreshCw, Plus } from "lucide-react"
+import { History, Settings2, ArrowRight, Ban, BadgeCheck, CreditCard, RefreshCw, Plus, CalendarClock } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
 } from "@zequel/ui/components/dialog"
 import { Button } from "@zequel/ui/components/button"
 import { Label } from "@zequel/ui/components/label"
+import { Input } from "@zequel/ui/components/input"
 import { Textarea } from "@zequel/ui/components/textarea"
 import {
   Select,
@@ -48,6 +49,8 @@ const EVENT_META: Record<SubscriptionEventType, { label: string; icon: typeof Ba
 export interface ManageResult {
   status: Subscription["status"]
   tier: SubscriptionTier
+  /** ISO date (yyyy-mm-dd end-of-day) the plan should expire, or null for none. */
+  expiresAt: string | null
   event: Omit<SubscriptionEvent, "id" | "subscriptionId">
 }
 
@@ -99,6 +102,14 @@ export function SubscriptionRowActions({
   )
 }
 
+// Converts an ISO timestamp to the yyyy-mm-dd value an <input type="date"> needs.
+function toDateInput(iso: string | null | undefined): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toISOString().slice(0, 10)
+}
+
 function ManageDialog({
   open,
   onOpenChange,
@@ -117,18 +128,28 @@ function ManageDialog({
   onApply: (subId: string, result: ManageResult) => void
 }) {
   const isRevoked = subscription.status === "canceled"
-  const [tier, setTier] = useState<SubscriptionTier>(
-    isRevoked && subscription.tier === "free" ? "premium_lite" : subscription.tier,
-  )
+  const initialTier: SubscriptionTier = isRevoked && subscription.tier === "free" ? "premium_lite" : subscription.tier
+  const [tier, setTier] = useState<SubscriptionTier>(initialTier)
+  const [expiry, setExpiry] = useState<string>(() => toDateInput(subscription.renewsAt))
   const [note, setNote] = useState("")
 
   const previewPrice = useMemo(() => prices[tier] ?? 0, [tier, prices])
   const tierChanged = tier !== subscription.tier
+  const expiryChanged = expiry !== toDateInput(subscription.renewsAt)
+  // Free plans never expire, so the date control only applies to paid tiers.
+  const showExpiry = tier !== "free"
 
   function close() {
     onOpenChange(false)
     setNote("")
-    setTier(isRevoked && subscription.tier === "free" ? "premium_lite" : subscription.tier)
+    setTier(initialTier)
+    setExpiry(toDateInput(subscription.renewsAt))
+  }
+
+  // Normalize the date input to an end-of-day ISO timestamp (or null for free / empty).
+  function resolveExpiry(): string | null {
+    if (tier === "free" || !expiry) return null
+    return new Date(`${expiry}T23:59:59.999Z`).toISOString()
   }
 
   function grantOrChange() {
@@ -139,6 +160,7 @@ function ManageDialog({
     onApply(subscription.id, {
       status: "active",
       tier,
+      expiresAt: resolveExpiry(),
       event: {
         type: isGrant ? (isRevoked ? "reactivated" : "granted") : "tier_changed",
         fromTier: subscription.tier,
@@ -156,6 +178,7 @@ function ManageDialog({
     onApply(subscription.id, {
       status: "canceled",
       tier: subscription.tier,
+      expiresAt: null,
       event: {
         type: "revoked",
         fromTier: subscription.tier,
@@ -211,6 +234,28 @@ function ManageDialog({
             </p>
           </div>
 
+          {showExpiry && (
+            <div className="space-y-2">
+              <Label htmlFor="expiry-date" className="flex items-center gap-1.5">
+                <CalendarClock className="size-3.5" />
+                Expires on
+              </Label>
+              <Input
+                id="expiry-date"
+                type="date"
+                value={expiry}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setExpiry(e.target.value)}
+                className="h-9"
+              />
+              <p className="text-xs text-muted-foreground">
+                {expiry
+                  ? "Plan stays active until the end of this day."
+                  : "Leave empty to default to 30 days from today."}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="note">Note <span className="text-muted-foreground">(optional)</span></Label>
             <Textarea
@@ -242,7 +287,7 @@ function ManageDialog({
             <Button variant="outline" onClick={close}>
               Cancel
             </Button>
-            <Button onClick={grantOrChange} disabled={!isRevoked && !tierChanged}>
+            <Button onClick={grantOrChange} disabled={!isRevoked && !tierChanged && !expiryChanged}>
               {isRevoked ? "Reactivate" : subscription.tier === "free" ? "Grant" : "Save changes"}
             </Button>
           </div>

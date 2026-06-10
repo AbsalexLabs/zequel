@@ -599,8 +599,16 @@ export async function patchUser(
   if (!res.ok) throw new ApiError(body?.error || "Update failed", res.status)
 }
 
-export async function patchSubscriptionPlan(userId: string, plan: SubscriptionTier): Promise<void> {
-  return patchUser(userId, "update_subscription", { plan })
+export async function patchSubscriptionPlan(
+  userId: string,
+  plan: SubscriptionTier,
+  expiresAt?: string | null,
+): Promise<void> {
+  // Only send expires_at when explicitly provided so the server can keep its
+  // default 30-day behavior when the admin leaves the date blank on a paid plan.
+  const data: Record<string, unknown> = { plan }
+  if (expiresAt !== undefined) data.expires_at = expiresAt
+  return patchUser(userId, "update_subscription", data)
 }
 
 export async function savePlanConfig(

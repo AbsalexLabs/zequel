@@ -13,6 +13,8 @@ import {
   Calendar,
   Clock,
   Hash,
+  Copy,
+  Check,
 } from "lucide-react"
 import {
   Dialog,
@@ -54,7 +56,6 @@ const ROLE_LABEL: Record<AdminUser["role"], string> = {
 
 export interface UserPatch {
   role?: AdminUser["role"]
-  tier?: SubscriptionTier
   status?: AdminUser["status"]
 }
 
@@ -90,15 +91,15 @@ export function UserDetailDialog({
   const display = detail ?? user
 
   const [role, setRole] = useState<AdminUser["role"]>("user")
-  const [tier, setTier] = useState<SubscriptionTier>("free")
   const [reason, setReason] = useState("")
+  const [copied, setCopied] = useState(false)
 
   // Sync local edit state whenever a new user is opened.
   useEffect(() => {
     if (user) {
       setRole(user.role)
-      setTier(user.tier)
       setReason("")
+      setCopied(false)
     }
   }, [user])
 
@@ -106,7 +107,17 @@ export function UserDetailDialog({
 
   const suspended = display.status === "suspended"
   const roleChanged = role !== display.role
-  const tierChanged = tier !== display.tier
+
+  async function copyId() {
+    if (!display) return
+    try {
+      await navigator.clipboard.writeText(display.id)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard can be unavailable (e.g. insecure context); fail silently.
+    }
+  }
 
   const stats = [
     { label: "AI Requests", value: formatNumber(display.aiRequests), icon: Sparkles },
@@ -169,7 +180,17 @@ export function UserDetailDialog({
                 <Hash className="size-3.5" />
                 User ID
               </dt>
-              <dd className="font-mono text-xs text-foreground">{display.id}</dd>
+              <dd className="flex items-center gap-1.5">
+                <span className="font-mono text-xs text-foreground">{display.id}</span>
+                <button
+                  type="button"
+                  onClick={copyId}
+                  className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  aria-label="Copy user ID"
+                >
+                  {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+                </button>
+              </dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="flex items-center gap-1.5 text-muted-foreground">
@@ -227,35 +248,6 @@ export function UserDetailDialog({
               {!canManageRoles && (
                 <p className="text-xs text-muted-foreground">Superadmin role required to change roles.</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tier-select" className="flex items-center gap-1.5">
-                <CreditCard className="size-3.5" />
-                Subscription tier
-              </Label>
-              <div className="flex gap-2">
-                <Select value={tier} onValueChange={(v) => setTier(v as SubscriptionTier)}>
-                  <SelectTrigger id="tier-select" className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIERS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {TIER_LABEL[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  className="h-9 shrink-0"
-                  disabled={!tierChanged}
-                  onClick={() => onPatch(display.id, { tier }, `${display.name} moved to ${TIER_LABEL[tier]}`)}
-                >
-                  Save
-                </Button>
-              </div>
             </div>
 
             <div className="space-y-2">
