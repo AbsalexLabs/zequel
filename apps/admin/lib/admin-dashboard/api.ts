@@ -93,8 +93,6 @@ interface ApiSubscriptionRow {
   profiles?: { email?: string | null; full_name?: string | null } | null
 }
 
-const TIER_PRICE: Record<SubscriptionTier, number> = { free: 0, premium_lite: 12, premium_pro: 29 }
-
 export function mapSubscription(row: ApiSubscriptionRow): Subscription {
   const tier = normalizeTier(row.plan)
   const status = (["active", "past_due", "canceled", "trialing"].includes(row.status || "")
@@ -107,8 +105,6 @@ export function mapSubscription(row: ApiSubscriptionRow): Subscription {
     email: row.profiles?.email || "",
     tier,
     status,
-    mrr: status === "active" ? TIER_PRICE[tier] : 0,
-    seats: 1,
     renewsAt: row.expires_at || row.created_at,
     startedAt: row.created_at,
   }
@@ -376,6 +372,10 @@ interface SettingsResponse {
   settings: import("@zequel/shared/settings/system-settings").SystemSettings
 }
 
+interface PlanConfigsResponse {
+  plans: import("./types").PlanConfig[]
+}
+
 // --- Hooks -----------------------------------------------------------------
 
 export function useStats() {
@@ -549,6 +549,15 @@ export function useSystemSettings() {
   return { settings: data?.settings, error, isLoading, mutate }
 }
 
+export function usePlanConfigs() {
+  const { data, error, isLoading, mutate } = useSWR<PlanConfigsResponse>(
+    "/api/admin/plan-configs",
+    fetcher,
+    swrConfig,
+  )
+  return { plans: data?.plans ?? [], error, isLoading, mutate }
+}
+
 // --- Mutations -------------------------------------------------------------
 
 export async function patchUser(
@@ -567,6 +576,18 @@ export async function patchUser(
 
 export async function patchSubscriptionPlan(userId: string, plan: SubscriptionTier): Promise<void> {
   return patchUser(userId, "update_subscription", { plan })
+}
+
+export async function savePlanConfig(
+  config: import("./types").PlanConfig,
+): Promise<void> {
+  const res = await fetch("/api/admin/plan-configs", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(body?.error || "Save failed", res.status)
 }
 
 export async function updateBugReportStatus(id: string, status: string): Promise<void> {
