@@ -136,7 +136,8 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
       }
       
       setSubscription(data.subscription)
-      setSuccess(planId === 'free' ? 'Downgraded to Free plan' : `Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan!`)
+      const planName = PLANS.find((p) => p.id === planId)?.name ?? planId
+      setSuccess(planId === 'free' ? 'Downgraded to Free plan' : `Upgraded to ${planName} plan!`)
       setTimeout(() => setSuccess(''), 4000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update subscription')

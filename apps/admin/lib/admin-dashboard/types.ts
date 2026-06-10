@@ -16,8 +16,8 @@ export const TIER_LABELS: Record<SubscriptionTier, string> = {
 
 export const TIER_PRICES: Record<SubscriptionTier, number> = {
   free: 0,
-  premium_lite: 12,
-  premium_pro: 29,
+  premium_lite: 2.99,
+  premium_pro: 5.99,
 }
 
 // Daily AI request allowance per plan (matches system_settings defaults).
