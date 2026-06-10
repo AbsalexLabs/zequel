@@ -989,7 +989,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={LifeBuoy}
                     label="Help Center"
                     description="Browse guides and FAQs."
-                    href="https://mrcoolweb3.xyz/help"
+                    href="https://zequel.xyz/help"
                     external
                   />
                   <Separator />
@@ -1010,7 +1010,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={Globe}
                     label="Website"
                     description="Visit the Zequel website."
-                    href="https://mrcoolweb3.xyz"
+                    href="https://zequel.xyz"
                     external
                   />
                   <Separator />
@@ -1018,7 +1018,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={BookOpen}
                     label="Documentation"
                     description="Read the product documentation."
-                    href="https://mrcoolweb3.xyz/docs"
+                    href="https://zequel.xyz/docs"
                     external
                   />
                 </div>
@@ -1032,7 +1032,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={ScrollText}
                     label="Terms of Use"
                     description="Review our terms of service."
-                    href="https://mrcoolweb3.xyz/terms"
+                    href="https://zequel.xyz/terms"
                     external
                   />
                   <Separator />
@@ -1040,7 +1040,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
                     icon={Shield}
                     label="Privacy Policy"
                     description="Learn how we handle your data."
-                    href="https://mrcoolweb3.xyz/privacy"
+                    href="https://zequel.xyz/privacy"
                     external
                   />
                 </div>

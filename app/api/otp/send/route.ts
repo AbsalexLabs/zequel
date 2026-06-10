@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Send via Resend
     const { error: sendError } = await resend.emails.send({
-      from: 'Zequel <noreply@mrcoolweb3.xyz>',
+      from: 'Zequel <noreply@zequel.xyz>',
       to: email,
       subject: subjectMap[purpose] || 'Your Zequel verification code',
       html: otpEmailHtml({ code, purpose: purpose as 'signup' | 'reset_password' | 'change_password' | 'delete_account' }),

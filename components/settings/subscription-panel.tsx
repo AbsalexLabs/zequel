@@ -274,7 +274,7 @@ export function SubscriptionPanel({ userId }: SubscriptionPanelProps) {
         </p>
         <p className="mt-1 font-sans text-sm text-muted-foreground">
           Plan changes take effect immediately. For enterprise features or custom requirements, 
-          please contact our team at <span className="text-foreground">support@zequel.app</span>
+          please contact our team at <span className="text-foreground">support@zequel.xyz</span>
         </p>
       </div>
     </div>

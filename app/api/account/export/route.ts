@@ -83,7 +83,7 @@ export async function POST() {
     }
 
     const { error: sendError } = await resend.emails.send({
-      from: 'Zequel <noreply@mrcoolweb3.xyz>',
+      from: 'Zequel <noreply@zequel.xyz>',
       to: user.email!,
       subject: 'Your Zequel data export',
       html: exportEmailHtml(counts),

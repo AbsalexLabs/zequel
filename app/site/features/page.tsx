@@ -18,7 +18,7 @@ const PILLARS = [
     title: 'Answers grounded in your sources',
     body: 'Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.',
     src: '/site/product-overview.png',
-    url: 'zequel.app/workspace',
+    url: 'zequel.xyz/workspace',
     points: [
       { icon: FileSearch, text: 'Ingest PDFs, papers, and notes at scale' },
       { icon: Quote, text: 'Inline citations on every generated claim' },
@@ -30,7 +30,7 @@ const PILLARS = [
     title: 'Reasoning you can follow end to end',
     body: 'Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.',
     src: '/site/product-charts.png',
-    url: 'zequel.app/workspace/overview',
+    url: 'zequel.xyz/workspace/overview',
     points: [
       { icon: GitBranch, text: 'Step-by-step reasoning trails' },
       { icon: Gauge, text: 'Live latency and request analytics' },
@@ -42,7 +42,7 @@ const PILLARS = [
     title: 'Accountable by design',
     body: 'Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.',
     src: '/site/product-safety.png',
-    url: 'zequel.app/workspace/safety',
+    url: 'zequel.xyz/workspace/safety',
     points: [
       { icon: ShieldCheck, text: 'Automated safety and policy flags' },
       { icon: Users, text: 'Role-based access and review queues' },

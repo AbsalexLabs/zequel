@@ -32,7 +32,7 @@ export function ProductFrame({
         <span className="h-2.5 w-2.5 rounded-full border border-border" />
         <div className="ml-3 flex h-6 flex-1 items-center rounded-md border border-border bg-background px-3">
           <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground">
-            {label ?? 'zequel.app/workspace'}
+            {label ?? 'zequel.xyz/workspace'}
           </span>
         </div>
       </div>

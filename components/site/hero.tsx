@@ -51,7 +51,7 @@ export async function Hero() {
           <ProductFrame
             src="/site/product-overview.png"
             alt="Zequel control center showing usage, revenue, and system health"
-            label="zequel.app/workspace"
+            label="zequel.xyz/workspace"
             priority
           />
         </div>
