@@ -427,9 +427,10 @@ export function useUser(id: string | null) {
   }
 }
 
-export function useSubscriptions(params: { plan?: string; page?: number; limit?: number } = {}) {
+export function useSubscriptions(params: { plan?: string; search?: string; page?: number; limit?: number } = {}) {
   const qs = new URLSearchParams()
   if (params.plan && params.plan !== "all") qs.set("plan", params.plan)
+  if (params.search) qs.set("search", params.search)
   qs.set("page", String(params.page ?? 1))
   qs.set("limit", String(params.limit ?? 50))
   const { data, error, isLoading, mutate } = useSWR<SubscriptionsResponse>(
@@ -440,6 +441,57 @@ export function useSubscriptions(params: { plan?: string; page?: number; limit?:
   return {
     subscriptions: data?.subscriptions.map(mapSubscription) ?? [],
     total: data?.total ?? 0,
+    error,
+    isLoading,
+    mutate,
+  }
+}
+
+interface ApiSubscriptionEventRow {
+  id: string
+  subscription_id: string | null
+  user_id: string
+  type: string
+  from_tier: string | null
+  to_tier: string | null
+  actor: string | null
+  actor_id: string | null
+  note: string | null
+  created_at: string
+}
+
+interface SubscriptionEventsResponse {
+  events: ApiSubscriptionEventRow[]
+}
+
+const KNOWN_EVENT_TYPES = ["granted", "tier_changed", "renewed", "payment_failed", "revoked", "reactivated"]
+
+export function mapSubscriptionEvent(row: ApiSubscriptionEventRow): import("./types").SubscriptionEvent {
+  const type = (KNOWN_EVENT_TYPES.includes(row.type)
+    ? row.type
+    : "tier_changed") as import("./types").SubscriptionEventType
+  return {
+    id: row.id,
+    subscriptionId: row.subscription_id || row.user_id,
+    type,
+    fromTier: row.from_tier ? normalizeTier(row.from_tier) : undefined,
+    toTier: row.to_tier ? normalizeTier(row.to_tier) : undefined,
+    actor: row.actor || "System",
+    note: row.note || undefined,
+    createdAt: row.created_at,
+  }
+}
+
+// Loads the persisted subscription history for a single user. Only fires when
+// a userId is provided (i.e. when the History dialog is open).
+export function useSubscriptionHistory(userId: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<SubscriptionEventsResponse>(
+    userId ? `/api/admin/subscriptions/history?userId=${encodeURIComponent(userId)}` : null,
+    fetcher,
+    swrConfig,
+  )
+  return {
+    events: data?.events.map(mapSubscriptionEvent) ?? [],
     error,
     isLoading,
     mutate,
@@ -603,11 +655,13 @@ export async function patchSubscriptionPlan(
   userId: string,
   plan: SubscriptionTier,
   expiresAt?: string | null,
+  note?: string,
 ): Promise<void> {
   // Only send expires_at when explicitly provided so the server can keep its
   // default 30-day behavior when the admin leaves the date blank on a paid plan.
   const data: Record<string, unknown> = { plan }
   if (expiresAt !== undefined) data.expires_at = expiresAt
+  if (note && note.trim()) data.note = note.trim()
   return patchUser(userId, "update_subscription", data)
 }
 

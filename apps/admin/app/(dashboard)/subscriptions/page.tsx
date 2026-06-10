@@ -11,7 +11,7 @@ import { useAdminSession } from "@/components/admin/admin-session"
 import { useSubscriptions, usePlanConfigs, patchSubscriptionPlan } from "@/lib/admin-dashboard/api"
 import { formatCurrency, formatDate, formatNumber } from "@/lib/admin-dashboard/format"
 import { TIER_LABELS } from "@/lib/admin-dashboard/types"
-import type { Subscription, SubscriptionEvent, SubscriptionTier } from "@/lib/admin-dashboard/types"
+import type { Subscription, SubscriptionTier } from "@/lib/admin-dashboard/types"
 
 const TIER_LABEL = TIER_LABELS
 
@@ -23,11 +23,8 @@ export default function SubscriptionsPage() {
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
 
-  const { subscriptions: subs, isLoading, error, mutate } = useSubscriptions({ plan: tier })
+  const { subscriptions: subs, isLoading, error, mutate } = useSubscriptions({ plan: tier, search })
   const { plans } = usePlanConfigs()
-  // Event history is recorded server-side via the audit log; per-row history
-  // starts empty in this view and is populated by live admin actions.
-  const [events, setEvents] = useState<SubscriptionEvent[]>([])
 
   // Monthly price per tier, sourced from the live, admin-editable plan configs.
   const prices = useMemo<Record<SubscriptionTier, number>>(() => {
@@ -38,12 +35,10 @@ export default function SubscriptionsPage() {
 
   const filtered = useMemo(() => {
     return subs.filter((sub) => {
-      const q = search.trim().toLowerCase()
-      const matchesSearch = !q || sub.user.toLowerCase().includes(q) || sub.email.toLowerCase().includes(q)
       const matchesStatus = status === "all" || sub.status === status
-      return matchesSearch && matchesStatus
+      return matchesStatus
     })
-  }, [subs, search, status])
+  }, [subs, status])
 
   const mrr = subs.filter((s) => s.status === "active").reduce((a, s) => a + (prices[s.tier] ?? 0), 0)
   const activeSubs = subs.filter((s) => s.status === "active").length
@@ -56,16 +51,13 @@ export default function SubscriptionsPage() {
     try {
       // Revoke maps to downgrading the plan to free; otherwise apply the new tier
       // along with the chosen expiry date. patchSubscriptionPlan targets the user
-      // id (subscriptions.user_id), not the subscription row id.
+      // id (subscriptions.user_id), not the subscription row id. The optional
+      // note is persisted as part of the subscription history server-side.
       if (result.status === "canceled") {
-        await patchSubscriptionPlan(sub.userId, "free")
+        await patchSubscriptionPlan(sub.userId, "free", undefined, result.event.note)
       } else {
-        await patchSubscriptionPlan(sub.userId, result.tier, result.expiresAt)
+        await patchSubscriptionPlan(sub.userId, result.tier, result.expiresAt, result.event.note)
       }
-      setEvents((prev) => [
-        { ...result.event, id: `subevt_${subId}_${Date.now()}`, subscriptionId: subId },
-        ...prev,
-      ])
       await mutate()
       toast.success("Subscription updated")
     } catch (err) {
@@ -94,7 +86,7 @@ export default function SubscriptionsPage() {
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search subscribers..."
+          searchPlaceholder="Search by name, email, or user ID..."
           filters={[
             {
               id: "tier",
@@ -166,7 +158,6 @@ export default function SubscriptionsPage() {
                 cell: (s) => (
                   <SubscriptionRowActions
                     subscription={s}
-                    events={events.filter((e) => e.subscriptionId === s.id)}
                     canRevoke={canRevoke}
                     actor={session.name}
                     prices={prices}

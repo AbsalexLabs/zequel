@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { History, Settings2, ArrowRight, Ban, BadgeCheck, CreditCard, RefreshCw, Plus, CalendarClock } from "lucide-react"
+import { History, Settings2, ArrowRight, Ban, BadgeCheck, CreditCard, RefreshCw, Plus, CalendarClock, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@zequel/ui/components/select"
 import { StatusPill } from "@/components/admin/status-pill"
+import { useSubscriptionHistory } from "@/lib/admin-dashboard/api"
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/admin-dashboard/format"
 import type {
   Subscription,
@@ -56,14 +57,12 @@ export interface ManageResult {
 
 export function SubscriptionRowActions({
   subscription,
-  events,
   canRevoke,
   actor,
   prices,
   onApply,
 }: {
   subscription: Subscription
-  events: SubscriptionEvent[]
   canRevoke: boolean
   actor: string
   prices: Record<SubscriptionTier, number>
@@ -96,7 +95,6 @@ export function SubscriptionRowActions({
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         subscription={subscription}
-        events={events}
       />
     </div>
   )
@@ -192,15 +190,18 @@ function ManageDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Manage subscription</DialogTitle>
-          <DialogDescription>
+      <DialogContent showCloseButton={false} className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="size-4 text-muted-foreground" />
+            Manage subscription
+          </DialogTitle>
+          <DialogDescription className="truncate">
             {subscription.user} · {subscription.email}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-1">
+        <div className="space-y-5 px-5 py-5">
           <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
             <div>
               <p className="text-xs text-muted-foreground">Current plan</p>
@@ -268,7 +269,7 @@ function ManageDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="gap-2 border-t border-border px-5 py-4 sm:justify-between">
           {!isRevoked && subscription.tier !== "free" ? (
             <Button
               variant="ghost"
@@ -301,13 +302,14 @@ function HistoryDialog({
   open,
   onOpenChange,
   subscription,
-  events,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   subscription: Subscription
-  events: SubscriptionEvent[]
 }) {
+  // Persisted history is fetched on demand only while the dialog is open.
+  const { events, isLoading, error } = useSubscriptionHistory(open ? subscription.userId : null)
+
   const sorted = useMemo(
     () => [...events].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [events],
@@ -315,17 +317,27 @@ function HistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Subscription history</DialogTitle>
-          <DialogDescription>
+      <DialogContent showCloseButton={false} className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center gap-2">
+            <History className="size-4 text-muted-foreground" />
+            Subscription history
+          </DialogTitle>
+          <DialogDescription className="truncate">
             {subscription.user} · {subscription.email}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto overscroll-contain pr-1">
-          {sorted.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No history recorded.</p>
+        <div className="max-h-[60vh] overflow-y-auto overscroll-contain px-5 py-5">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading history…
+            </div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-destructive">Failed to load history.</p>
+          ) : sorted.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No history recorded yet.</p>
           ) : (
             <ol className="relative space-y-0">
               {sorted.map((evt, idx) => {
@@ -366,7 +378,7 @@ function HistoryDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border px-5 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
