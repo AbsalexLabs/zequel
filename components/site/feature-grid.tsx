@@ -1,41 +1,12 @@
-import { FileSearch, GitBranch, ShieldCheck, Layers, Quote, Gauge } from 'lucide-react'
 import { SectionLabel } from '@/components/site/section-label'
 import { cn } from '@/lib/utils'
+import { getFeatures } from '@/lib/site/content'
+import { FEATURES_FALLBACK } from '@/lib/site/fallbacks'
+import { resolveIcon } from '@/lib/site/icons'
 
-const FEATURES = [
-  {
-    icon: FileSearch,
-    title: 'Multi-document analysis',
-    body: 'Ingest PDFs, papers, and notes. Zequel reads across your entire corpus and reasons over it as one connected body of evidence.',
-  },
-  {
-    icon: Quote,
-    title: 'Cited synthesis',
-    body: 'Every claim links back to its source passage. No hallucinated facts — answers are grounded in the documents you provide.',
-  },
-  {
-    icon: GitBranch,
-    title: 'Traceable reasoning',
-    body: 'Follow the full chain of thought from question to conclusion. Inspect each step, verify each inference, reproduce each result.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Safety & governance',
-    body: 'Built-in safety flags, audit logs, and role controls keep research accountable across individuals and teams.',
-  },
-  {
-    icon: Layers,
-    title: 'Structured workspace',
-    body: 'Organize threads, documents, and findings into a control center designed for sustained, serious research work.',
-  },
-  {
-    icon: Gauge,
-    title: 'Fast, low-cost inference',
-    body: 'Sub-second median responses on dense source material, so you stay in flow instead of waiting on the model.',
-  },
-]
+export async function FeatureGrid() {
+  const features = await getFeatures(FEATURES_FALLBACK)
 
-export function FeatureGrid() {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4">
@@ -50,8 +21,8 @@ export function FeatureGrid() {
       </div>
 
       <div className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((feature, i) => {
-          const Icon = feature.icon
+        {features.map((feature, i) => {
+          const Icon = resolveIcon(feature.icon)
           return (
             <div
               key={feature.title}
@@ -68,7 +39,7 @@ export function FeatureGrid() {
                 <Icon size={20} className="text-foreground" strokeWidth={1.5} />
               </div>
               <h3 className="text-lg font-medium">{feature.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
             </div>
           )
         })}
