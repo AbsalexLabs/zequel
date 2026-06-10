@@ -29,7 +29,7 @@ import type {
   SubscriptionTier,
 } from "@/lib/admin-dashboard/types"
 
-const PAID_TIERS: SubscriptionTier[] = ["premium_lite", "premium_pro"]
+const ASSIGNABLE_TIERS: SubscriptionTier[] = ["free", "premium_lite", "premium_pro"]
 const TIER_LABEL: Record<SubscriptionTier, string> = {
   free: "Free",
   premium_lite: "Premium Lite",
@@ -118,7 +118,7 @@ function ManageDialog({
 }) {
   const isRevoked = subscription.status === "canceled"
   const [tier, setTier] = useState<SubscriptionTier>(
-    subscription.tier === "free" ? "premium_lite" : subscription.tier,
+    isRevoked && subscription.tier === "free" ? "premium_lite" : subscription.tier,
   )
   const [note, setNote] = useState("")
 
@@ -128,12 +128,14 @@ function ManageDialog({
   function close() {
     onOpenChange(false)
     setNote("")
-    setTier(subscription.tier === "free" ? "premium_lite" : subscription.tier)
+    setTier(isRevoked && subscription.tier === "free" ? "premium_lite" : subscription.tier)
   }
 
   function grantOrChange() {
     const now = new Date().toISOString()
-    const isGrant = isRevoked || subscription.tier === "free"
+    // Reactivating a canceled plan, or moving a free user onto a paid plan, is a
+    // grant. Moving between paid plans (or down to free) is a tier change.
+    const isGrant = isRevoked || (subscription.tier === "free" && tier !== "free")
     onApply(subscription.id, {
       status: "active",
       tier,
@@ -191,7 +193,7 @@ function ManageDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAID_TIERS.map((t) => (
+                {ASSIGNABLE_TIERS.map((t) => (
                   <SelectItem key={t} value={t}>
                     {TIER_LABEL[t]} — {formatCurrency(prices[t] ?? 0)}/mo
                   </SelectItem>
@@ -240,7 +242,7 @@ function ManageDialog({
             <Button variant="outline" onClick={close}>
               Cancel
             </Button>
-            <Button onClick={grantOrChange}>
+            <Button onClick={grantOrChange} disabled={!isRevoked && !tierChanged}>
               {isRevoked ? "Reactivate" : subscription.tier === "free" ? "Grant" : "Save changes"}
             </Button>
           </div>

@@ -33,6 +33,7 @@ export interface AdminUser {
   id: string
   name: string
   email: string
+  avatarUrl: string | null
   role: "user" | "admin" | "superadmin"
   tier: SubscriptionTier
   status: UserStatus

@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     .select(`
       id,
       full_name,
+      avatar_url,
       role,
       suspended,
       created_at,
