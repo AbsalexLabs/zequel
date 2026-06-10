@@ -24,8 +24,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { formatNumber, relativeTime, formatDateTime } from "@/lib/admin-dashboard/format"
-import { contactMessages as initialMessages } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { ContactMessage, MessageStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "contact"
 
 const STATUS_META: Record<MessageStatus, { label: string; className: string }> = {
   new: { label: "New", className: "bg-primary/10 text-primary" },
@@ -40,7 +42,7 @@ function StatusBadge({ status }: { status: MessageStatus }) {
 }
 
 export default function CmsContactPage() {
-  const [messages, setMessages] = useState<ContactMessage[]>(initialMessages)
+  const { items: messages, isLoading, error, mutate } = useCmsList<ContactMessage>(RESOURCE)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [active, setActive] = useState<ContactMessage | null>(null)
@@ -64,20 +66,30 @@ export default function CmsContactPage() {
   const unread = messages.filter((m) => m.status === "new").length
   const replied = messages.filter((m) => m.status === "replied").length
 
-  function setStatusFor(id: string, next: MessageStatus, note?: string) {
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status: next } : m)))
-    if (note) toast.success(note)
+  async function setStatusFor(id: string, next: MessageStatus, note?: string) {
+    try {
+      await updateCmsItem<ContactMessage>(RESOURCE, id, { status: next })
+      await mutate()
+      if (note) toast.success(note)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   function openMessage(m: ContactMessage) {
     setActive(m)
     setOpen(true)
-    if (m.status === "new") setStatusFor(m.id, "read")
+    if (m.status === "new") void setStatusFor(m.id, "read")
   }
 
-  function remove(id: string) {
-    setMessages((prev) => prev.filter((m) => m.id !== id))
-    toast.success("Message deleted")
+  async function remove(id: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success("Message deleted")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -92,6 +104,11 @@ export default function CmsContactPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load messages: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -188,7 +205,7 @@ export default function CmsContactPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {messages.length} messages
+          {isLoading ? "Loading messages…" : `Showing ${filtered.length} of ${messages.length} messages`}
         </p>
       </div>
 

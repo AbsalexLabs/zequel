@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatNumber, formatDate } from "@/lib/admin-dashboard/format"
-import { changelogEntries as initialEntries } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { ChangelogEntry, ChangelogType, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "changelog"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -52,7 +54,7 @@ const EMPTY: ChangelogEntry = {
 }
 
 export default function CmsChangelogPage() {
-  const [entries, setEntries] = useState<ChangelogEntry[]>(initialEntries)
+  const { items: entries, error, mutate } = useCmsList<ChangelogEntry>(RESOURCE)
   const [search, setSearch] = useState("")
   const [type, setType] = useState("all")
   const [editing, setEditing] = useState<ChangelogEntry | null>(null)
@@ -81,26 +83,41 @@ export default function CmsChangelogPage() {
     setOpen(true)
   }
 
-  function save(entry: ChangelogEntry) {
-    if (entry.id) {
-      setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)))
-      toast.success(`v${entry.version} saved`)
-    } else {
-      const created: ChangelogEntry = { ...entry, id: `cl_${Math.random().toString(36).slice(2, 7)}` }
-      setEntries((prev) => [created, ...prev])
-      toast.success(`v${entry.version} created`)
+  async function save(entry: ChangelogEntry) {
+    const { id, ...payload } = entry
+    try {
+      if (id) {
+        await updateCmsItem<ChangelogEntry>(RESOURCE, id, payload)
+        toast.success(`v${entry.version} saved`)
+      } else {
+        await createCmsItem<ChangelogEntry>(RESOURCE, payload)
+        toast.success(`v${entry.version} created`)
+      }
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, status: "published" } : e)))
-    toast.success("Changelog entry published")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<ChangelogEntry>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("Changelog entry published")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, version: string) {
-    setEntries((prev) => prev.filter((e) => e.id !== id))
-    toast.success(`v${version} deleted`)
+  async function remove(id: string, version: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`v${version} deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -132,6 +149,12 @@ export default function CmsChangelogPage() {
           },
         ]}
       />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load changelog: {error.message}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">

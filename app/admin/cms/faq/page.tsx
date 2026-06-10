@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatNumber } from "@/lib/admin-dashboard/format"
-import { faqItems as initialFaqs } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { FaqItem, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "faq"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -45,7 +47,7 @@ const EMPTY: FaqItem = {
 }
 
 export default function CmsFaqPage() {
-  const [faqs, setFaqs] = useState<FaqItem[]>(initialFaqs)
+  const { items: faqs, error, mutate } = useCmsList<FaqItem>(RESOURCE)
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("all")
   const [editing, setEditing] = useState<FaqItem | null>(null)
@@ -75,32 +77,41 @@ export default function CmsFaqPage() {
     setOpen(true)
   }
 
-  function save(faq: FaqItem) {
-    const now = new Date().toISOString()
-    if (faq.id) {
-      setFaqs((prev) => prev.map((f) => (f.id === faq.id ? { ...faq, updatedAt: now } : f)))
-      toast.success("FAQ saved")
-    } else {
-      const created: FaqItem = {
-        ...faq,
-        id: `faq_${Math.random().toString(36).slice(2, 7)}`,
-        order: faqs.length + 1,
-        updatedAt: now,
+  async function save(faq: FaqItem) {
+    const { id, updatedAt, ...payload } = faq
+    try {
+      if (id) {
+        await updateCmsItem<FaqItem>(RESOURCE, id, payload)
+        toast.success("FAQ saved")
+      } else {
+        await createCmsItem<FaqItem>(RESOURCE, { ...payload, order: faqs.length + 1 })
+        toast.success("FAQ created")
       }
-      setFaqs((prev) => [...prev, created])
-      toast.success("FAQ created")
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setFaqs((prev) => prev.map((f) => (f.id === id ? { ...f, status: "published" } : f)))
-    toast.success("FAQ published")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<FaqItem>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("FAQ published")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string) {
-    setFaqs((prev) => prev.filter((f) => f.id !== id))
-    toast.success("FAQ deleted")
+  async function remove(id: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success("FAQ deleted")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -132,6 +143,12 @@ export default function CmsFaqPage() {
           },
         ]}
       />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load FAQ: {error.message}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">

@@ -27,8 +27,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import { docArticles as initialDocs } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { DocArticle, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "docs"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -56,7 +58,7 @@ function slugify(s: string) {
 }
 
 export default function CmsDocsPage() {
-  const [docs, setDocs] = useState<DocArticle[]>(initialDocs)
+  const { items: docs, isLoading, error, mutate } = useCmsList<DocArticle>(RESOURCE)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [category, setCategory] = useState("all")
@@ -87,35 +89,42 @@ export default function CmsDocsPage() {
     setOpen(true)
   }
 
-  function save(doc: DocArticle) {
-    const now = new Date().toISOString()
+  async function save(doc: DocArticle) {
     const withSlug = { ...doc, slug: doc.slug || slugify(doc.title) }
-    if (doc.id) {
-      setDocs((prev) => prev.map((d) => (d.id === doc.id ? { ...withSlug, updatedAt: now } : d)))
-      toast.success(`"${doc.title}" saved`)
-    } else {
-      const created: DocArticle = {
-        ...withSlug,
-        id: `doc_${Math.random().toString(36).slice(2, 7)}`,
-        order: docs.length + 1,
-        updatedAt: now,
+    const { id, updatedAt, ...payload } = withSlug
+    try {
+      if (id) {
+        await updateCmsItem<DocArticle>(RESOURCE, id, payload)
+        toast.success(`"${doc.title}" saved`)
+      } else {
+        await createCmsItem<DocArticle>(RESOURCE, { ...payload, order: docs.length + 1 })
+        toast.success(`"${doc.title}" created`)
       }
-      setDocs((prev) => [...prev, created])
-      toast.success(`"${doc.title}" created`)
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "published", updatedAt: new Date().toISOString() } : d)),
-    )
-    toast.success("Article published")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<DocArticle>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("Article published")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, title: string) {
-    setDocs((prev) => prev.filter((d) => d.id !== id))
-    toast.success(`"${title}" deleted`)
+  async function remove(id: string, title: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`"${title}" deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -134,6 +143,11 @@ export default function CmsDocsPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load articles: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -231,7 +245,7 @@ export default function CmsDocsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {docs.length} articles
+          {isLoading ? "Loading articles…" : `Showing ${filtered.length} of ${docs.length} articles`}
         </p>
       </div>
 

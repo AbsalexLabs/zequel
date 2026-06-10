@@ -27,8 +27,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { formatNumber, relativeTime, formatDateTime } from "@/lib/admin-dashboard/format"
-import { featureRequests as initialRequests } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { FeatureRequest, RequestStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "feature-requests"
 
 const STATUS_META: Record<RequestStatus, { label: string; className: string }> = {
   open: { label: "Open", className: "bg-secondary text-secondary-foreground" },
@@ -45,7 +47,7 @@ function StatusBadge({ status }: { status: RequestStatus }) {
 }
 
 export default function CmsFeatureRequestsPage() {
-  const [requests, setRequests] = useState<FeatureRequest[]>(initialRequests)
+  const { items: requests, isLoading, error, mutate } = useCmsList<FeatureRequest>(RESOURCE)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [active, setActive] = useState<FeatureRequest | null>(null)
@@ -66,15 +68,25 @@ export default function CmsFeatureRequestsPage() {
   const planned = requests.filter((r) => r.status === "planned" || r.status === "in_progress").length
   const shipped = requests.filter((r) => r.status === "shipped").length
 
-  function setStatusFor(id: string, next: RequestStatus) {
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)))
+  async function setStatusFor(id: string, next: RequestStatus) {
     setActive((prev) => (prev && prev.id === id ? { ...prev, status: next } : prev))
-    toast.success(`Status set to "${STATUS_META[next].label}"`)
+    try {
+      await updateCmsItem<FeatureRequest>(RESOURCE, id, { status: next })
+      await mutate()
+      toast.success(`Status set to "${STATUS_META[next].label}"`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
-  function remove(id: string) {
-    setRequests((prev) => prev.filter((r) => r.id !== id))
-    toast.success("Request deleted")
+  async function remove(id: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success("Request deleted")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   function openRequest(r: FeatureRequest) {
@@ -94,6 +106,11 @@ export default function CmsFeatureRequestsPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load requests: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -186,7 +203,7 @@ export default function CmsFeatureRequestsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {requests.length} requests
+          {isLoading ? "Loading requests…" : `Showing ${filtered.length} of ${requests.length} requests`}
         </p>
       </div>
 

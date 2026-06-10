@@ -34,8 +34,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import { cmsPages as initialPages } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { CmsPage, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "pages"
 
 const STATUSES: PublishStatus[] = ["published", "draft", "scheduled", "archived"]
 const STATUS_LABEL: Record<PublishStatus, string> = {
@@ -58,7 +60,7 @@ const EMPTY: CmsPage = {
 }
 
 export default function CmsPagesPage() {
-  const [pages, setPages] = useState<CmsPage[]>(initialPages)
+  const { items: pages, isLoading, error, mutate } = useCmsList<CmsPage>(RESOURCE)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [editing, setEditing] = useState<CmsPage | null>(null)
@@ -86,29 +88,41 @@ export default function CmsPagesPage() {
     setOpen(true)
   }
 
-  function save(page: CmsPage) {
-    const now = new Date().toISOString()
-    if (page.id) {
-      setPages((prev) => prev.map((p) => (p.id === page.id ? { ...page, updatedAt: now } : p)))
-      toast.success(`"${page.title}" saved`)
-    } else {
-      const created: CmsPage = { ...page, id: `pg_${Math.random().toString(36).slice(2, 7)}`, updatedAt: now }
-      setPages((prev) => [created, ...prev])
-      toast.success(`"${page.title}" created`)
+  async function save(page: CmsPage) {
+    const { id, updatedAt, ...payload } = page
+    try {
+      if (id) {
+        await updateCmsItem<CmsPage>(RESOURCE, id, payload)
+        toast.success(`"${page.title}" saved`)
+      } else {
+        await createCmsItem<CmsPage>(RESOURCE, payload)
+        toast.success(`"${page.title}" created`)
+      }
+      await mutate()
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
     }
-    setOpen(false)
   }
 
-  function publish(id: string) {
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "published", updatedAt: new Date().toISOString() } : p)),
-    )
-    toast.success("Page published to live site")
+  async function publish(id: string) {
+    try {
+      await updateCmsItem<CmsPage>(RESOURCE, id, { status: "published" })
+      await mutate()
+      toast.success("Page published to live site")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Publish failed")
+    }
   }
 
-  function remove(id: string, title: string) {
-    setPages((prev) => prev.filter((p) => p.id !== id))
-    toast.success(`"${title}" deleted`)
+  async function remove(id: string, title: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`"${title}" deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   return (
@@ -127,6 +141,11 @@ export default function CmsPagesPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load pages: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -227,7 +246,7 @@ export default function CmsPagesPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {pages.length} pages
+          {isLoading ? "Loading pages…" : `Showing ${filtered.length} of ${pages.length} pages`}
         </p>
       </div>
 
