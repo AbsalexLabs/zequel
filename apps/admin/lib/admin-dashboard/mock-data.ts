@@ -128,6 +128,7 @@ export const subscriptions: Subscription[] = users
     const statuses = ["active", "active", "active", "trialing", "past_due", "canceled"] as const
     return {
       id: `sub_${(2000 + i).toString(36)}`,
+      userId: u.id,
       user: u.name,
       email: u.email,
       tier: u.tier,

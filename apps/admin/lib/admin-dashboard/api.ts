@@ -102,6 +102,7 @@ export function mapSubscription(row: ApiSubscriptionRow): Subscription {
     : "active") as Subscription["status"]
   return {
     id: row.id,
+    userId: row.user_id,
     user: row.profiles?.full_name || row.profiles?.email?.split("@")[0] || "Unknown",
     email: row.profiles?.email || "",
     tier,

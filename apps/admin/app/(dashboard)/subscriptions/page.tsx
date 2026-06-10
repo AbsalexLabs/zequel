@@ -46,7 +46,9 @@ export default function SubscriptionsPage() {
     if (!sub) return
     try {
       // Revoke maps to downgrading the plan to free; otherwise apply the new tier.
-      await patchSubscriptionPlan(sub.id, result.status === "canceled" ? "free" : result.tier)
+      // patchSubscriptionPlan targets the user id (subscriptions.user_id), not
+      // the subscription row id.
+      await patchSubscriptionPlan(sub.userId, result.status === "canceled" ? "free" : result.tier)
       setEvents((prev) => [
         { ...result.event, id: `subevt_${subId}_${Date.now()}`, subscriptionId: subId },
         ...prev,
