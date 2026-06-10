@@ -143,7 +143,7 @@ export async function PATCH(
     case 'suspend': {
       const { error: suspendError } = await supabase
         .from('profiles')
-        .update({ suspended: true, suspended_at: new Date().toISOString() })
+        .update({ suspended: true })
         .eq('id', id)
 
       if (suspendError) {
@@ -163,7 +163,7 @@ export async function PATCH(
     case 'unsuspend': {
       const { error: unsuspendError } = await supabase
         .from('profiles')
-        .update({ suspended: false, suspended_at: null })
+        .update({ suspended: false })
         .eq('id', id)
 
       if (unsuspendError) {

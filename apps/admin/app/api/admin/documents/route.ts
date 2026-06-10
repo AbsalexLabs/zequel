@@ -1,7 +1,7 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
-import { getEmailsForUserIds } from '@/lib/admin/emails'
+import { getUserIdentities } from '@/lib/admin/emails'
 
 // List uploaded documents with owner info. Admin only.
 export async function GET(request: Request) {
@@ -19,6 +19,9 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
 
+  // `documents.user_id` references `auth.users`, not `public.profiles`, so we
+  // can't embed a `profiles:user_id` join. Select raw rows and resolve owner
+  // identities separately.
   let query = supabase
     .from('documents')
     .select(
@@ -32,8 +35,7 @@ export async function GET(request: Request) {
       page_count,
       status,
       created_at,
-      updated_at,
-      profiles:user_id ( full_name )
+      updated_at
     `,
       { count: 'exact' }
     )
@@ -54,16 +56,14 @@ export async function GET(request: Request) {
     return adminError(queryError.message, 500)
   }
 
-  // Resolve owner emails from auth.users (profiles has no email column) so we
-  // can fall back to them when a profile has no full_name.
-  const emailMap = await getEmailsForUserIds(
+  // Resolve owner name + email from profiles/auth.users.
+  const identities = await getUserIdentities(
     supabase,
     (documents || []).map((d) => d.user_id),
   )
 
   const enriched = (documents || []).map((d) => {
-    const profile = Array.isArray(d.profiles) ? d.profiles[0] : d.profiles
-    const email = emailMap.get(d.user_id) || ''
+    const identity = identities.get(d.user_id)
     return {
       id: d.id,
       title: d.title,
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       file_size: d.file_size,
       page_count: d.page_count,
       status: d.status,
-      owner: profile?.full_name || email || 'Unknown',
+      owner: identity?.full_name || identity?.email || 'Unknown',
       created_at: d.created_at,
       updated_at: d.updated_at,
     }

@@ -47,6 +47,7 @@ export type SubscriptionStatus = "active" | "past_due" | "canceled" | "trialing"
 
 export interface Subscription {
   id: string
+  userId: string
   user: string
   email: string
   tier: SubscriptionTier
