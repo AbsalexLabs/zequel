@@ -301,3 +301,7 @@ export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
   define_key_terms: 'Define Key Terms',
   extract_research_gaps: 'Extract Research Gaps',
 }
+
+// ── Website CMS contracts (shared by admin + website) ───────────────────────
+export * from "./cms-types"
+export * from "./cms-schema"
