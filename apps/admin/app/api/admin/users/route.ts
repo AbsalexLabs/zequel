@@ -1,5 +1,6 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
+import { getEmailsForUserIds } from '@/lib/admin/emails'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()
@@ -15,11 +16,13 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
 
+  // NOTE: emails live in `auth.users`, not in `public.profiles`, so we never
+  // select or filter `profiles.email` directly. We resolve emails separately
+  // via the service-role auth admin API below.
   let query = supabase
     .from('profiles')
     .select(`
       id,
-      email,
       full_name,
       role,
       suspended,
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
     .range(offset, offset + limit - 1)
 
   if (search) {
-    query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`)
+    query = query.ilike('full_name', `%${search}%`)
   }
 
   const { data: users, count, error: queryError } = await query
@@ -41,6 +44,9 @@ export async function GET(request: Request) {
 
   // Get subscription info for each user
   const userIds = users?.map(u => u.id) || []
+
+  // Resolve emails from auth.users for the page of profiles in view.
+  const emailMap = await getEmailsForUserIds(supabase, userIds)
   const { data: subscriptions } = await supabase
     .from('subscriptions')
     .select('user_id, plan, expires_at')
@@ -61,6 +67,7 @@ export async function GET(request: Request) {
 
   const enrichedUsers = users?.map(u => ({
     ...u,
+    email: emailMap.get(u.id) || '',
     subscription: subscriptionMap.get(u.id) || { plan: 'free', expires_at: null },
     totalRequests: usageCountMap.get(u.id) || 0,
   }))

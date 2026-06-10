@@ -1,5 +1,6 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
+import { getEmailsForUserIds } from '@/lib/admin/emails'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()
@@ -17,12 +18,13 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
 
+  // `profiles` has no email column (emails live in auth.users); join the name
+  // only and resolve emails separately below.
   let query = supabase
     .from('ai_usage_logs')
     .select(`
       *,
       profiles:user_id (
-        email,
         full_name
       )
     `, { count: 'exact' })
@@ -50,8 +52,23 @@ export async function GET(request: Request) {
     sum + (log.input_tokens || 0) + (log.output_tokens || 0), 0
   ) || 0
 
+  // Resolve emails from auth.users and merge into each profile object so the
+  // client mapper (which reads `row.profiles.email`) keeps working.
+  const emailMap = await getEmailsForUserIds(
+    supabase,
+    logs?.map((l) => l.user_id) || [],
+  )
+
+  const enrichedLogs = logs?.map((l) => ({
+    ...l,
+    profiles: {
+      ...(l.profiles || {}),
+      email: emailMap.get(l.user_id) || '',
+    },
+  }))
+
   return adminResponse({
-    logs,
+    logs: enrichedLogs,
     total: count || 0,
     totalTokens,
     page,
