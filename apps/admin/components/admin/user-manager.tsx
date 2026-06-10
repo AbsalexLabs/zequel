@@ -1,8 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
-  User,
   ShieldCheck,
   CreditCard,
   Ban,
@@ -11,6 +10,9 @@ import {
   FileText,
   MessageSquare,
   Sparkles,
+  Calendar,
+  Clock,
+  Hash,
 } from "lucide-react"
 import {
   Dialog,
@@ -20,18 +22,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@zequel/ui/components/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@zequel/ui/components/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@zequel/ui/components/avatar"
 import { Button } from "@zequel/ui/components/button"
 import { Label } from "@zequel/ui/components/label"
 import { Input } from "@zequel/ui/components/input"
 import { Textarea } from "@zequel/ui/components/textarea"
-import { MoreHorizontal } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -41,6 +36,7 @@ import {
 } from "@zequel/ui/components/select"
 import { StatusPill } from "@/components/admin/status-pill"
 import { formatDate, formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
+import { useUser } from "@/lib/admin-dashboard/api"
 import type { AdminUser, SubscriptionTier } from "@/lib/admin-dashboard/types"
 
 const TIER_LABEL: Record<SubscriptionTier, string> = {
@@ -70,96 +66,90 @@ function initials(name: string) {
     .join("")
 }
 
-type DialogKind = "profile" | "role" | "tier" | "suspend" | null
-
-export function UserRowActions({
+/**
+ * Single modal that opens when an admin clicks a user row. It shows the user's
+ * real profile (avatar + activity) and exposes every management action inline,
+ * replacing the previous three-dot dropdown.
+ */
+export function UserDetailDialog({
   user,
+  open,
+  onOpenChange,
   canManageRoles,
   onPatch,
 }: {
-  user: AdminUser
+  user: AdminUser | null
+  open: boolean
+  onOpenChange: (v: boolean) => void
   canManageRoles: boolean
   onPatch: (id: string, patch: UserPatch, message: string) => void
 }) {
-  const [dialog, setDialog] = useState<DialogKind>(null)
-  const close = () => setDialog(null)
+  // Fetch the full profile (real avatar + conversation/document counts) only
+  // while the dialog is open for a selected user.
+  const { user: detail } = useUser(open && user ? user.id : null)
+  const display = detail ?? user
 
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8" aria-label="User actions">
-            <MoreHorizontal className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setDialog("profile")}>View profile</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog("role")} disabled={!canManageRoles}>
-            Edit role
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog("tier")}>Change tier</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {user.status === "suspended" ? (
-            <DropdownMenuItem onSelect={() => setDialog("suspend")}>Reactivate</DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem className="text-destructive" onSelect={() => setDialog("suspend")}>
-              Suspend
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+  const [role, setRole] = useState<AdminUser["role"]>("user")
+  const [tier, setTier] = useState<SubscriptionTier>("free")
+  const [reason, setReason] = useState("")
 
-      <ProfileDialog open={dialog === "profile"} onClose={close} user={user} />
-      <RoleDialog open={dialog === "role"} onClose={close} user={user} onPatch={onPatch} />
-      <TierDialog open={dialog === "tier"} onClose={close} user={user} onPatch={onPatch} />
-      <SuspendDialog open={dialog === "suspend"} onClose={close} user={user} onPatch={onPatch} />
-    </>
-  )
-}
+  // Sync local edit state whenever a new user is opened.
+  useEffect(() => {
+    if (user) {
+      setRole(user.role)
+      setTier(user.tier)
+      setReason("")
+    }
+  }, [user])
 
-function ProfileDialog({
-  open,
-  onClose,
-  user,
-}: {
-  open: boolean
-  onClose: () => void
-  user: AdminUser
-}) {
+  if (!display) return null
+
+  const suspended = display.status === "suspended"
+  const roleChanged = role !== display.role
+  const tierChanged = tier !== display.tier
+
   const stats = [
-    { label: "AI Requests", value: formatNumber(user.aiRequests), icon: Sparkles },
-    { label: "Conversations", value: formatNumber(user.conversations), icon: MessageSquare },
-    { label: "Documents", value: formatNumber(user.documents), icon: FileText },
+    { label: "AI Requests", value: formatNumber(display.aiRequests), icon: Sparkles },
+    { label: "Conversations", value: formatNumber(display.conversations), icon: MessageSquare },
+    { label: "Documents", value: formatNumber(display.documents), icon: FileText },
   ]
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>User profile</DialogTitle>
-          <DialogDescription>Account overview and activity.</DialogDescription>
+          <DialogDescription>Account overview, activity, and management.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-1">
+        <div className="max-h-[70vh] space-y-6 overflow-y-auto overscroll-contain py-1 pr-1">
+          {/* Identity */}
           <div className="flex items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-secondary font-mono text-sm font-semibold text-foreground">
-              {initials(user.name)}
-            </span>
+            <Avatar className="size-12 shrink-0">
+              {display.avatarUrl ? <AvatarImage src={display.avatarUrl} alt={display.name} /> : null}
+              <AvatarFallback className="bg-secondary font-mono text-sm font-semibold text-foreground">
+                {initials(display.name)}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{display.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{display.email}</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <StatusPill status={user.status} />
-            <span className="rounded-md border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-              {TIER_LABEL[user.tier]}
+            <StatusPill status={display.status} />
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              <CreditCard className="size-3" />
+              {TIER_LABEL[display.tier]}
             </span>
-            <span className="rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
-              {ROLE_LABEL[user.role]}
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground">
+              <ShieldCheck className="size-3" />
+              {ROLE_LABEL[display.role]}
             </span>
           </div>
 
+          {/* Activity */}
           <div className="grid grid-cols-3 gap-2">
             {stats.map((s) => {
               const Icon = s.icon
@@ -175,257 +165,139 @@ function ProfileDialog({
 
           <dl className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">User ID</dt>
-              <dd className="font-mono text-xs text-foreground">{user.id}</dd>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Hash className="size-3.5" />
+                User ID
+              </dt>
+              <dd className="font-mono text-xs text-foreground">{display.id}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Joined</dt>
-              <dd className="text-foreground">{formatDate(user.createdAt)}</dd>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Calendar className="size-3.5" />
+                Joined
+              </dt>
+              <dd className="text-foreground">{formatDate(display.createdAt)}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Last active</dt>
-              <dd className="text-foreground">{relativeTime(user.lastActiveAt)}</dd>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="size-3.5" />
+                Last active
+              </dt>
+              <dd className="text-foreground">{relativeTime(display.lastActiveAt)}</dd>
             </div>
           </dl>
+
+          {/* Management */}
+          <div className="space-y-4 rounded-lg border border-border bg-secondary/20 p-4">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Manage
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="role-select" className="flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5" />
+                Role
+              </Label>
+              <div className="flex gap-2">
+                <Select
+                  value={role}
+                  onValueChange={(v) => setRole(v as AdminUser["role"])}
+                  disabled={!canManageRoles}
+                >
+                  <SelectTrigger id="role-select" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {ROLE_LABEL[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className="h-9 shrink-0"
+                  disabled={!canManageRoles || !roleChanged}
+                  onClick={() => onPatch(display.id, { role }, `${display.name} is now ${ROLE_LABEL[role]}`)}
+                >
+                  Save
+                </Button>
+              </div>
+              {!canManageRoles && (
+                <p className="text-xs text-muted-foreground">Superadmin role required to change roles.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tier-select" className="flex items-center gap-1.5">
+                <CreditCard className="size-3.5" />
+                Subscription tier
+              </Label>
+              <div className="flex gap-2">
+                <Select value={tier} onValueChange={(v) => setTier(v as SubscriptionTier)}>
+                  <SelectTrigger id="tier-select" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIERS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {TIER_LABEL[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className="h-9 shrink-0"
+                  disabled={!tierChanged}
+                  onClick={() => onPatch(display.id, { tier }, `${display.name} moved to ${TIER_LABEL[tier]}`)}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="suspend-reason" className="flex items-center gap-1.5">
+                {suspended ? <RotateCcw className="size-3.5" /> : <Ban className="size-3.5" />}
+                {suspended ? "Reactivate access" : "Suspend access"}
+              </Label>
+              {!suspended && (
+                <Textarea
+                  id="suspend-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Reason (recorded in the audit log)"
+                  className="min-h-[60px] resize-none text-sm"
+                />
+              )}
+              {suspended ? (
+                <Button
+                  variant="outline"
+                  className="h-9 w-full"
+                  onClick={() => onPatch(display.id, { status: "active" }, `${display.name} reactivated`)}
+                >
+                  <RotateCcw className="size-4" />
+                  Reactivate user
+                </Button>
+              ) : (
+                <Button
+                  className="h-9 w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => onPatch(display.id, { status: "suspended" }, `${display.name} suspended`)}
+                >
+                  <Ban className="size-4" />
+                  Suspend user
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function RoleDialog({
-  open,
-  onClose,
-  user,
-  onPatch,
-}: {
-  open: boolean
-  onClose: () => void
-  user: AdminUser
-  onPatch: (id: string, patch: UserPatch, message: string) => void
-}) {
-  const [role, setRole] = useState<AdminUser["role"]>(user.role)
-  const changed = role !== user.role
-
-  function save() {
-    onPatch(user.id, { role }, `${user.name} is now ${ROLE_LABEL[role]}`)
-    onClose()
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) onClose()
-        else setRole(user.role)
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-4" />
-            Edit role
-          </DialogTitle>
-          <DialogDescription>
-            {user.name} · {user.email}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-2 py-1">
-          <Label htmlFor="role-select">Role</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as AdminUser["role"])}>
-            <SelectTrigger id="role-select" className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLES.map((r) => (
-                <SelectItem key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            {role === "superadmin"
-              ? "Full access including role management and revocations."
-              : role === "admin"
-                ? "Can manage users, content, and subscriptions."
-                : "Standard platform access only."}
-          </p>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={!changed}>
-            Save role
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function TierDialog({
-  open,
-  onClose,
-  user,
-  onPatch,
-}: {
-  open: boolean
-  onClose: () => void
-  user: AdminUser
-  onPatch: (id: string, patch: UserPatch, message: string) => void
-}) {
-  const [tier, setTier] = useState<SubscriptionTier>(user.tier)
-  const changed = tier !== user.tier
-
-  function save() {
-    onPatch(user.id, { tier }, `${user.name} moved to ${TIER_LABEL[tier]}`)
-    onClose()
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) onClose()
-        else setTier(user.tier)
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="size-4" />
-            Change tier
-          </DialogTitle>
-          <DialogDescription>
-            {user.name} · {user.email}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-5 py-1">
-          <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-            <div>
-              <p className="text-xs text-muted-foreground">Current tier</p>
-              <p className="text-sm font-medium text-foreground">{TIER_LABEL[user.tier]}</p>
-            </div>
-            <StatusPill status={user.status} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="tier-select">Assign tier</Label>
-            <Select value={tier} onValueChange={(v) => setTier(v as SubscriptionTier)}>
-              <SelectTrigger id="tier-select" className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIERS.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {TIER_LABEL[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={save} disabled={!changed}>
-            Save tier
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function SuspendDialog({
-  open,
-  onClose,
-  user,
-  onPatch,
-}: {
-  open: boolean
-  onClose: () => void
-  user: AdminUser
-  onPatch: (id: string, patch: UserPatch, message: string) => void
-}) {
-  const reactivating = user.status === "suspended"
-  const [reason, setReason] = useState("")
-
-  function confirm() {
-    if (reactivating) {
-      onPatch(user.id, { status: "active" }, `${user.name} reactivated`)
-    } else {
-      onPatch(user.id, { status: "suspended" }, `${user.name} suspended`)
-    }
-    setReason("")
-    onClose()
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) {
-          setReason("")
-          onClose()
-        }
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {reactivating ? <RotateCcw className="size-4" /> : <Ban className="size-4 text-destructive" />}
-            {reactivating ? "Reactivate user" : "Suspend user"}
-          </DialogTitle>
-          <DialogDescription>
-            {reactivating
-              ? `Restore access for ${user.name}.`
-              : `Revoke platform access for ${user.name}. They will be signed out.`}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!reactivating && (
-          <div className="space-y-2 py-1">
-            <Label htmlFor="suspend-reason">
-              Reason <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Textarea
-              id="suspend-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Recorded in the audit log"
-              className="min-h-[64px] resize-none text-sm"
-            />
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          {reactivating ? (
-            <Button onClick={confirm}>Reactivate</Button>
-          ) : (
-            <Button
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirm}
-            >
-              Suspend
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -462,6 +334,7 @@ export function InviteUserDialog({
       id: `usr_${Math.random().toString(36).slice(2, 8)}`,
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      avatarUrl: null,
       role,
       tier,
       status: "invited",

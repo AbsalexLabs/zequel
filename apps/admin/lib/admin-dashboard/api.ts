@@ -56,12 +56,15 @@ interface ApiProfileRow {
   id: string
   email: string | null
   full_name: string | null
+  avatar_url?: string | null
   role: string | null
   suspended?: boolean | null
   created_at: string
   updated_at?: string | null
   subscription?: { plan?: string | null; expires_at?: string | null } | null
   totalRequests?: number
+  conversationsCount?: number
+  documentsCount?: number
 }
 
 export function mapUser(row: ApiProfileRow): AdminUser {
@@ -70,13 +73,14 @@ export function mapUser(row: ApiProfileRow): AdminUser {
     id: row.id,
     name: row.full_name || row.email?.split("@")[0] || "Unknown",
     email: row.email || "",
+    avatarUrl: row.avatar_url || null,
     role,
     tier: normalizeTier(row.subscription?.plan),
     status: row.suspended ? "suspended" : "active",
     createdAt: row.created_at,
     lastActiveAt: row.updated_at || row.created_at,
-    conversations: 0,
-    documents: 0,
+    conversations: row.conversationsCount || 0,
+    documents: row.documentsCount || 0,
     aiRequests: row.totalRequests || 0,
   }
 }
@@ -399,6 +403,27 @@ export function useUsers(params: { search?: string; page?: number; limit?: numbe
     error,
     isLoading,
     mutate,
+  }
+}
+
+interface UserDetailResponse {
+  user: ApiProfileRow & {
+    lastActivity?: string | null
+  }
+}
+
+// Fetches a single user's full profile (real avatar + conversation/document
+// counts) for the admin profile dialog. Only fires when an id is provided.
+export function useUser(id: string | null) {
+  const { data, error, isLoading } = useSWR<UserDetailResponse>(
+    id ? `/api/admin/users/${id}` : null,
+    fetcher,
+    swrConfig,
+  )
+  return {
+    user: data?.user ? mapUser(data.user) : null,
+    error,
+    isLoading,
   }
 }
 

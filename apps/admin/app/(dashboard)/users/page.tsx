@@ -6,10 +6,11 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { UserRowActions, type UserPatch } from "@/components/admin/user-manager"
+import { UserDetailDialog, type UserPatch } from "@/components/admin/user-manager"
 import { useAdminSession } from "@/components/admin/admin-session"
 import { useUsers, patchUser as apiPatchUser } from "@/lib/admin-dashboard/api"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
+import { Avatar, AvatarFallback, AvatarImage } from "@zequel/ui/components/avatar"
 import type { AdminUser } from "@/lib/admin-dashboard/types"
 
 const TIER_LABEL: Record<string, string> = { free: "Free", premium_lite: "Premium Lite", premium_pro: "Premium Pro" }
@@ -22,6 +23,7 @@ export default function UsersPage() {
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
   const [role, setRole] = useState("all")
+  const [selected, setSelected] = useState<AdminUser | null>(null)
 
   const { users: rows, isLoading, error, mutate } = useUsers({ search })
 
@@ -51,6 +53,7 @@ export default function UsersPage() {
       }
       await mutate()
       toast.success(message)
+      setSelected(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed")
     }
@@ -127,9 +130,12 @@ export default function UsersPage() {
                 header: "User",
                 cell: (u) => (
                   <div className="flex items-center gap-3">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary font-mono text-[11px] font-semibold text-foreground">
-                      {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                    </span>
+                    <Avatar className="size-8 shrink-0">
+                      {u.avatarUrl ? <AvatarImage src={u.avatarUrl} alt={u.name} /> : null}
+                      <AvatarFallback className="bg-secondary font-mono text-[11px] font-semibold text-foreground">
+                        {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">{u.name}</p>
                       <p className="truncate text-xs text-muted-foreground">{u.email}</p>
@@ -166,15 +172,8 @@ export default function UsersPage() {
                 header: "Last Active",
                 cell: (u) => <span className="text-sm text-muted-foreground">{relativeTime(u.lastActiveAt)}</span>,
               },
-              {
-                key: "actions",
-                header: "",
-                className: "w-10 text-right",
-                cell: (u) => (
-                  <UserRowActions user={u} canManageRoles={canManageRoles} onPatch={patchUser} />
-                ),
-              },
             ]}
+            onRowClick={(u) => setSelected(u)}
           />
         </DataTableCard>
 
@@ -182,6 +181,14 @@ export default function UsersPage() {
           {isLoading ? "Loading users…" : `Showing ${filtered.length} of ${rows.length} users`}
         </p>
       </div>
+
+      <UserDetailDialog
+        user={selected}
+        open={selected !== null}
+        onOpenChange={(v) => !v && setSelected(null)}
+        canManageRoles={canManageRoles}
+        onPatch={patchUser}
+      />
     </>
   )
 }

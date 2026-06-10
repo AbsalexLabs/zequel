@@ -48,6 +48,17 @@ export async function GET(
     .select('*', { count: 'exact', head: true })
     .eq('user_id', id)
 
+  // Get conversation + document counts so the admin profile shows real activity.
+  const { count: conversationsCount } = await supabase
+    .from('conversations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', id)
+
+  const { count: documentsCount } = await supabase
+    .from('documents')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', id)
+
   // Get recent activity
   const { data: recentActivity } = await supabase
     .from('ai_usage_logs')
@@ -74,6 +85,8 @@ export async function GET(
       email,
       subscription: subscription || { plan: 'free', expires_at: null },
       totalRequests: totalRequests || 0,
+      conversationsCount: conversationsCount || 0,
+      documentsCount: documentsCount || 0,
       lastActivity: lastActivity?.created_at || null,
       recentActivity: recentActivity || [],
     },
