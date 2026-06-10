@@ -7,14 +7,15 @@ import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { ConversationRowActions, type ConversationPatch } from "@/components/admin/conversation-manager"
-import { conversations as seedConversations } from "@/lib/admin-dashboard/mock-data"
+import { useConversations, updateConversationStatus } from "@/lib/admin-dashboard/api"
 import { formatCompact, formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { Conversation } from "@/lib/admin-dashboard/types"
 
 export default function ConversationsPage() {
-  const [rows, setRows] = useState<Conversation[]>(seedConversations)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
+
+  const { conversations: rows, isLoading, error, mutate } = useConversations({ limit: 200 })
 
   const filtered = useMemo(() => {
     return rows.filter((c) => {
@@ -29,11 +30,15 @@ export default function ConversationsPage() {
   const flagged = rows.filter((c) => c.status === "flagged").length
   const active = rows.filter((c) => c.status === "active").length
 
-  function patchConversation(id: string, patch: ConversationPatch, message: string) {
-    setRows((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: new Date().toISOString() } : c)),
-    )
-    toast.success(message)
+  async function patchConversation(id: string, patch: ConversationPatch, message: string) {
+    if (!patch.status) return
+    try {
+      await updateConversationStatus(id, patch.status)
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   function exportConversation(_id: string, message: string) {
@@ -55,6 +60,11 @@ export default function ConversationsPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load conversations: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -136,7 +146,7 @@ export default function ConversationsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {rows.length} conversations
+          {isLoading ? "Loading conversations…" : `Showing ${filtered.length} of ${rows.length} conversations`}
         </p>
       </div>
     </>

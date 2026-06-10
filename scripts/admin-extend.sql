@@ -21,6 +21,19 @@ CREATE INDEX IF NOT EXISTS idx_safety_events_severity ON public.safety_events(se
 CREATE INDEX IF NOT EXISTS idx_safety_events_action ON public.safety_events(action);
 
 -- ===========================================================================
+-- 1b. Conversation moderation status (admin archive / flag)
+-- ===========================================================================
+-- Adds a moderation status to conversations so the admin Conversations page
+-- can archive or flag a thread. Defaults to 'active' for existing rows.
+DO $$ BEGIN
+  ALTER TABLE public.conversations
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','archived','flagged'));
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_conversations_status ON public.conversations(status);
+
+-- ===========================================================================
 -- 2. Website CMS content tables
 -- ===========================================================================
 

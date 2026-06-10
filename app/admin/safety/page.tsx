@@ -8,7 +8,7 @@ import { StatusPill, SeverityPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { SafetyRowActions, type SafetyPatch } from "@/components/admin/safety-manager"
-import { safetyEvents as seedEvents } from "@/lib/admin-dashboard/mock-data"
+import { useSafetyEvents, updateSafetyAction } from "@/lib/admin-dashboard/api"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { SafetyEvent } from "@/lib/admin-dashboard/types"
 
@@ -21,10 +21,11 @@ const CATEGORY_LABEL: Record<string, string> = {
 }
 
 export default function SafetyPage() {
-  const [rows, setRows] = useState<SafetyEvent[]>(seedEvents)
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("all")
   const [severity, setSeverity] = useState("all")
+
+  const { events: rows, isLoading, error, mutate } = useSafetyEvents({ limit: 300 })
 
   const filtered = useMemo(() => {
     return rows.filter((e) => {
@@ -47,9 +48,15 @@ export default function SafetyPage() {
     }, {}),
   ).sort((a, b) => b[1] - a[1])
 
-  function patchEvent(id: string, patch: SafetyPatch, message: string) {
-    setRows((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
-    toast.success(message)
+  async function patchEvent(id: string, patch: SafetyPatch, message: string) {
+    if (!patch.action) return
+    try {
+      await updateSafetyAction(id, patch.action)
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   return (
@@ -92,6 +99,11 @@ export default function SafetyPage() {
       </Card>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load safety events: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -166,7 +178,7 @@ export default function SafetyPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {rows.length} events
+          {isLoading ? "Loading safety events…" : `Showing ${filtered.length} of ${rows.length} events`}
         </p>
       </div>
     </>
