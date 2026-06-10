@@ -8,26 +8,15 @@ import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { LineTrend } from "@/components/admin/charts"
 import { AiUsageRowActions } from "@/components/admin/ai-usage-manager"
-import { aiUsage, latencySeries, modelUsage, requestVolumeSeries } from "@/lib/admin-dashboard/mock-data"
+import { useAiUsage } from "@/lib/admin-dashboard/api"
 import { formatCompact, formatCurrency, formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { AiUsageRecord } from "@/lib/admin-dashboard/types"
 
-const RANGE_FACTOR: Record<string, number> = { "7d": 0.25, "30d": 1, "90d": 2.9 }
-const RANGE_LABEL: Record<string, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" }
-
 function toCsv(rows: AiUsageRecord[]): string {
-  const header = ["id", "user", "model", "type", "tokens", "latencyMs", "cost", "status", "createdAt"]
+  const header = ["id", "user", "model", "type", "tokens", "cost", "status", "createdAt"]
   const body = rows.map((r) =>
-    [r.id, r.user, r.model, r.type, r.tokens, r.latencyMs, r.cost, r.status, r.createdAt]
+    [r.id, r.user, r.model, r.type, r.tokens, r.cost, r.status, r.createdAt]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(","),
   )
@@ -35,26 +24,33 @@ function toCsv(rows: AiUsageRecord[]): string {
 }
 
 export default function AiUsagePage() {
-  const [range, setRange] = useState("30d")
   const [search, setSearch] = useState("")
   const [model, setModel] = useState("all")
   const [status, setStatus] = useState("all")
 
+  const { logs, total, totalTokens, isLoading, error } = useAiUsage({ status })
+
+  // Derive the model list and per-model share from the live logs.
+  const modelShare = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const r of logs) counts.set(r.model, (counts.get(r.model) || 0) + 1)
+    const totalReq = logs.length || 1
+    return Array.from(counts.entries())
+      .map(([m, c]) => ({ model: m, requests: c, share: Math.round((c / totalReq) * 1000) / 10 }))
+      .sort((a, b) => b.requests - a.requests)
+  }, [logs])
+
   const filtered = useMemo(() => {
-    return aiUsage.filter((r) => {
+    return logs.filter((r) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || r.user.toLowerCase().includes(q) || r.model.toLowerCase().includes(q)
       const matchesModel = model === "all" || r.model === model
-      const matchesStatus = status === "all" || r.status === status
-      return matchesSearch && matchesModel && matchesStatus
+      return matchesSearch && matchesModel
     })
-  }, [search, model, status])
+  }, [logs, search, model])
 
-  const factor = RANGE_FACTOR[range] ?? 1
-  const totalTokens = aiUsage.reduce((a, r) => a + r.tokens, 0)
-  const totalCost = aiUsage.reduce((a, r) => a + r.cost, 0)
-  const errors = aiUsage.filter((r) => r.status === "error").length
-  const totalReq = Math.round(requestVolumeSeries.reduce((a, p) => a + p.value, 0) * factor)
+  const totalCost = logs.reduce((a, r) => a + r.cost, 0)
+  const errors = logs.filter((r) => r.status === "error").length
 
   function exportCsv() {
     const csv = toCsv(filtered)
@@ -62,7 +58,7 @@ export default function AiUsagePage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `ai-usage-${range}-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `ai-usage-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -72,49 +68,35 @@ export default function AiUsagePage() {
 
   return (
     <>
-      <PageHeader title="AI Usage" description="Model requests, token consumption, latency, and spend across the platform.">
-        <Select value={range} onValueChange={setRange}>
-          <SelectTrigger size="sm" className="w-auto min-w-[8.5rem] text-sm" aria-label="Date range">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(RANGE_LABEL).map(([v, label]) => (
-              <SelectItem key={v} value={v}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <PageHeader title="AI Usage" description="Model requests, token consumption, and spend across the platform.">
         <Button size="sm" onClick={exportCsv}>
           Export CSV
         </Button>
       </PageHeader>
 
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load AI usage: {error.message}
+        </p>
+      )}
+
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label={`Requests (${range})`} value={formatCompact(totalReq)} delta={12.8} />
+        <StatCard label="Total Requests" value={isLoading ? "—" : formatCompact(total)} />
         <StatCard label="Tokens (sample)" value={formatCompact(totalTokens)} />
         <StatCard label="Spend (sample)" value={formatCurrency(totalCost)} />
-        <StatCard label="Errors" value={formatNumber(errors)} invertDelta delta={-0.3} />
+        <StatCard label="Errors" value={formatNumber(errors)} />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Latency</CardTitle>
-            <CardDescription>Average response latency (ms) over {RANGE_LABEL[range].toLowerCase()}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <LineTrend data={latencySeries} label="Latency (ms)" className="aspect-[16/6] w-full" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Model Share</CardTitle>
-            <CardDescription>Requests by model</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {modelUsage.map((m) => (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Model Share</CardTitle>
+          <CardDescription>Requests by model in the current sample</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {modelShare.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No usage recorded yet.</p>
+          ) : (
+            modelShare.map((m) => (
               <div key={m.model} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-mono text-xs text-foreground">{m.model}</span>
@@ -124,10 +106,10 @@ export default function AiUsagePage() {
                   <div className="h-full rounded-full bg-foreground" style={{ width: `${m.share}%` }} />
                 </div>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <div className="space-y-4">
         <TableToolbar
@@ -142,7 +124,7 @@ export default function AiUsagePage() {
               onChange: setModel,
               options: [
                 { label: "All models", value: "all" },
-                ...modelUsage.map((m) => ({ label: m.model, value: m.model })),
+                ...modelShare.map((m) => ({ label: m.model, value: m.model })),
               ],
             },
             {

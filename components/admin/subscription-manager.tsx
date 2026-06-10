@@ -30,12 +30,11 @@ import type {
   SubscriptionTier,
 } from "@/lib/admin-dashboard/types"
 
-const PAID_TIERS: SubscriptionTier[] = ["pro", "team", "enterprise"]
+const PAID_TIERS: SubscriptionTier[] = ["premium_lite", "premium_pro"]
 const TIER_LABEL: Record<SubscriptionTier, string> = {
   free: "Free",
-  pro: "Pro",
-  team: "Team",
-  enterprise: "Enterprise",
+  premium_lite: "Premium Lite",
+  premium_pro: "Premium Pro",
 }
 
 const EVENT_META: Record<SubscriptionEventType, { label: string; icon: typeof BadgeCheck }> = {
@@ -117,7 +116,7 @@ function ManageDialog({
 }) {
   const isRevoked = subscription.status === "canceled"
   const [tier, setTier] = useState<SubscriptionTier>(
-    subscription.tier === "free" ? "pro" : subscription.tier,
+    subscription.tier === "free" ? "premium_lite" : subscription.tier,
   )
   const [note, setNote] = useState("")
 
@@ -127,7 +126,7 @@ function ManageDialog({
   function close() {
     onOpenChange(false)
     setNote("")
-    setTier(subscription.tier === "free" ? "pro" : subscription.tier)
+    setTier(subscription.tier === "free" ? "premium_lite" : subscription.tier)
   }
 
   function grantOrChange() {

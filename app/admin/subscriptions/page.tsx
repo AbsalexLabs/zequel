@@ -1,82 +1,79 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { AreaTrend } from "@/components/admin/charts"
 import { SubscriptionRowActions, type ManageResult } from "@/components/admin/subscription-manager"
 import { useAdminSession } from "@/components/admin/admin-session"
-import { subscriptions as seedSubs, subscriptionEvents as seedEvents, revenueSeries } from "@/lib/admin-dashboard/mock-data"
+import { useSubscriptions, patchSubscriptionPlan } from "@/lib/admin-dashboard/api"
 import { formatCurrency, formatDate, formatNumber } from "@/lib/admin-dashboard/format"
 import type { Subscription, SubscriptionEvent } from "@/lib/admin-dashboard/types"
 
-const TIER_LABEL: Record<string, string> = { free: "Free", pro: "Pro", team: "Team", enterprise: "Enterprise" }
+const TIER_LABEL: Record<string, string> = { free: "Free", premium_lite: "Premium Lite", premium_pro: "Premium Pro" }
 
 export default function SubscriptionsPage() {
   const { session } = useAdminSession()
   const canRevoke = session.role === "superadmin"
 
-  const [subs, setSubs] = useState<Subscription[]>(seedSubs)
-  const [events, setEvents] = useState<SubscriptionEvent[]>(seedEvents)
   const [search, setSearch] = useState("")
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
+
+  const { subscriptions: subs, isLoading, error, mutate } = useSubscriptions({ plan: tier })
+  // Event history is recorded server-side via the audit log; per-row history
+  // starts empty in this view and is populated by live admin actions.
+  const [events, setEvents] = useState<SubscriptionEvent[]>([])
 
   const filtered = useMemo(() => {
     return subs.filter((sub) => {
       const q = search.trim().toLowerCase()
       const matchesSearch = !q || sub.user.toLowerCase().includes(q) || sub.email.toLowerCase().includes(q)
-      const matchesTier = tier === "all" || sub.tier === tier
       const matchesStatus = status === "all" || sub.status === status
-      return matchesSearch && matchesTier && matchesStatus
+      return matchesSearch && matchesStatus
     })
-  }, [subs, search, tier, status])
+  }, [subs, search, status])
 
   const mrr = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0)
   const activeSubs = subs.filter((s) => s.status === "active").length
   const pastDue = subs.filter((s) => s.status === "past_due").length
   const trialing = subs.filter((s) => s.status === "trialing").length
 
-  function applyChange(subId: string, result: ManageResult) {
-    setSubs((prev) =>
-      prev.map((s) =>
-        s.id === subId ? { ...s, status: result.status, tier: result.tier, mrr: result.mrr, seats: result.seats } : s,
-      ),
-    )
-    setEvents((prev) => [
-      { ...result.event, id: `subevt_${subId}_${Date.now()}`, subscriptionId: subId },
-      ...prev,
-    ])
+  async function applyChange(subId: string, result: ManageResult) {
+    const sub = subs.find((s) => s.id === subId)
+    if (!sub) return
+    try {
+      // Revoke maps to downgrading the plan to free; otherwise apply the new tier.
+      await patchSubscriptionPlan(sub.id, result.status === "canceled" ? "free" : result.tier)
+      setEvents((prev) => [
+        { ...result.event, id: `subevt_${subId}_${Date.now()}`, subscriptionId: subId },
+        ...prev,
+      ])
+      await mutate()
+      toast.success("Subscription updated")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   return (
     <>
-      <PageHeader title="Subscriptions" description="Grant, change, or revoke plans and review billing history.">
-        <Button variant="outline" size="sm">
-          Export CSV
-        </Button>
-      </PageHeader>
+      <PageHeader title="Subscriptions" description="Grant, change, or revoke plans and review billing history." />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load subscriptions: {error.message}
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="MRR" value={formatCurrency(mrr)} delta={4.9} />
+        <StatCard label="MRR" value={formatCurrency(mrr)} />
         <StatCard label="Active Plans" value={formatNumber(activeSubs)} />
         <StatCard label="Trialing" value={formatNumber(trialing)} />
-        <StatCard label="Past Due" value={formatNumber(pastDue)} invertDelta delta={-2.1} />
+        <StatCard label="Past Due" value={formatNumber(pastDue)} />
       </section>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Revenue Trend</CardTitle>
-          <CardDescription>Daily recurring revenue over the last 30 days</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AreaTrend data={revenueSeries} label="Revenue" className="aspect-[16/5] w-full" />
-        </CardContent>
-      </Card>
 
       <div className="space-y-4">
         <TableToolbar
@@ -91,9 +88,8 @@ export default function SubscriptionsPage() {
               onChange: setTier,
               options: [
                 { label: "All tiers", value: "all" },
-                { label: "Pro", value: "pro" },
-                { label: "Team", value: "team" },
-                { label: "Enterprise", value: "enterprise" },
+                { label: "Premium Lite", value: "premium_lite" },
+                { label: "Premium Pro", value: "premium_pro" },
               ],
             },
             {
@@ -171,7 +167,7 @@ export default function SubscriptionsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {subs.length} subscriptions
+          {isLoading ? "Loading subscriptions…" : `Showing ${filtered.length} of ${subs.length} subscriptions`}
         </p>
       </div>
     </>

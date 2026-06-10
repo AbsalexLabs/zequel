@@ -45,11 +45,10 @@ import type { AdminUser, SubscriptionTier } from "@/lib/admin-dashboard/types"
 
 const TIER_LABEL: Record<SubscriptionTier, string> = {
   free: "Free",
-  pro: "Pro",
-  team: "Team",
-  enterprise: "Enterprise",
+  premium_lite: "Premium Lite",
+  premium_pro: "Premium Pro",
 }
-const TIERS: SubscriptionTier[] = ["free", "pro", "team", "enterprise"]
+const TIERS: SubscriptionTier[] = ["free", "premium_lite", "premium_pro"]
 const ROLES: AdminUser["role"][] = ["user", "admin", "superadmin"]
 const ROLE_LABEL: Record<AdminUser["role"], string> = {
   user: "User",

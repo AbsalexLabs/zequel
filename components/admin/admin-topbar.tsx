@@ -1,8 +1,10 @@
 "use client"
 
-import { Menu, Search, Moon, Sun, ShieldCheck } from "lucide-react"
+import { Menu, Search, Moon, Sun, ShieldCheck, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
@@ -16,13 +18,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AdminSidebar } from "./admin-sidebar"
 import { useAdminSession } from "./admin-session"
-import { cn } from "@/lib/utils"
 
 export function AdminTopbar() {
-  const { session, setRole } = useAdminSession()
+  const { session } = useAdminSession()
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/auth/login")
+  }
 
   const initials = session.name
     .split(" ")
@@ -85,19 +93,10 @@ export function AdminTopbar() {
               <span className="text-xs font-normal text-muted-foreground">{session.email}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              Preview role
-            </DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setRole("superadmin")} className="justify-between">
-              Superadmin
-              {session.role === "superadmin" ? <span className="size-1.5 rounded-full bg-foreground" /> : null}
+            <DropdownMenuItem onClick={handleSignOut} className="text-muted-foreground">
+              <LogOut className="size-4" />
+              Sign out
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRole("admin")} className="justify-between">
-              Admin
-              {session.role === "admin" ? <span className="size-1.5 rounded-full bg-foreground" /> : null}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className={cn("text-muted-foreground")}>Sign out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
