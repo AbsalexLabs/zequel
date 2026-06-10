@@ -19,8 +19,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import { mediaAssets as initialAssets } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, createCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { MediaAsset, MediaType } from "@/lib/admin-dashboard/cms-types"
+
+const RESOURCE = "media"
 
 const TYPE_META: Record<MediaType, { label: string; icon: typeof ImageIcon; className: string }> = {
   image: { label: "Image", icon: ImageIcon, className: "text-sky-600 dark:text-sky-400" },
@@ -36,7 +38,7 @@ function formatSize(kb: number): string {
 }
 
 export default function CmsMediaPage() {
-  const [assets, setAssets] = useState<MediaAsset[]>(initialAssets)
+  const { items: assets, isLoading, error, mutate } = useCmsList<MediaAsset>(RESOURCE)
   const [search, setSearch] = useState("")
   const [type, setType] = useState("all")
   const [view, setView] = useState<"grid" | "list">("grid")
@@ -62,12 +64,17 @@ export default function CmsMediaPage() {
     toast.success("URL copied to clipboard")
   }
 
-  function remove(id: string, label: string) {
-    setAssets((prev) => prev.filter((a) => a.id !== id))
-    toast.success(`"${label}" deleted`)
+  async function remove(id: string, label: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success(`"${label}" deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
-  function addAsset() {
+  async function addAsset() {
     const trimmed = name.trim()
     if (!trimmed) return
     const ext = trimmed.split(".").pop()?.toLowerCase() ?? ""
@@ -79,19 +86,21 @@ export default function CmsMediaPage() {
           : ["svg"].includes(ext)
             ? "icon"
             : "document"
-    const created: MediaAsset = {
-      id: `media_${Math.random().toString(36).slice(2, 7)}`,
-      name: trimmed,
-      type: inferred,
-      url: `/cms-media/${trimmed}`,
-      sizeKb: 120 + Math.floor(Math.random() * 800),
-      uploadedBy: "You",
-      uploadedAt: new Date().toISOString(),
+    try {
+      await createCmsItem<MediaAsset>(RESOURCE, {
+        name: trimmed,
+        type: inferred,
+        url: `/cms-media/${trimmed}`,
+        sizeKb: 120 + Math.floor(Math.random() * 800),
+        uploadedBy: "You",
+      })
+      await mutate()
+      toast.success(`"${trimmed}" uploaded`)
+      setName("")
+      setUploadOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed")
     }
-    setAssets((prev) => [created, ...prev])
-    toast.success(`"${trimmed}" uploaded`)
-    setName("")
-    setUploadOpen(false)
   }
 
   return (
@@ -145,6 +154,12 @@ export default function CmsMediaPage() {
           },
         ]}
       />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load media: {error.message}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card p-12 text-center">
@@ -287,7 +302,7 @@ export default function CmsMediaPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Showing {filtered.length} of {assets.length} assets
+        {isLoading ? "Loading media…" : `Showing ${filtered.length} of ${assets.length} assets`}
       </p>
 
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

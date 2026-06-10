@@ -21,31 +21,45 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import {
-  blogPosts,
-  bugReports,
-  cmsPages,
-  contactMessages,
-  docArticles,
-  faqItems,
-  featureItems,
-  featureRequests,
-  mediaAssets,
-  pricingPlans,
-} from "@/lib/admin-dashboard/cms-mock-data"
-
-const QUICK_LINKS = [
-  { label: "Pages", href: "/admin/cms/pages", icon: Files, count: cmsPages.length },
-  { label: "Features", href: "/admin/cms/features", icon: Sparkles, count: featureItems.length },
-  { label: "Pricing", href: "/admin/cms/pricing", icon: Tags, count: pricingPlans.length },
-  { label: "Documentation", href: "/admin/cms/docs", icon: BookOpen, count: docArticles.length },
-  { label: "Blog", href: "/admin/cms/blog", icon: Newspaper, count: blogPosts.length },
-  { label: "FAQ", href: "/admin/cms/faq", icon: HelpCircle, count: faqItems.length },
-  { label: "Media Library", href: "/admin/cms/media", icon: ImageIcon, count: mediaAssets.length },
-  { label: "Changelog", href: "/admin/cms/changelog", icon: GitCommitVertical, count: 5 },
-]
+import { useCmsList } from "@/lib/admin-dashboard/cms-api"
+import type {
+  BlogPost,
+  BugReport,
+  CmsPage,
+  ContactMessage,
+  DocArticle,
+  FaqItem,
+  FeatureItem,
+  FeatureRequest,
+  MediaAsset,
+  PricingPlan,
+  ChangelogEntry,
+} from "@/lib/admin-dashboard/cms-types"
 
 export default function CmsOverviewPage() {
+  const { items: cmsPages } = useCmsList<CmsPage>("pages")
+  const { items: featureItems } = useCmsList<FeatureItem>("features")
+  const { items: pricingPlans } = useCmsList<PricingPlan>("pricing")
+  const { items: docArticles } = useCmsList<DocArticle>("docs")
+  const { items: blogPosts } = useCmsList<BlogPost>("blog")
+  const { items: faqItems } = useCmsList<FaqItem>("faq")
+  const { items: mediaAssets } = useCmsList<MediaAsset>("media")
+  const { items: changelog } = useCmsList<ChangelogEntry>("changelog")
+  const { items: contactMessages } = useCmsList<ContactMessage>("contact")
+  const { items: featureRequests } = useCmsList<FeatureRequest>("feature-requests")
+  const { items: bugReports } = useCmsList<BugReport>("bug-reports")
+
+  const QUICK_LINKS = [
+    { label: "Pages", href: "/admin/cms/pages", icon: Files, count: cmsPages.length },
+    { label: "Features", href: "/admin/cms/features", icon: Sparkles, count: featureItems.length },
+    { label: "Pricing", href: "/admin/cms/pricing", icon: Tags, count: pricingPlans.length },
+    { label: "Documentation", href: "/admin/cms/docs", icon: BookOpen, count: docArticles.length },
+    { label: "Blog", href: "/admin/cms/blog", icon: Newspaper, count: blogPosts.length },
+    { label: "FAQ", href: "/admin/cms/faq", icon: HelpCircle, count: faqItems.length },
+    { label: "Media Library", href: "/admin/cms/media", icon: ImageIcon, count: mediaAssets.length },
+    { label: "Changelog", href: "/admin/cms/changelog", icon: GitCommitVertical, count: changelog.length },
+  ]
+
   const newMessages = contactMessages.filter((m) => m.status === "new").length
   const openRequests = featureRequests.filter((r) => r.status === "open").length
   const openBugs = bugReports.filter((b) => b.status !== "resolved" && b.status !== "wont_fix").length

@@ -3,7 +3,9 @@ import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/service'
 import { generateOtp, otpEmailHtml } from '@/lib/otp'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send via Resend
-    const { error: sendError } = await resend.emails.send({
+    const { error: sendError } = await getResend().emails.send({
       from: 'Zequel <noreply@mrcoolweb3.xyz>',
       to: email,
       subject: subjectMap[purpose] || 'Your Zequel verification code',
