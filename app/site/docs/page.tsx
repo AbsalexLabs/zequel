@@ -1,48 +1,45 @@
 import Link from "next/link"
 import { PageHero } from "@/components/site/page-hero"
 import { SectionLabel } from "@/components/site/section-label"
-import { Rocket, BookOpen, Plug, Shield, Terminal, Layers, ArrowRight, Search } from "lucide-react"
+import { ArrowRight, Search } from "lucide-react"
+import { getDocArticles } from "@/lib/site/content"
+import { DOCS_FALLBACK, DOC_CATEGORY_ICONS } from "@/lib/site/fallbacks"
+import { resolveIcon } from "@/lib/site/icons"
 
-const sections = [
-  {
-    icon: Rocket,
-    title: "Getting started",
-    description: "Set up your first workspace and run an evidence-backed query in minutes.",
-    links: ["Quickstart", "Core concepts", "Your first session", "Workspaces"],
-  },
-  {
-    icon: BookOpen,
-    title: "Research workflow",
-    description: "How sources, citations, and answers move through Zequel.",
-    links: ["Sources & ingestion", "Citations", "Answer scoring", "Exporting"],
-  },
-  {
-    icon: Plug,
-    title: "Integrations",
-    description: "Connect Zequel to the tools your team already uses.",
-    links: ["Connectors overview", "Web & PDF", "Webhooks", "Zapier"],
-  },
-  {
-    icon: Terminal,
-    title: "API reference",
-    description: "Programmatic access to research, sessions, and exports.",
-    links: ["Authentication", "Sessions API", "Documents API", "Rate limits"],
-  },
-  {
-    icon: Shield,
-    title: "Security & trust",
-    description: "How we handle data, access, and compliance.",
-    links: ["Data handling", "Access control", "Audit logs", "Compliance"],
-  },
-  {
-    icon: Layers,
-    title: "Admin & teams",
-    description: "Manage members, roles, billing, and usage at scale.",
-    links: ["Roles & permissions", "Seats & billing", "Usage limits", "SSO"],
-  },
-]
+export const revalidate = 60
 
-export default function DocsPage() {
+
+// Short blurb shown under each documentation category heading.
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  "Getting started": "Set up your first workspace and run an evidence-backed query in minutes.",
+  "Research workflow": "How sources, citations, and answers move through Zequel.",
+  Integrations: "Connect Zequel to the tools your team already uses.",
+  "API reference": "Programmatic access to research, sessions, and exports.",
+  "Security & trust": "How we handle data, access, and compliance.",
+  "Admin & teams": "Manage members, roles, billing, and usage at scale.",
+}
+
+export default async function DocsPage() {
+  const articles = await getDocArticles(DOCS_FALLBACK)
+
+  // Group articles by category, preserving first-seen order.
+  const order: string[] = []
+  const grouped = new Map<string, { title: string; slug: string }[]>()
+  for (const a of articles) {
+    const cat = a.category || "General"
+    if (!grouped.has(cat)) {
+      grouped.set(cat, [])
+      order.push(cat)
+    }
+    grouped.get(cat)!.push({ title: a.title, slug: a.slug })
+  }
+  const sections = order.map((title) => ({
+    title,
+    icon: DOC_CATEGORY_ICONS[title] || "BookOpen",
+    description: CATEGORY_DESCRIPTIONS[title] || "",
+    links: grouped.get(title)!,
+  }))
+
   return (
     <>
       <PageHero
@@ -68,7 +65,7 @@ export default function DocsPage() {
           <SectionLabel>Browse by topic</SectionLabel>
           <div className="mt-6 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
             {sections.map((s) => {
-              const Icon = s.icon
+              const Icon = resolveIcon(s.icon)
               return (
                 <div key={s.title} className="flex flex-col bg-background p-7">
                   <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border">
@@ -78,12 +75,12 @@ export default function DocsPage() {
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.description}</p>
                   <ul className="mt-5 flex flex-col gap-px border-t border-border pt-4">
                     {s.links.map((l) => (
-                      <li key={l}>
+                      <li key={l.slug}>
                         <Link
-                          href="/site/docs"
+                          href={`/site/docs/${l.slug}`}
                           className="group flex items-center justify-between py-2 text-sm text-foreground/80 transition-colors hover:text-foreground"
                         >
-                          {l}
+                          {l.title}
                           <ArrowRight
                             size={13}
                             className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"

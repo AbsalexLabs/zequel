@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: 'Simple, transparent plans for individual researchers, teams, and organizations. Start free.',
 }
 
+export const revalidate = 60
+
 // Plans whose CTA should route to the contact page instead of sign-up.
 const CONTACT_CTA = /talk|contact|sales|demo/i
 

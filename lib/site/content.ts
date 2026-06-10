@@ -17,9 +17,8 @@ import {
 // be seeded yet.
 // ---------------------------------------------------------------------------
 
-// Cache published content briefly so the marketing pages stay fast and don't
-// hammer the database on every request.
-export const revalidate = 60
+// Note: published content is read on demand via the service client. Individual
+// site pages can opt into ISR with their own `export const revalidate`.
 
 type ResourceKey = keyof typeof CMS_RESOURCES
 
@@ -39,7 +38,7 @@ async function readPublished(resource: ResourceKey): Promise<CmsModel[] | null> 
       console.log("[v0] site content read error:", resource, error.message)
       return null
     }
-    return (data || []).map((row) => cmsRowToModel(config, row as Record<string, unknown>))
+    return (data || []).map((row) => cmsRowToModel(config, row as unknown as Record<string, unknown>))
   } catch (err) {
     console.log("[v0] site content read threw:", resource, (err as Error).message)
     return null
@@ -114,7 +113,7 @@ export interface DocArticleContent {
 
 export async function getHero(page: string, fallback: HeroContent): Promise<HeroContent> {
   const rows = await readPublished("hero")
-  const match = rows?.find((r) => r.page === page)
+  const match = rows?.find((r) => String(r.page ?? "").toLowerCase() === page.toLowerCase())
   if (!match) return fallback
   return {
     eyebrow: (match.eyebrow as string) || fallback.eyebrow,
