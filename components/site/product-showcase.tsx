@@ -9,7 +9,7 @@ const SHOWCASE = [
     body: 'Track usage, indexed documents, latency, and system health from a single dense overview built for people who run on data.',
     src: '/site/product-charts.png',
     alt: 'Zequel analytics charts showing request volume and users by tier',
-    url: 'zequel.app/workspace/overview',
+    url: 'zequel.xyz/workspace/overview',
     points: ['Live request volume', 'Users and tiers at a glance', 'Latency and error monitoring'],
   },
   {
@@ -18,7 +18,7 @@ const SHOWCASE = [
     body: 'Every flagged response, every policy trigger, every review — captured and traceable. Research you can stand behind.',
     src: '/site/product-safety.png',
     alt: 'Zequel safety center showing flags and review queue',
-    url: 'zequel.app/workspace/safety',
+    url: 'zequel.xyz/workspace/safety',
     points: ['Automated safety flags', 'Full audit trail', 'Role-based review queue'],
   },
   {
@@ -27,7 +27,7 @@ const SHOWCASE = [
     body: 'Grant, change, or revoke access and review billing history without leaving the workspace.',
     src: '/site/product-subscriptions.png',
     alt: 'Zequel subscriptions page showing recurring revenue trend',
-    url: 'zequel.app/workspace/subscriptions',
+    url: 'zequel.xyz/workspace/subscriptions',
     points: ['Flexible plan management', 'Recurring revenue trends', 'One-click exports'],
   },
 ]

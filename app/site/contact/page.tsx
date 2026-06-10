@@ -6,8 +6,8 @@ import { SectionLabel } from "@/components/site/section-label"
 import { Mail, MessageSquare, MapPin } from "lucide-react"
 
 const channels = [
-  { icon: Mail, label: "Email", value: "hello@zequel.ai", href: "mailto:hello@zequel.ai" },
-  { icon: MessageSquare, label: "Support", value: "support@zequel.ai", href: "mailto:support@zequel.ai" },
+  { icon: Mail, label: "Email", value: "hello@zequel.xyz", href: "mailto:hello@zequel.xyz" },
+  { icon: MessageSquare, label: "Support", value: "support@zequel.xyz", href: "mailto:support@zequel.xyz" },
   { icon: MapPin, label: "Location", value: "Remote-first / Global", href: null },
 ]
 

@@ -342,7 +342,7 @@ export async function executeAICall(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.app',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.xyz',
         'X-Title': 'Zequel Research System',
       },
       body: JSON.stringify({
@@ -365,7 +365,7 @@ export async function executeAICall(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.app',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.xyz',
           'X-Title': 'Zequel Research System',
         },
         body: JSON.stringify({
@@ -453,7 +453,7 @@ export async function executeAICall(
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.app',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.xyz',
             'X-Title': 'Zequel Research System',
           },
           body: JSON.stringify({
