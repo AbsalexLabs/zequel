@@ -140,6 +140,18 @@ export async function PATCH(
       const plan = normalizePlan(data.plan)
       const limits = PLAN_LIMITS[plan]
 
+      // Read the existing subscription first so we can determine what kind of
+      // change this is (grant / tier change / revoke / reactivate) and record
+      // an accurate from_tier in the history.
+      const { data: prior } = await supabase
+        .from('subscriptions')
+        .select('id, plan, status')
+        .eq('user_id', id)
+        .single()
+
+      const fromTier = normalizePlan(prior?.plan)
+      const wasCanceled = prior?.status === 'canceled'
+
       // Paid plans get a fresh 30-day expiry; free clears it. Admins can still
       // pass an explicit expires_at to override (e.g. a comped plan).
       const expires_at =
@@ -149,22 +161,59 @@ export async function PATCH(
             ? null
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
+      // A revoke is modeled as a downgrade to the free plan. Everything else is
+      // an active grant/change/reactivation.
+      const isRevoke = plan === 'free'
+      const newStatus = isRevoke ? 'canceled' : 'active'
+
       // Write a COMPLETE subscription row. Previously only `plan` was set, which
       // left `status`/`request_limit` stale — the label changed but the user's
       // actual entitlements (and any prior "canceled" status) did not move.
-      const { error: subError } = await supabase
+      const { data: updatedSub, error: subError } = await supabase
         .from('subscriptions')
         .upsert({
           user_id: id,
           plan,
-          status: 'active',
+          status: newStatus,
           request_limit: limits.requestLimit,
           expires_at,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
+        .select('id')
+        .single()
 
       if (subError) {
         return adminError(subError.message, 500)
+      }
+
+      // Classify the event for the persisted history timeline.
+      let eventType: 'granted' | 'tier_changed' | 'revoked' | 'reactivated'
+      if (isRevoke) {
+        eventType = 'revoked'
+      } else if (wasCanceled) {
+        eventType = 'reactivated'
+      } else if (fromTier === 'free') {
+        eventType = 'granted'
+      } else {
+        eventType = 'tier_changed'
+      }
+
+      // Persist the subscription history entry so admins can track changes over
+      // time. A failure here must not block the plan change itself.
+      const { error: eventError } = await supabase.from('subscription_events').insert({
+        subscription_id: updatedSub?.id ?? prior?.id ?? null,
+        user_id: id,
+        type: eventType,
+        from_tier: fromTier,
+        to_tier: plan,
+        actor: admin.name,
+        actor_id: admin.id,
+        note: typeof data.note === 'string' && data.note.trim() ? data.note.trim() : null,
+        created_at: new Date().toISOString(),
+      })
+
+      if (eventError) {
+        console.log('[v0] Failed to record subscription event:', eventError.message)
       }
 
       await logAdminAction({
@@ -172,7 +221,7 @@ export async function PATCH(
         action: 'update_subscription',
         target_type: 'subscription',
         target_id: id,
-        details: { plan, request_limit: limits.requestLimit, expires_at },
+        details: { plan, request_limit: limits.requestLimit, expires_at, event: eventType },
       })
 
       return adminResponse({ success: true, message: 'Subscription updated' })
