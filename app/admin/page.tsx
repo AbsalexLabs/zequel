@@ -1,100 +1,84 @@
-import { Users, Activity, Cpu, DollarSign, FileText, ShieldAlert, Gauge, AlertTriangle } from "lucide-react"
+"use client"
+
+import { Users, Activity, Cpu, AlertTriangle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { ActivityFeed } from "@/components/admin/activity-feed"
-import { AreaTrend, DonutBreakdown } from "@/components/admin/charts"
+import { DonutBreakdown } from "@/components/admin/charts"
 import { OverviewActions } from "@/components/admin/overview-actions"
-import {
-  overviewStats as s,
-  requestVolumeSeries,
-  tierBreakdown,
-  activityFeed,
-  modelUsage,
-} from "@/lib/admin-dashboard/mock-data"
-import { formatCompact, formatCurrency, formatNumber } from "@/lib/admin-dashboard/format"
+import { useStats, useAuditLog } from "@/lib/admin-dashboard/api"
+import { useAdminSession } from "@/components/admin/admin-session"
+import { TIER_LABELS, type SubscriptionTier } from "@/lib/admin-dashboard/types"
+import { formatCompact, formatNumber } from "@/lib/admin-dashboard/format"
+
+const TIER_FILL: Record<SubscriptionTier, string> = {
+  free: "var(--confidence-low)",
+  premium_lite: "var(--confidence-medium)",
+  premium_pro: "var(--primary)",
+}
 
 export default function OverviewPage() {
+  const { session } = useAdminSession()
+  const { stats, isLoading, error } = useStats()
+  // The audit log feed is superadmin-only; gate the request so admins don't 403.
+  const { entries } = useAuditLog(session.role === "superadmin" ? { limit: 8 } : {})
+
+  const tierBreakdown = (Object.keys(TIER_LABELS) as SubscriptionTier[]).map((tier) => ({
+    tier: TIER_LABELS[tier],
+    users: stats?.subscriptions?.[tier] ?? 0,
+    fill: TIER_FILL[tier],
+  }))
+
+  const activityItems = entries.map((e) => ({
+    id: e.id,
+    actor: e.actor,
+    action: `${e.action} · ${e.target}`,
+    time: e.createdAt,
+  }))
+
   return (
     <>
       <PageHeader
         title="Control Center"
-        description="Real-time operational view of the Zequel research platform — usage, revenue, and system health."
+        description="Real-time operational view of the Zequel research platform — usage and system health."
       >
         <OverviewActions />
       </PageHeader>
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load metrics: {error.message}
+        </p>
+      )}
 
       {/* Primary stats */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Users"
-          value={formatNumber(s.totalUsers)}
-          delta={s.totalUsersDelta}
+          value={isLoading ? "—" : formatNumber(stats?.totalUsers ?? 0)}
           icon={<Users className="size-4" />}
         />
         <StatCard
-          label="Active Users"
-          value={formatNumber(s.activeUsers)}
-          delta={s.activeUsersDelta}
+          label="Active Today"
+          value={isLoading ? "—" : formatNumber(stats?.activeUsersToday ?? 0)}
           icon={<Activity className="size-4" />}
         />
         <StatCard
           label="AI Requests"
-          value={formatCompact(s.aiRequests)}
-          delta={s.aiRequestsDelta}
+          value={isLoading ? "—" : formatCompact(stats?.totalRequests ?? 0)}
+          hint={`${formatNumber(stats?.requestsToday ?? 0)} today`}
           icon={<Cpu className="size-4" />}
         />
         <StatCard
-          label="Monthly Revenue"
-          value={formatCurrency(s.mrr, { compact: true })}
-          delta={s.mrrDelta}
-          icon={<DollarSign className="size-4" />}
-        />
-      </section>
-
-      {/* Secondary stats */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Documents Indexed"
-          value={formatNumber(s.documentsIndexed)}
-          delta={s.documentsDelta}
-          icon={<FileText className="size-4" />}
-        />
-        <StatCard
-          label="Safety Flags"
-          value={formatNumber(s.safetyFlags)}
-          delta={s.safetyFlagsDelta}
-          invertDelta
-          icon={<ShieldAlert className="size-4" />}
-        />
-        <StatCard
-          label="Avg Latency"
-          value={`${s.avgLatencyMs}ms`}
-          delta={s.avgLatencyDelta}
-          invertDelta
-          icon={<Gauge className="size-4" />}
-        />
-        <StatCard
-          label="Error Rate"
-          value={`${s.errorRate}%`}
-          delta={s.errorRateDelta}
-          invertDelta
+          label="Errors Today"
+          value={isLoading ? "—" : formatNumber(stats?.errorsToday ?? 0)}
           icon={<AlertTriangle className="size-4" />}
         />
       </section>
 
-      {/* Charts */}
+      {/* Tier breakdown + activity */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Request Volume</CardTitle>
-            <CardDescription>Daily AI requests across all models</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AreaTrend data={requestVolumeSeries} label="Requests" className="aspect-[16/7] w-full" />
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Users by Tier</CardTitle>
@@ -115,33 +99,19 @@ export default function OverviewPage() {
             </ul>
           </CardContent>
         </Card>
-      </section>
 
-      {/* Model usage + activity */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Model Usage</CardTitle>
-            <CardDescription>Request share by model over the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {modelUsage.map((m) => (
-              <div key={m.model} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-mono text-foreground">{m.model}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {formatCompact(m.requests)} · {m.share}%
-                  </span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-foreground" style={{ width: `${m.share}%` }} />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <ActivityFeed items={activityFeed} />
+        <div className="lg:col-span-2">
+          {session.role === "superadmin" ? (
+            <ActivityFeed items={activityItems} />
+          ) : (
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle className="text-base">Recent Activity</CardTitle>
+                <CardDescription>Audit activity is visible to superadmins only.</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </div>
       </section>
     </>
   )

@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { auditLog } from "@/lib/admin-dashboard/mock-data"
+import { useAuditLog } from "@/lib/admin-dashboard/api"
 import { formatDateTime } from "@/lib/admin-dashboard/format"
 import type { AuditLogEntry } from "@/lib/admin-dashboard/types"
 
@@ -34,8 +34,10 @@ export default function AuditPage() {
   const [role, setRole] = useState("all")
   const [selected, setSelected] = useState<AuditLogEntry | null>(null)
 
+  const { entries, isLoading, error } = useAuditLog({ limit: 200 })
+
   const filtered = useMemo(() => {
-    return auditLog.filter((e) => {
+    return entries.filter((e) => {
       const q = search.trim().toLowerCase()
       const matchesSearch =
         !q ||
@@ -45,7 +47,7 @@ export default function AuditPage() {
       const matchesRole = role === "all" || e.actorRole === role
       return matchesSearch && matchesRole
     })
-  }, [search, role])
+  }, [entries, search, role])
 
   function exportCsv() {
     const csv = toCsv(filtered)
@@ -74,6 +76,11 @@ export default function AuditPage() {
 
       <RoleGuard required="superadmin">
         <div className="space-y-4">
+          {error && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              Failed to load audit log: {error.message}
+            </p>
+          )}
           <TableToolbar
             search={search}
             onSearchChange={setSearch}
@@ -145,7 +152,7 @@ export default function AuditPage() {
           </DataTableCard>
 
           <p className="text-xs text-muted-foreground">
-            Showing {filtered.length} of {auditLog.length} entries
+            {isLoading ? "Loading audit log…" : `Showing ${filtered.length} of ${entries.length} entries`}
           </p>
         </div>
       </RoleGuard>

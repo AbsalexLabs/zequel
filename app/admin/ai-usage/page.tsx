@@ -169,12 +169,6 @@ export default function AiUsagePage() {
                 cell: (r) => <span className="tabular-nums text-foreground">{formatNumber(r.tokens)}</span>,
               },
               {
-                key: "latency",
-                header: "Latency",
-                className: "text-right",
-                cell: (r) => <span className="tabular-nums text-muted-foreground">{r.latencyMs}ms</span>,
-              },
-              {
                 key: "cost",
                 header: "Cost",
                 className: "text-right",
@@ -197,7 +191,7 @@ export default function AiUsagePage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {aiUsage.length} requests
+          {isLoading ? "Loading usage…" : `Showing ${filtered.length} of ${logs.length} requests`}
         </p>
       </div>
     </>

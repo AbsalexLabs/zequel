@@ -5,15 +5,12 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill, PriorityPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import {
   TicketRowActions,
-  NewTicketDialog,
   type TicketPatch,
 } from "@/components/admin/support-manager"
-import { supportTickets as initialTickets } from "@/lib/admin-dashboard/mock-data"
+import { useSupportTickets, updateBugReportStatus } from "@/lib/admin-dashboard/api"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { SupportTicket } from "@/lib/admin-dashboard/types"
 
@@ -25,62 +22,69 @@ const CATEGORY_LABEL: Record<string, string> = {
   other: "Other",
 }
 
+// Map the UI ticket status to the bug_reports status enum the API expects.
+const TICKET_TO_BUG_STATUS: Record<string, string> = {
+  open: "open",
+  pending: "in_progress",
+  resolved: "resolved",
+  closed: "closed",
+}
+
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>(initialTickets)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [priority, setPriority] = useState("all")
-  const [inviteOpen, setInviteOpen] = useState(false)
+
+  const { tickets, isLoading, error, mutate } = useSupportTickets({ search })
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
-      const q = search.trim().toLowerCase()
-      const matchesSearch =
-        !q ||
-        t.subject.toLowerCase().includes(q) ||
-        t.user.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q)
       const matchesStatus = status === "all" || t.status === status
       const matchesPriority = priority === "all" || t.priority === priority
-      return matchesSearch && matchesStatus && matchesPriority
+      return matchesStatus && matchesPriority
     })
-  }, [tickets, search, status, priority])
+  }, [tickets, status, priority])
 
   const open = tickets.filter((t) => t.status === "open").length
   const urgent = tickets.filter((t) => t.priority === "urgent").length
   const pending = tickets.filter((t) => t.status === "pending").length
   const resolved = tickets.filter((t) => t.status === "resolved" || t.status === "closed").length
 
-  function patchTicket(id: string, patch: TicketPatch, message: string) {
-    setTickets((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t)),
-    )
-    toast.success(message)
+  async function patchTicket(id: string, patch: TicketPatch, message: string) {
+    // Only status changes are persisted (bug_reports has no priority field).
+    if (!patch.status) {
+      toast.message("Priority is presentation-only for bug reports")
+      return
+    }
+    try {
+      await updateBugReportStatus(id, TICKET_TO_BUG_STATUS[patch.status] || "open")
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
-  function replyTicket(id: string, message: string) {
-    setTickets((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, status: t.status === "open" ? "pending" : t.status, updatedAt: new Date().toISOString() }
-          : t,
-      ),
-    )
-    toast.success(message)
-  }
-
-  function createTicket(ticket: SupportTicket, message: string) {
-    setTickets((prev) => [ticket, ...prev])
-    toast.success(message)
+  async function replyTicket(id: string, message: string) {
+    // No reply transport is wired yet; advance the report to in_progress.
+    try {
+      await updateBugReportStatus(id, "in_progress")
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   return (
     <>
-      <PageHeader title="Support" description="User tickets, bug reports, and requests across the platform.">
-        <Button size="sm" onClick={() => setInviteOpen(true)}>
-          <Plus className="size-4" /> New ticket
-        </Button>
-      </PageHeader>
+      <PageHeader title="Support" description="User bug reports and requests across the platform." />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load tickets: {error.message}
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Open" value={formatNumber(open)} />
@@ -176,11 +180,9 @@ export default function SupportPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {tickets.length} tickets
+          {isLoading ? "Loading tickets…" : `Showing ${filtered.length} of ${tickets.length} tickets`}
         </p>
       </div>
-
-      <NewTicketDialog open={inviteOpen} onOpenChange={setInviteOpen} onCreate={createTicket} />
     </>
   )
 }

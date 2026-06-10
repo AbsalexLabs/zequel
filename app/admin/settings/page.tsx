@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { PageHeader, SectionHeader } from "@/components/admin/page-header"
 import { RoleGuard } from "@/components/admin/role-guard"
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
+import { useSystemSettings, saveSettings } from "@/lib/admin-dashboard/api"
+import type { SystemSettings } from "@/lib/settings/system-settings"
 
 function SettingRow({
   title,
@@ -31,51 +33,41 @@ function SettingRow({
   )
 }
 
-interface SettingsState {
-  maintenance: boolean
-  signups: boolean
-  safetyStrict: boolean
-  newModel: boolean
-  rlFree: string
-  rlPro: string
-  rlTeam: string
-  defaultModel: string
-  maxContext: string
-  piiThreshold: string
-  reviewSla: string
-}
-
-const DEFAULTS: SettingsState = {
-  maintenance: false,
-  signups: true,
-  safetyStrict: true,
-  newModel: true,
-  rlFree: "50",
-  rlPro: "2000",
-  rlTeam: "10000",
-  defaultModel: "zequel-synthesis-2",
-  maxContext: "128000",
-  piiThreshold: "0.75",
-  reviewSla: "24",
-}
-
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<SettingsState>(DEFAULTS)
-  const [saved, setSaved] = useState<SettingsState>(DEFAULTS)
+  const { settings: remote, isLoading, error, mutate } = useSystemSettings()
+  const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const dirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(saved), [settings, saved])
+  // Hydrate local editable copy once the remote settings arrive.
+  useEffect(() => {
+    if (remote && !settings) setSettings(remote)
+  }, [remote, settings])
 
-  function set<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
-    setSettings((prev) => ({ ...prev, [key]: value }))
+  const dirty = useMemo(
+    () => !!settings && !!remote && JSON.stringify(settings) !== JSON.stringify(remote),
+    [settings, remote],
+  )
+
+  function set<K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
-  function save() {
-    setSaved(settings)
-    toast.success("Settings saved")
+  async function save() {
+    if (!settings) return
+    setSaving(true)
+    try {
+      await saveSettings(settings)
+      await mutate()
+      toast.success("Settings saved")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
   }
 
   function reset() {
-    setSettings(saved)
+    if (remote) setSettings(remote)
     toast.message("Changes discarded")
   }
 
@@ -87,148 +79,208 @@ export default function SettingsPage() {
             Discard
           </Button>
         )}
-        <Button size="sm" onClick={save} disabled={!dirty}>
-          Save changes
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? "Saving…" : "Save changes"}
         </Button>
       </PageHeader>
 
       <RoleGuard required="superadmin">
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="space-y-0">
-              <SectionHeader title="Platform" description="Global availability and access" className="pb-2" />
-              <Separator />
-              <SettingRow title="Maintenance mode" description="Temporarily disable access for all non-admin users.">
-                <Switch checked={settings.maintenance} onCheckedChange={(v) => set("maintenance", v)} />
-              </SettingRow>
-              <Separator />
-              <SettingRow title="Open signups" description="Allow new users to register without an invite.">
-                <Switch checked={settings.signups} onCheckedChange={(v) => set("signups", v)} />
-              </SettingRow>
-            </CardContent>
-          </Card>
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load settings: {error.message}
+          </p>
+        )}
 
-          <Card>
-            <CardContent className="space-y-0">
-              <SectionHeader title="Rate Limits" description="Per-user request ceilings" className="pb-2" />
-              <Separator />
-              <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="rl-free" className="text-xs text-muted-foreground">
-                    Free tier (req/day)
-                  </Label>
-                  <Input
-                    id="rl-free"
-                    inputMode="numeric"
-                    value={settings.rlFree}
-                    onChange={(e) => set("rlFree", e.target.value)}
-                    className="tabular-nums"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="rl-pro" className="text-xs text-muted-foreground">
-                    Pro tier (req/day)
-                  </Label>
-                  <Input
-                    id="rl-pro"
-                    inputMode="numeric"
-                    value={settings.rlPro}
-                    onChange={(e) => set("rlPro", e.target.value)}
-                    className="tabular-nums"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="rl-team" className="text-xs text-muted-foreground">
-                    Team tier (req/day)
-                  </Label>
-                  <Input
-                    id="rl-team"
-                    inputMode="numeric"
-                    value={settings.rlTeam}
-                    onChange={(e) => set("rlTeam", e.target.value)}
-                    className="tabular-nums"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {isLoading || !settings ? (
+          <p className="text-sm text-muted-foreground">Loading settings…</p>
+        ) : (
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="space-y-0">
+                <SectionHeader title="Platform" description="Global availability and access" className="pb-2" />
+                <Separator />
+                <SettingRow title="Maintenance mode" description="Temporarily disable access for all non-admin users.">
+                  <Switch checked={settings.maintenance_mode} onCheckedChange={(v) => set("maintenance_mode", v)} />
+                </SettingRow>
+                <Separator />
+                <SettingRow title="AI enabled" description="Master switch for all AI inference across the platform.">
+                  <Switch checked={settings.ai_enabled} onCheckedChange={(v) => set("ai_enabled", v)} />
+                </SettingRow>
+                <Separator />
+                <SettingRow title="File uploads" description="Allow users to upload documents for analysis.">
+                  <Switch checked={settings.file_uploads_enabled} onCheckedChange={(v) => set("file_uploads_enabled", v)} />
+                </SettingRow>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="space-y-0">
-              <SectionHeader title="AI & Models" description="Inference defaults and rollout" className="pb-2" />
-              <Separator />
-              <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="default-model" className="text-xs text-muted-foreground">
-                    Default model
-                  </Label>
-                  <Input
-                    id="default-model"
-                    value={settings.defaultModel}
-                    onChange={(e) => set("defaultModel", e.target.value)}
-                    className="font-mono text-sm"
-                  />
+            <Card>
+              <CardContent className="space-y-0">
+                <SectionHeader title="Daily Request Limits" description="Per-user request ceilings by plan" className="pb-2" />
+                <Separator />
+                <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rl-free" className="text-xs text-muted-foreground">
+                      Free (req/day)
+                    </Label>
+                    <Input
+                      id="rl-free"
+                      inputMode="numeric"
+                      value={settings.free_daily_limit}
+                      onChange={(e) => set("free_daily_limit", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rl-lite" className="text-xs text-muted-foreground">
+                      Premium Lite (req/day)
+                    </Label>
+                    <Input
+                      id="rl-lite"
+                      inputMode="numeric"
+                      value={settings.premium_lite_daily_limit}
+                      onChange={(e) => set("premium_lite_daily_limit", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rl-pro" className="text-xs text-muted-foreground">
+                      Premium Pro (req/day)
+                    </Label>
+                    <Input
+                      id="rl-pro"
+                      inputMode="numeric"
+                      value={settings.premium_pro_daily_limit}
+                      onChange={(e) => set("premium_pro_daily_limit", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="max-context" className="text-xs text-muted-foreground">
-                    Max context (tokens)
-                  </Label>
-                  <Input
-                    id="max-context"
-                    inputMode="numeric"
-                    value={settings.maxContext}
-                    onChange={(e) => set("maxContext", e.target.value)}
-                    className="tabular-nums"
-                  />
-                </div>
-              </div>
-              <Separator />
-              <SettingRow title="New model rollout" description="Expose zequel-reason-1.5 to Team and Enterprise tiers.">
-                <Switch checked={settings.newModel} onCheckedChange={(v) => set("newModel", v)} />
-              </SettingRow>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="space-y-0">
-              <SectionHeader title="Safety" description="Moderation enforcement" className="pb-2" />
-              <Separator />
-              <SettingRow
-                title="Strict safety filtering"
-                description="Block flagged prompts automatically instead of queuing for review."
-              >
-                <Switch checked={settings.safetyStrict} onCheckedChange={(v) => set("safetyStrict", v)} />
-              </SettingRow>
-              <Separator />
-              <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="pii-threshold" className="text-xs text-muted-foreground">
-                    PII detection threshold
-                  </Label>
-                  <Input
-                    id="pii-threshold"
-                    inputMode="decimal"
-                    value={settings.piiThreshold}
-                    onChange={(e) => set("piiThreshold", e.target.value)}
-                    className="tabular-nums"
-                  />
+            <Card>
+              <CardContent className="space-y-0">
+                <SectionHeader title="Rate Limiting" description="Burst protection and throughput" className="pb-2" />
+                <Separator />
+                <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rpm" className="text-xs text-muted-foreground">
+                      Max requests / minute
+                    </Label>
+                    <Input
+                      id="rpm"
+                      inputMode="numeric"
+                      value={settings.max_requests_per_minute}
+                      onChange={(e) => set("max_requests_per_minute", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="rph" className="text-xs text-muted-foreground">
+                      Max requests / hour
+                    </Label>
+                    <Input
+                      id="rph"
+                      inputMode="numeric"
+                      value={settings.max_requests_per_hour}
+                      onChange={(e) => set("max_requests_per_hour", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="review-sla" className="text-xs text-muted-foreground">
-                    Review SLA (hours)
-                  </Label>
-                  <Input
-                    id="review-sla"
-                    inputMode="numeric"
-                    value={settings.reviewSla}
-                    onChange={(e) => set("reviewSla", e.target.value)}
-                    className="tabular-nums"
-                  />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="space-y-0">
+                <SectionHeader title="AI & Models" description="Inference defaults" className="pb-2" />
+                <Separator />
+                <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="default-model" className="text-xs text-muted-foreground">
+                      Default model
+                    </Label>
+                    <Input
+                      id="default-model"
+                      value={settings.default_model}
+                      onChange={(e) => set("default_model", e.target.value)}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="max-tokens" className="text-xs text-muted-foreground">
+                      Max tokens / request
+                    </Label>
+                    <Input
+                      id="max-tokens"
+                      inputMode="numeric"
+                      value={settings.max_tokens_per_request}
+                      onChange={(e) => set("max_tokens_per_request", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="space-y-0">
+                <SectionHeader title="File Uploads" description="Per-plan upload allowances" className="pb-2" />
+                <Separator />
+                <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="up-free" className="text-xs text-muted-foreground">
+                      Free
+                    </Label>
+                    <Input
+                      id="up-free"
+                      inputMode="numeric"
+                      value={settings.max_file_uploads_free}
+                      onChange={(e) => set("max_file_uploads_free", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="up-lite" className="text-xs text-muted-foreground">
+                      Premium Lite
+                    </Label>
+                    <Input
+                      id="up-lite"
+                      inputMode="numeric"
+                      value={settings.max_file_uploads_premium_lite}
+                      onChange={(e) => set("max_file_uploads_premium_lite", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="up-pro" className="text-xs text-muted-foreground">
+                      Premium Pro
+                    </Label>
+                    <Input
+                      id="up-pro"
+                      inputMode="numeric"
+                      value={settings.max_file_uploads_premium_pro}
+                      onChange={(e) => set("max_file_uploads_premium_pro", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="max-size" className="text-xs text-muted-foreground">
+                      Max size (MB)
+                    </Label>
+                    <Input
+                      id="max-size"
+                      inputMode="numeric"
+                      value={settings.max_file_size_mb}
+                      onChange={(e) => set("max_file_size_mb", Number(e.target.value) || 0)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </RoleGuard>
     </>
   )
