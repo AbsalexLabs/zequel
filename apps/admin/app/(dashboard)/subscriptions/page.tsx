@@ -8,11 +8,12 @@ import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { SubscriptionRowActions, type ManageResult } from "@/components/admin/subscription-manager"
 import { useAdminSession } from "@/components/admin/admin-session"
-import { useSubscriptions, patchSubscriptionPlan } from "@/lib/admin-dashboard/api"
+import { useSubscriptions, usePlanConfigs, patchSubscriptionPlan } from "@/lib/admin-dashboard/api"
 import { formatCurrency, formatDate, formatNumber } from "@/lib/admin-dashboard/format"
-import type { Subscription, SubscriptionEvent } from "@/lib/admin-dashboard/types"
+import { TIER_LABELS } from "@/lib/admin-dashboard/types"
+import type { Subscription, SubscriptionEvent, SubscriptionTier } from "@/lib/admin-dashboard/types"
 
-const TIER_LABEL: Record<string, string> = { free: "Free", premium_lite: "Premium Lite", premium_pro: "Premium Pro" }
+const TIER_LABEL = TIER_LABELS
 
 export default function SubscriptionsPage() {
   const { session } = useAdminSession()
@@ -23,9 +24,17 @@ export default function SubscriptionsPage() {
   const [status, setStatus] = useState("all")
 
   const { subscriptions: subs, isLoading, error, mutate } = useSubscriptions({ plan: tier })
+  const { plans } = usePlanConfigs()
   // Event history is recorded server-side via the audit log; per-row history
   // starts empty in this view and is populated by live admin actions.
   const [events, setEvents] = useState<SubscriptionEvent[]>([])
+
+  // Monthly price per tier, sourced from the live, admin-editable plan configs.
+  const prices = useMemo<Record<SubscriptionTier, number>>(() => {
+    const base: Record<SubscriptionTier, number> = { free: 0, premium_lite: 0, premium_pro: 0 }
+    for (const p of plans) base[p.plan] = p.price
+    return base
+  }, [plans])
 
   const filtered = useMemo(() => {
     return subs.filter((sub) => {
@@ -36,7 +45,7 @@ export default function SubscriptionsPage() {
     })
   }, [subs, search, status])
 
-  const mrr = subs.filter((s) => s.status === "active").reduce((a, s) => a + s.mrr, 0)
+  const mrr = subs.filter((s) => s.status === "active").reduce((a, s) => a + (prices[s.tier] ?? 0), 0)
   const activeSubs = subs.filter((s) => s.status === "active").length
   const pastDue = subs.filter((s) => s.status === "past_due").length
   const trialing = subs.filter((s) => s.status === "trialing").length
@@ -132,17 +141,13 @@ export default function SubscriptionsPage() {
               },
               { key: "status", header: "Status", cell: (s) => <StatusPill status={s.status} /> },
               {
-                key: "seats",
-                header: "Seats",
-                className: "text-right",
-                cell: (s) => <span className="tabular-nums text-foreground">{s.seats}</span>,
-              },
-              {
                 key: "mrr",
                 header: "MRR",
                 className: "text-right",
                 cell: (s) => (
-                  <span className="font-medium tabular-nums text-foreground">{formatCurrency(s.mrr)}</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {formatCurrency(prices[s.tier] ?? 0)}
+                  </span>
                 ),
               },
               {
@@ -160,6 +165,7 @@ export default function SubscriptionsPage() {
                     events={events.filter((e) => e.subscriptionId === s.id)}
                     canRevoke={canRevoke}
                     actor={session.name}
+                    prices={prices}
                     onApply={applyChange}
                   />
                 ),

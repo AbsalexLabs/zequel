@@ -73,42 +73,50 @@ export const FEATURES_FALLBACK: FeatureContent[] = [
 
 export const PRICING_FALLBACK: PricingPlanContent[] = [
   {
-    name: "Researcher",
+    name: "Free",
     priceMonthly: 0,
     priceYearly: 0,
-    description: "For individuals starting evidence-backed research.",
+    description: "Perfect for getting started with evidence-backed research.",
     ctaLabel: "Start free",
     highlighted: false,
-    features: ["Up to 100 documents", "Cited synthesis", "Single workspace", "Community support"],
+    features: [
+      "20 AI requests per day",
+      "3 document uploads",
+      "Basic study mode",
+      "Cited synthesis",
+      "Community support",
+    ],
   },
   {
-    name: "Professional",
-    priceMonthly: 24,
-    priceYearly: 240,
-    description: "For working researchers who need depth and speed.",
-    ctaLabel: "Start 14-day trial",
+    name: "Premium Lite",
+    priceMonthly: 2.99,
+    priceYearly: 29,
+    description: "For regular researchers who need depth and speed.",
+    ctaLabel: "Upgrade to Lite",
     highlighted: true,
     features: [
-      "Unlimited documents",
-      "Traceable reasoning trails",
-      "Priority inference",
-      "Export & API access",
+      "200 AI requests per day",
+      "30 document uploads",
+      "Advanced study mode",
+      "Research mode access",
+      "Multi-document analysis",
       "Email support",
     ],
   },
   {
-    name: "Team",
-    priceMonthly: 89,
-    priceYearly: 890,
-    description: "For teams that need governance and accountability.",
-    ctaLabel: "Talk to us",
+    name: "Premium Pro",
+    priceMonthly: 5.99,
+    priceYearly: 59,
+    description: "For power users who need the highest limits.",
+    ctaLabel: "Upgrade to Pro",
     highlighted: false,
     features: [
-      "Everything in Professional",
-      "Role-based access control",
-      "Audit logs & safety center",
-      "Shared workspaces",
-      "Dedicated support",
+      "1,000 AI requests per day",
+      "100 document uploads",
+      "Advanced+ study mode",
+      "Highest priority speed",
+      "Priority support",
+      "Early access features",
     ],
   },
 ]
@@ -117,7 +125,7 @@ export const PRICING_FAQ_FALLBACK: FaqContent[] = [
   {
     question: "Is there really a free tier?",
     answer:
-      "Yes. The Researcher plan is free forever and includes cited synthesis across up to 100 documents — no credit card required.",
+      "Yes. The Free plan is free forever and includes cited synthesis with 20 AI requests per day — no credit card required.",
     category: "pricing",
   },
   {
@@ -127,9 +135,9 @@ export const PRICING_FAQ_FALLBACK: FaqContent[] = [
     category: "pricing",
   },
   {
-    question: "How does billing work for teams?",
+    question: "What's the difference between Premium Lite and Premium Pro?",
     answer:
-      "Team plans are billed per workspace with seats included. Reach out and we will tailor a plan to your organization.",
+      "Premium Lite unlocks research mode and multi-document analysis with 200 AI requests per day. Premium Pro raises that to 1,000 requests per day with the highest priority speed and early access to new features.",
     category: "pricing",
   },
   {
