@@ -1,5 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+
+type CookieToSet = { name: string; value: string; options?: CookieOptions }
 
 export interface UpdateSessionOptions {
   /**
@@ -43,7 +45,7 @@ export async function updateSession(
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           )
@@ -68,17 +70,22 @@ export async function updateSession(
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    // if the user is not logged in and a protected path is accessed, redirect to login
-    (request.nextUrl.pathname.startsWith('/workspace') ||
-      request.nextUrl.pathname.startsWith('/settings') ||
-      request.nextUrl.pathname.startsWith('/admin')) &&
-    !user
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  const isProtected = protectedPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path),
+  )
+
+  if (isProtected && !user) {
+    // no user, redirect to the configured login destination
+    if (loginUrl.startsWith('http')) {
+      const url = new URL(loginUrl)
+      if (attachRedirectParam) {
+        url.searchParams.set('redirect', request.nextUrl.pathname)
+      }
+      return NextResponse.redirect(url)
+    }
     const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    url.pathname = loginUrl
+    if (attachRedirectParam) {
       url.searchParams.set('redirect', request.nextUrl.pathname)
     }
     return NextResponse.redirect(url)

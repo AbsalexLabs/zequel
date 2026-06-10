@@ -56,6 +56,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/ua-parser-js": "^0.7.39",
+    "@zequel/config": "workspace:^",
     "postcss": "^8.5",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",

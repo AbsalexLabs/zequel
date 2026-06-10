@@ -28,6 +28,8 @@
     "next": "16.1.6"
   },
   "devDependencies": {
+    "@types/node": "^22",
+    "@zequel/config": "workspace:^",
     "typescript": "5.7.3"
   }
 }
