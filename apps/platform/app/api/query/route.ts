@@ -159,7 +159,7 @@ export async function POST(request: Request) {
     const aiResponse = aiResult.data as { choices?: Array<{ message?: { content?: string } }> }
     const rawContent = aiResponse.choices?.[0]?.message?.content || ''
 
-    let parsed: { blocks: unknown[]; confidence_level?: string; evidence_strength?: string }
+    let parsed: { blocks: Record<string, unknown>[]; confidence_level?: string; evidence_strength?: string }
     try {
       const cleaned = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
       parsed = JSON.parse(cleaned)

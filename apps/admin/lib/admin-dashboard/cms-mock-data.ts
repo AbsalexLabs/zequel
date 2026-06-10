@@ -1,6 +1,6 @@
 import type {
   BlogPost,
-  BugReport,
+  CmsBugReport,
   ChangelogEntry,
   CmsPage,
   ContactMessage,
@@ -441,7 +441,7 @@ const BUG_TITLES = [
   "Markdown tables render misaligned",
 ]
 
-export const bugReports: BugReport[] = BUG_TITLES.map((title, i) => {
+export const bugReports: CmsBugReport[] = BUG_TITLES.map((title, i) => {
   const severities = ["low", "medium", "high", "critical"] as const
   const statuses = ["new", "triaged", "in_progress", "resolved", "wont_fix"] as const
   return {
