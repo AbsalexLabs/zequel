@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@zequel/ui/components/select"
 import { StatusPill } from "@/components/admin/status-pill"
-import { computeMrr, TIER_SEATS } from "@/lib/admin-dashboard/mock-data"
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/admin-dashboard/format"
 import type {
   Subscription,
@@ -49,8 +48,6 @@ const EVENT_META: Record<SubscriptionEventType, { label: string; icon: typeof Ba
 export interface ManageResult {
   status: Subscription["status"]
   tier: SubscriptionTier
-  mrr: number
-  seats: number
   event: Omit<SubscriptionEvent, "id" | "subscriptionId">
 }
 
@@ -59,12 +56,14 @@ export function SubscriptionRowActions({
   events,
   canRevoke,
   actor,
+  prices,
   onApply,
 }: {
   subscription: Subscription
   events: SubscriptionEvent[]
   canRevoke: boolean
   actor: string
+  prices: Record<SubscriptionTier, number>
   onApply: (subId: string, result: ManageResult) => void
 }) {
   const [manageOpen, setManageOpen] = useState(false)
@@ -87,6 +86,7 @@ export function SubscriptionRowActions({
         subscription={subscription}
         canRevoke={canRevoke}
         actor={actor}
+        prices={prices}
         onApply={onApply}
       />
       <HistoryDialog
@@ -105,6 +105,7 @@ function ManageDialog({
   subscription,
   canRevoke,
   actor,
+  prices,
   onApply,
 }: {
   open: boolean
@@ -112,6 +113,7 @@ function ManageDialog({
   subscription: Subscription
   canRevoke: boolean
   actor: string
+  prices: Record<SubscriptionTier, number>
   onApply: (subId: string, result: ManageResult) => void
 }) {
   const isRevoked = subscription.status === "canceled"
@@ -120,7 +122,7 @@ function ManageDialog({
   )
   const [note, setNote] = useState("")
 
-  const previewMrr = useMemo(() => computeMrr(tier), [tier])
+  const previewPrice = useMemo(() => prices[tier] ?? 0, [tier, prices])
   const tierChanged = tier !== subscription.tier
 
   function close() {
@@ -135,8 +137,6 @@ function ManageDialog({
     onApply(subscription.id, {
       status: "active",
       tier,
-      mrr: computeMrr(tier),
-      seats: TIER_SEATS[tier],
       event: {
         type: isGrant ? (isRevoked ? "reactivated" : "granted") : "tier_changed",
         fromTier: subscription.tier,
@@ -154,8 +154,6 @@ function ManageDialog({
     onApply(subscription.id, {
       status: "canceled",
       tier: subscription.tier,
-      mrr: 0,
-      seats: subscription.seats,
       event: {
         type: "revoked",
         fromTier: subscription.tier,
@@ -195,14 +193,13 @@ function ManageDialog({
               <SelectContent>
                 {PAID_TIERS.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {TIER_LABEL[t]} — {formatCurrency(computeMrr(t))}/mo · {TIER_SEATS[t]} seat
-                    {TIER_SEATS[t] > 1 ? "s" : ""}
+                    {TIER_LABEL[t]} — {formatCurrency(prices[t] ?? 0)}/mo
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              New MRR <span className="font-medium tabular-nums text-foreground">{formatCurrency(previewMrr)}</span>
+              New price <span className="font-medium tabular-nums text-foreground">{formatCurrency(previewPrice)}</span>/mo
               {tierChanged && (
                 <>
                   {" "}

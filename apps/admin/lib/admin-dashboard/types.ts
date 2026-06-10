@@ -45,6 +45,19 @@ export interface AdminUser {
 
 export type SubscriptionStatus = "active" | "past_due" | "canceled" | "trialing"
 
+// Editable per-plan configuration (price + feature list) managed from the
+// admin Subscriptions page. Drives the platform subscription page and will be
+// the source of truth for payments once a provider is integrated.
+export interface PlanConfig {
+  plan: SubscriptionTier
+  name: string
+  price: number
+  description: string
+  features: string[]
+  popular: boolean
+  sort_order: number
+}
+
 export interface Subscription {
   id: string
   userId: string
@@ -52,8 +65,6 @@ export interface Subscription {
   email: string
   tier: SubscriptionTier
   status: SubscriptionStatus
-  mrr: number
-  seats: number
   renewsAt: string
   startedAt: string
 }

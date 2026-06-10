@@ -261,6 +261,49 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Migration: ensure subscriptions has every column the app writes. Older installs
+-- created this table before `status`, `request_limit`, and `expires_at` existed,
+-- and the `CREATE TABLE IF NOT EXISTS` above will NOT add them to an existing
+-- table. Without this, admin and self-serve plan changes fail with errors like
+-- "Could not find the 'expires_at' column of 'subscriptions' in the schema cache".
+DO $$ BEGIN
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT 'free';
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS request_limit INTEGER DEFAULT 20;
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+END $$;
+
+-- 9b. Plan configuration table — editable pricing + feature lists for each plan.
+-- These power the platform's subscription page and will be the source of truth
+-- when a payment provider is integrated. The admin Subscriptions page edits them.
+-- (The website's marketing pricing is managed separately via the CMS.)
+CREATE TABLE IF NOT EXISTS public.plan_configs (
+  plan TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  description TEXT DEFAULT '',
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  popular BOOLEAN NOT NULL DEFAULT FALSE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+-- Seed default plan configs (left untouched if rows already exist).
+INSERT INTO public.plan_configs (plan, name, price, description, features, popular, sort_order) VALUES
+  ('free', 'Free', 0, 'Perfect for getting started',
+    '["20 AI requests per day","3 document uploads","Basic study mode","Standard response speed","Community support","Limited workspace history"]'::jsonb,
+    FALSE, 0),
+  ('premium_lite', 'Premium Lite', 2.99, 'For regular researchers',
+    '["200 AI requests per day","30 document uploads","Advanced study mode","Research mode access","Multi-document analysis","Priority response speed","Email support","Extended file size (50MB)","Citation export","Full workspace history","Advanced research tools"]'::jsonb,
+    TRUE, 1),
+  ('premium_pro', 'Premium Pro', 5.99, 'For power users',
+    '["1,000 AI requests per day","100 document uploads","Advanced+ study mode","Research mode access","Multi-document analysis","Highest priority speed","Priority support","Extended file size (100MB)","Citation export","Full workspace history","Advanced research tools","Early access features"]'::jsonb,
+    FALSE, 2)
+ON CONFLICT (plan) DO NOTHING;
+
 -- 10. Rate limit violations table
 CREATE TABLE IF NOT EXISTS public.rate_limit_violations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -523,6 +566,12 @@ DROP POLICY IF EXISTS "subscriptions_insert_own" ON public.subscriptions;
 CREATE POLICY "subscriptions_select_own" ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "subscriptions_insert_own" ON public.subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- RLS Policies for plan_configs (publicly readable so the platform & website
+-- can render current pricing; writes happen only through the admin service client).
+ALTER TABLE public.plan_configs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "plan_configs_public_select" ON public.plan_configs;
+CREATE POLICY "plan_configs_public_select" ON public.plan_configs FOR SELECT USING (true);
+
 -- RLS Policies for user_sessions
 DROP POLICY IF EXISTS "user_sessions_select_own" ON public.user_sessions;
 DROP POLICY IF EXISTS "user_sessions_update_own" ON public.user_sessions;
@@ -562,6 +611,12 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- Force PostgREST (Supabase's API layer) to reload its cached schema.
+-- Newly added columns like subscriptions.expires_at exist in Postgres immediately,
+-- but the API keeps reporting "Could not find the 'expires_at' column ... in the
+-- schema cache" until PostgREST is told to reload. This makes reruns self-healing.
+NOTIFY pgrst, 'reload schema';
 
 -- Storage bucket setup (run these separately in Supabase Dashboard > Storage)
 -- Create buckets: 'documents' and 'avatars'

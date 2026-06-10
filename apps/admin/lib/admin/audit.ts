@@ -3,7 +3,7 @@ import { createServiceClient } from '@zequel/shared/supabase/service'
 export interface AuditLogEntry {
   admin_id: string
   action: string
-  target_type: 'user' | 'subscription' | 'setting' | 'system'
+  target_type: 'user' | 'subscription' | 'setting' | 'system' | 'plan'
   target_id?: string
   details?: Record<string, unknown>
 }
