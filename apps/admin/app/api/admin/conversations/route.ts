@@ -1,7 +1,7 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
-import { getEmailsForUserIds } from '@/lib/admin/emails'
+import { getUserIdentities } from '@/lib/admin/emails'
 
 const VALID_STATUSES = ['active', 'archived', 'flagged']
 
@@ -21,6 +21,9 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
 
+  // `conversations.user_id` references `auth.users`, not `public.profiles`, so
+  // we can't embed a `profiles:user_id` join. Select raw rows and resolve
+  // owner identities separately.
   let query = supabase
     .from('conversations')
     .select(
@@ -31,8 +34,7 @@ export async function GET(request: Request) {
       status,
       document_id,
       created_at,
-      updated_at,
-      profiles:user_id ( full_name )
+      updated_at
     `,
       { count: 'exact' }
     )
@@ -72,19 +74,18 @@ export async function GET(request: Request) {
     })
   }
 
-  // Resolve owner emails from auth.users (profiles has no email column).
-  const emailMap = await getEmailsForUserIds(
+  // Resolve owner name + email from profiles/auth.users.
+  const identities = await getUserIdentities(
     supabase,
     (conversations || []).map((c) => c.user_id),
   )
 
   const enriched = (conversations || []).map((c) => {
-    const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles
-    const email = emailMap.get(c.user_id) || ''
+    const identity = identities.get(c.user_id)
     return {
       id: c.id,
       title: c.title,
-      user: profile?.full_name || email || 'Unknown',
+      user: identity?.full_name || identity?.email || 'Unknown',
       messages: messageCounts.get(c.id) || 0,
       documents: c.document_id ? 1 : 0,
       tokens: tokenEstimates.get(c.id) || 0,

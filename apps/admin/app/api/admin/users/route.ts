@@ -1,6 +1,8 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
-import { getEmailsForUserIds } from '@/lib/admin/emails'
+import { getEmailsForUserIds, findUserIdsByEmail } from '@/lib/admin/emails'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()
@@ -17,8 +19,9 @@ export async function GET(request: Request) {
   const supabase = createServiceClient()
 
   // NOTE: emails live in `auth.users`, not in `public.profiles`, so we never
-  // select or filter `profiles.email` directly. We resolve emails separately
-  // via the service-role auth admin API below.
+  // select or filter `profiles.email` directly. To support searching by email
+  // (and id), we resolve matching auth user ids first, then OR them together
+  // with a name match against profiles.
   let query = supabase
     .from('profiles')
     .select(`
@@ -33,7 +36,21 @@ export async function GET(request: Request) {
     .range(offset, offset + limit - 1)
 
   if (search) {
-    query = query.ilike('full_name', `%${search}%`)
+    const term = search.trim()
+    const orFilters: string[] = [`full_name.ilike.%${term}%`]
+
+    // Exact id match when the search term looks like a UUID.
+    if (UUID_RE.test(term)) {
+      orFilters.push(`id.eq.${term}`)
+    }
+
+    // Resolve auth user ids whose email matches the term and include them.
+    const emailMatchIds = await findUserIdsByEmail(supabase, term)
+    if (emailMatchIds.length > 0) {
+      orFilters.push(`id.in.(${emailMatchIds.join(',')})`)
+    }
+
+    query = query.or(orFilters.join(','))
   }
 
   const { data: users, count, error: queryError } = await query

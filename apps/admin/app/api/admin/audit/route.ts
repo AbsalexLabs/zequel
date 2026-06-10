@@ -1,6 +1,6 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
-import { getEmailsForUserIds } from '@/lib/admin/emails'
+import { getUserIdentities } from '@/lib/admin/emails'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()
@@ -22,16 +22,12 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
 
-  // `profiles` has no email column (emails live in auth.users); join the admin
-  // profile name only and resolve emails separately below.
+  // The `admin_audit_logs.admin_id` FK references `auth.users`, not
+  // `public.profiles`, so PostgREST can't embed an `admin:admin_id` join.
+  // Select raw rows and resolve identities separately.
   let query = supabase
     .from('admin_audit_logs')
-    .select(`
-      *,
-      admin:admin_id (
-        full_name
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -48,20 +44,23 @@ export async function GET(request: Request) {
     return adminError(queryError.message, 500)
   }
 
-  // Resolve emails from auth.users and merge into each admin object so the
-  // client mapper (which reads `row.admin.email`) keeps working.
-  const emailMap = await getEmailsForUserIds(
+  // Resolve admin name + email from profiles/auth.users and expose them under
+  // an `admin` key so the client mapper keeps working unchanged.
+  const identities = await getUserIdentities(
     supabase,
     logs?.map((l) => l.admin_id) || [],
   )
 
-  const enrichedLogs = logs?.map((l) => ({
-    ...l,
-    admin: {
-      ...(l.admin || {}),
-      email: emailMap.get(l.admin_id) || '',
-    },
-  }))
+  const enrichedLogs = logs?.map((l) => {
+    const identity = identities.get(l.admin_id)
+    return {
+      ...l,
+      admin: {
+        full_name: identity?.full_name || null,
+        email: identity?.email || '',
+      },
+    }
+  })
 
   return adminResponse({
     logs: enrichedLogs,
