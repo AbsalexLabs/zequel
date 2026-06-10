@@ -1,0 +1,6 @@
+/* Zequel Website — inherits the shared design system from @zequel/ui */
+@import "@zequel/ui/globals.css";
+
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../components/**/*.{ts,tsx}";
+@source "../app/**/*.{ts,tsx}";
