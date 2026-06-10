@@ -3,7 +3,9 @@ import { Resend } from 'resend'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { generateOtp, otpEmailHtml } from '@/lib/otp'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,8 +56,12 @@ export async function POST(request: NextRequest) {
       delete_account: 'Confirm your Zequel account deletion',
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: 'Email service is not configured' }, { status: 500 })
+    }
+
     // Send via Resend
-    const { error: sendError } = await resend.emails.send({
+    const { error: sendError } = await getResend().emails.send({
       from: 'Zequel <noreply@zequel.xyz>',
       to: email,
       subject: subjectMap[purpose] || 'Your Zequel verification code',
