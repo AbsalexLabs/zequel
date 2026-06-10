@@ -44,8 +44,6 @@ export default function UsersPage() {
     try {
       if (patch.role) {
         await apiPatchUser(id, "update_role", { role: patch.role })
-      } else if (patch.tier) {
-        await apiPatchUser(id, "update_subscription", { plan: patch.tier })
       } else if (patch.status === "suspended") {
         await apiPatchUser(id, "suspend")
       } else if (patch.status === "active") {
@@ -84,11 +82,11 @@ export default function UsersPage() {
           filters={[
             {
               id: "tier",
-              label: "Tier",
+              label: "Plan",
               value: tier,
               onChange: setTier,
               options: [
-                { label: "All tiers", value: "all" },
+                { label: "All plans", value: "all" },
                 { label: "Free", value: "free" },
                 { label: "Premium Lite", value: "premium_lite" },
                 { label: "Premium Pro", value: "premium_pro" },
@@ -157,7 +155,7 @@ export default function UsersPage() {
               },
               {
                 key: "tier",
-                header: "Tier",
+                header: "Plan",
                 cell: (u) => <span className="text-sm text-foreground">{TIER_LABEL[u.tier]}</span>,
               },
               { key: "status", header: "Status", cell: (u) => <StatusPill status={u.status} /> },
