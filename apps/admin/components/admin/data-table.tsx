@@ -1,16 +1,16 @@
 "use client"
 
 import { Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+import { Input } from "@zequel/ui/components/input"
+import { Card } from "@zequel/ui/components/card"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table"
+} from "@zequel/ui/components/select"
+import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@zequel/ui/components/table"
 import { cn } from "@/lib/utils"
 
 export interface FilterConfig {

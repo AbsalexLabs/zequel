@@ -1,7 +1,7 @@
 "use client"
 
 import { Lock } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Card } from "@zequel/ui/components/card"
 import { canAccess } from "@/lib/admin-dashboard/navigation"
 import { useAdminSession } from "./admin-session"
 import type { AdminRole } from "@/lib/admin-dashboard/types"

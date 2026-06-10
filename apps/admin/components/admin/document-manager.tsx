@@ -20,24 +20,24 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+} from "@zequel/ui/components/dropdown-menu"
+import { Button } from "@zequel/ui/components/button"
+import { Label } from "@zequel/ui/components/label"
+import { Input } from "@zequel/ui/components/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@zequel/ui/components/select"
 import { StatusPill } from "@/components/admin/status-pill"
 import { formatDate, formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { DocumentRecord } from "@/lib/admin-dashboard/types"

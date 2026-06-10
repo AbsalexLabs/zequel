@@ -46,7 +46,7 @@ export function CmsSubnav() {
         {CMS_NAV.map((item) => {
           const Icon = ICONS[item.icon] ?? LayoutDashboard
           const active =
-            item.href === "/admin/cms" ? pathname === "/admin/cms" : pathname.startsWith(item.href)
+            item.href === "/cms" ? pathname === "/cms" : pathname.startsWith(item.href)
           return (
             <li key={item.href}>
               <Link

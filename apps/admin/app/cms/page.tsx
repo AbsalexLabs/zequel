@@ -17,8 +17,8 @@ import {
 } from "lucide-react"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card } from "@zequel/ui/components/card"
+import { Button } from "@zequel/ui/components/button"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import {
@@ -35,14 +35,14 @@ import {
 } from "@/lib/admin-dashboard/cms-mock-data"
 
 const QUICK_LINKS = [
-  { label: "Pages", href: "/admin/cms/pages", icon: Files, count: cmsPages.length },
-  { label: "Features", href: "/admin/cms/features", icon: Sparkles, count: featureItems.length },
-  { label: "Pricing", href: "/admin/cms/pricing", icon: Tags, count: pricingPlans.length },
-  { label: "Documentation", href: "/admin/cms/docs", icon: BookOpen, count: docArticles.length },
-  { label: "Blog", href: "/admin/cms/blog", icon: Newspaper, count: blogPosts.length },
-  { label: "FAQ", href: "/admin/cms/faq", icon: HelpCircle, count: faqItems.length },
-  { label: "Media Library", href: "/admin/cms/media", icon: ImageIcon, count: mediaAssets.length },
-  { label: "Changelog", href: "/admin/cms/changelog", icon: GitCommitVertical, count: 5 },
+  { label: "Pages", href: "/cms/pages", icon: Files, count: cmsPages.length },
+  { label: "Features", href: "/cms/features", icon: Sparkles, count: featureItems.length },
+  { label: "Pricing", href: "/cms/pricing", icon: Tags, count: pricingPlans.length },
+  { label: "Documentation", href: "/cms/docs", icon: BookOpen, count: docArticles.length },
+  { label: "Blog", href: "/cms/blog", icon: Newspaper, count: blogPosts.length },
+  { label: "FAQ", href: "/cms/faq", icon: HelpCircle, count: faqItems.length },
+  { label: "Media Library", href: "/cms/media", icon: ImageIcon, count: mediaAssets.length },
+  { label: "Changelog", href: "/cms/changelog", icon: GitCommitVertical, count: 5 },
 ]
 
 export default function CmsOverviewPage() {
@@ -111,7 +111,7 @@ export default function CmsOverviewPage() {
             {recent.map((page) => (
               <Link
                 key={page.id}
-                href="/admin/cms/pages"
+                href="/cms/pages"
                 className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-secondary/40"
               >
                 <div className="min-w-0">
@@ -132,9 +132,9 @@ export default function CmsOverviewPage() {
               <span className="text-sm font-medium text-foreground">Inbox</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <InboxStat label="Messages" value={newMessages} href="/admin/cms/contact" icon={Mail} />
-              <InboxStat label="Requests" value={openRequests} href="/admin/cms/feature-requests" icon={Lightbulb} />
-              <InboxStat label="Bugs" value={openBugs} href="/admin/cms/bug-reports" icon={Bug} />
+              <InboxStat label="Messages" value={newMessages} href="/cms/contact" icon={Mail} />
+              <InboxStat label="Requests" value={openRequests} href="/cms/feature-requests" icon={Lightbulb} />
+              <InboxStat label="Bugs" value={openBugs} href="/cms/bug-reports" icon={Bug} />
             </div>
           </Card>
         </div>

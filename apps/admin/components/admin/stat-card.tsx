@@ -1,5 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react"
-import { Card } from "@/components/ui/card"
+import { Card } from "@zequel/ui/components/card"
 import { cn } from "@/lib/utils"
 import { formatPercent } from "@/lib/admin-dashboard/format"
 

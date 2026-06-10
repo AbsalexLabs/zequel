@@ -54,7 +54,7 @@ export function AdminSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <ul className="space-y-0.5">
           {items.map((item) => {
             const Icon = ICONS[item.icon] ?? LayoutDashboard
-            const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href)
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
             return (
               <li key={item.href}>
                 <Link

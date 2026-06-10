@@ -11,7 +11,7 @@ import type {
   HeroSection,
   MediaAsset,
   PricingPlan,
-} from "./cms-types"
+} from '@zequel/types'
 
 // ---------------------------------------------------------------------------
 // Deterministic mock content for the Website CMS. Presentation-only.

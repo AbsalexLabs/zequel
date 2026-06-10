@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyAdmin } from '@/lib/admin/auth'
-import { createServiceClient } from '@/lib/supabase/service'
-import { getTopUsersByVolume } from '@/lib/security/advanced-rate-limit'
+import { createServiceClient } from '@zequel/shared/supabase/service'
+import { getTopUsersByVolume } from '@zequel/shared/security/advanced-rate-limit'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()

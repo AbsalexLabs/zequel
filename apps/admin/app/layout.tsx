@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { AdminSessionProvider } from "@/components/admin/admin-session"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminTopbar } from "@/components/admin/admin-topbar"
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@zequel/ui/components/sonner"
 import { verifyAdmin } from "@/lib/admin/auth"
 
 export const metadata: Metadata = {

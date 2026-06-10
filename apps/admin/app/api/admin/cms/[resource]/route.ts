@@ -1,12 +1,12 @@
 import { verifyAdmin, adminResponse, adminError } from "@/lib/admin/auth"
-import { createServiceClient } from "@/lib/supabase/service"
+import { createServiceClient } from "@zequel/shared/supabase/service"
 import {
   getCmsResource,
   cmsSelectColumns,
   cmsRowToModel,
   cmsModelToRow,
   type CmsResourceConfig,
-} from "@/lib/admin-dashboard/cms-schema"
+} from "@zequel/types"
 
 type Ctx = { params: Promise<{ resource: string }> }
 

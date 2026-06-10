@@ -4,10 +4,10 @@ import { Menu, Search, Moon, Sun, ShieldCheck, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
+import { createClient } from "@zequel/shared/supabase/client"
+import { Button } from "@zequel/ui/components/button"
+import { Input } from "@zequel/ui/components/input"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@zequel/ui/components/sheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@zequel/ui/components/dropdown-menu"
 import { AdminSidebar } from "./admin-sidebar"
 import { useAdminSession } from "./admin-session"
 

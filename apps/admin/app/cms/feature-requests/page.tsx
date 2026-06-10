@@ -6,8 +6,8 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@zequel/ui/components/button"
+import { Badge } from "@zequel/ui/components/badge"
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,10 +25,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@zequel/ui/components/dropdown-menu"
 import { formatNumber, relativeTime, formatDateTime } from "@/lib/admin-dashboard/format"
 import { useCmsList, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
-import type { FeatureRequest, RequestStatus } from "@/lib/admin-dashboard/cms-types"
+import type { FeatureRequest, RequestStatus } from "@zequel/types"
 
 const RESOURCE = "feature-requests"
 

@@ -6,8 +6,8 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { TableToolbar, DataTable, DataTableCard } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Button } from "@zequel/ui/components/button"
+import { Badge } from "@zequel/ui/components/badge"
 import {
   Dialog,
   DialogContent,
@@ -15,12 +15,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@zequel/ui/components/dialog"
+import { Input } from "@zequel/ui/components/input"
+import { Label } from "@zequel/ui/components/label"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import { mediaAssets as initialAssets } from "@/lib/admin-dashboard/cms-mock-data"
-import type { MediaAsset, MediaType } from "@/lib/admin-dashboard/cms-types"
+import type { MediaAsset, MediaType } from "@zequel/types"
 
 const TYPE_META: Record<MediaType, { label: string; icon: typeof ImageIcon; className: string }> = {
   image: { label: "Image", icon: ImageIcon, className: "text-sky-600 dark:text-sky-400" },

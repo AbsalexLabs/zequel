@@ -19,7 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
+} from "@zequel/ui/components/chart"
 import type { TimeSeriesPoint } from "@/lib/admin-dashboard/types"
 
 function shortDate(iso: string) {

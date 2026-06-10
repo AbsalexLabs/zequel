@@ -2,14 +2,14 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
+import { Button } from "@zequel/ui/components/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@zequel/ui/components/select"
 
 const RANGE_LABEL: Record<string, string> = {
   "7d": "Last 7 days",

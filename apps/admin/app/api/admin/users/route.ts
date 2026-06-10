@@ -1,5 +1,5 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()

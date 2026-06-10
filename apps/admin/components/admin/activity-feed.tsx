@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card"
+import { Card } from "@zequel/ui/components/card"
 import { relativeTime } from "@/lib/admin-dashboard/format"
 
 interface ActivityItem {

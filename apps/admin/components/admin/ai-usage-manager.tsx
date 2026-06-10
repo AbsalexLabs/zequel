@@ -9,14 +9,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+} from "@zequel/ui/components/dropdown-menu"
+import { Button } from "@zequel/ui/components/button"
 import { StatusPill } from "@/components/admin/status-pill"
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/admin-dashboard/format"
 import type { AiUsageRecord } from "@/lib/admin-dashboard/types"

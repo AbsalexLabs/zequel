@@ -1,7 +1,7 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
-import { clearSettingsCache, type SystemSettings } from '@/lib/settings/system-settings'
+import { clearSettingsCache, type SystemSettings } from '@zequel/shared/settings/system-settings'
 
 // Default settings structure
 const DEFAULT_SETTINGS: SystemSettings = {

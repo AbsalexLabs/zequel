@@ -5,11 +5,11 @@ import { Pencil, Send, PanelTop } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Card } from "@zequel/ui/components/card"
+import { Button } from "@zequel/ui/components/button"
+import { Input } from "@zequel/ui/components/input"
+import { Label } from "@zequel/ui/components/label"
+import { Textarea } from "@zequel/ui/components/textarea"
 import {
   Dialog,
   DialogContent,
@@ -17,10 +17,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import { relativeTime } from "@/lib/admin-dashboard/format"
 import { useCmsList, updateCmsItem } from "@/lib/admin-dashboard/cms-api"
-import type { HeroSection } from "@/lib/admin-dashboard/cms-types"
+import type { HeroSection } from "@zequel/types"
 
 const RESOURCE = "hero"
 

@@ -372,7 +372,7 @@ interface SafetyResponse {
 }
 
 interface SettingsResponse {
-  settings: import("@/lib/settings/system-settings").SystemSettings
+  settings: import("@zequel/shared/settings/system-settings").SystemSettings
 }
 
 // --- Hooks -----------------------------------------------------------------
@@ -579,7 +579,7 @@ export async function updateBugReportStatus(id: string, status: string): Promise
 }
 
 export async function saveSettings(
-  settings: Partial<import("@/lib/settings/system-settings").SystemSettings>,
+  settings: Partial<import("@zequel/shared/settings/system-settings").SystemSettings>,
 ): Promise<void> {
   const res = await fetch("/api/admin/settings", {
     method: "PUT",

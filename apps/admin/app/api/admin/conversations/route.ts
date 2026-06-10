@@ -1,5 +1,5 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
 
 const VALID_STATUSES = ['active', 'archived', 'flagged']

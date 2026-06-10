@@ -17,17 +17,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@zequel/ui/components/dropdown-menu"
+import { Button } from "@zequel/ui/components/button"
+import { Label } from "@zequel/ui/components/label"
+import { Textarea } from "@zequel/ui/components/textarea"
 import { StatusPill, SeverityPill } from "@/components/admin/status-pill"
 import { formatDateTime, relativeTime } from "@/lib/admin-dashboard/format"
 import type { SafetyEvent } from "@/lib/admin-dashboard/types"

@@ -1,7 +1,7 @@
 "use client"
 
 import { Users, Activity, Cpu, AlertTriangle } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@zequel/ui/components/card"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { ActivityFeed } from "@/components/admin/activity-feed"

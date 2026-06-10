@@ -6,7 +6,7 @@ import { ScrollText, Clock, Globe, ShieldCheck } from "lucide-react"
 import { PageHeader } from "@/components/admin/page-header"
 import { RoleGuard } from "@/components/admin/role-guard"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
+import { Button } from "@zequel/ui/components/button"
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import { useAuditLog } from "@/lib/admin-dashboard/api"
 import { formatDateTime } from "@/lib/admin-dashboard/format"
 import type { AuditLogEntry } from "@/lib/admin-dashboard/types"

@@ -7,9 +7,9 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@zequel/ui/components/button"
+import { Input } from "@zequel/ui/components/input"
+import { Label } from "@zequel/ui/components/label"
 import {
   Dialog,
   DialogContent,
@@ -17,18 +17,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+} from "@zequel/ui/components/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@zequel/ui/components/select"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
-import type { DocArticle, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+import type { DocArticle, PublishStatus } from "@zequel/types"
 
 const RESOURCE = "docs"
 

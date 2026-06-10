@@ -5,13 +5,13 @@ import { Plus, Pencil, Send, Trash2, Check, Star, X } from "lucide-react"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/admin/page-header"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
+import { Card } from "@zequel/ui/components/card"
+import { Button } from "@zequel/ui/components/button"
+import { Input } from "@zequel/ui/components/input"
+import { Label } from "@zequel/ui/components/label"
+import { Textarea } from "@zequel/ui/components/textarea"
+import { Switch } from "@zequel/ui/components/switch"
+import { Separator } from "@zequel/ui/components/separator"
 import {
   Dialog,
   DialogContent,
@@ -19,17 +19,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@zequel/ui/components/dialog"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@zequel/ui/components/select"
 import { formatCurrency } from "@/lib/admin-dashboard/format"
 import { useCmsList, createCmsItem, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
-import type { PricingPlan, PublishStatus } from "@/lib/admin-dashboard/cms-types"
+import type { PricingPlan, PublishStatus } from "@zequel/types"
 
 const RESOURCE = "pricing"
 

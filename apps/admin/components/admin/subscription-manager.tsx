@@ -9,17 +9,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@zequel/ui/components/dialog"
+import { Button } from "@zequel/ui/components/button"
+import { Label } from "@zequel/ui/components/label"
+import { Textarea } from "@zequel/ui/components/textarea"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@zequel/ui/components/select"
 import { StatusPill } from "@/components/admin/status-pill"
 import { computeMrr, TIER_SEATS } from "@/lib/admin-dashboard/mock-data"
 import { formatCurrency, formatDateTime, relativeTime } from "@/lib/admin-dashboard/format"
