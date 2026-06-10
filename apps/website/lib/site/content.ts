@@ -5,7 +5,7 @@ import {
   cmsRowToModel,
   cmsSelectColumns,
   type CmsModel,
-} from "@zequel/types"
+} from "@zequel/types/cms-schema"
 
 // ---------------------------------------------------------------------------
 // Public site content layer.

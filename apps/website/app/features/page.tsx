@@ -17,7 +17,7 @@ const PILLARS = [
     label: 'Evidence',
     title: 'Answers grounded in your sources',
     body: 'Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.',
-    src: '/site/product-overview.png',
+    src: '/product-overview.png',
     url: 'zequel.xyz/workspace',
     points: [
       { icon: FileSearch, text: 'Ingest PDFs, papers, and notes at scale' },
@@ -29,7 +29,7 @@ const PILLARS = [
     label: 'Traceability',
     title: 'Reasoning you can follow end to end',
     body: 'Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.',
-    src: '/site/product-charts.png',
+    src: '/product-charts.png',
     url: 'zequel.xyz/workspace/overview',
     points: [
       { icon: GitBranch, text: 'Step-by-step reasoning trails' },
@@ -41,7 +41,7 @@ const PILLARS = [
     label: 'Governance',
     title: 'Accountable by design',
     body: 'Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.',
-    src: '/site/product-safety.png',
+    src: '/product-safety.png',
     url: 'zequel.xyz/workspace/safety',
     points: [
       { icon: ShieldCheck, text: 'Automated safety and policy flags' },

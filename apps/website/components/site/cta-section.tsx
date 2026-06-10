@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { ZequelIcon } from '@zequel/ui/components/zequel-icon'
+import { AUTH_LINKS } from "@/lib/site/links"
 
 export function CtaSection() {
   return (
@@ -26,14 +27,14 @@ export function CtaSection() {
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
             <Link
-              href="/auth/sign-up"
+              href={AUTH_LINKS.signup}
               className="group inline-flex h-11 items-center gap-2 rounded-md bg-background px-6 font-mono text-xs tracking-[0.12em] text-foreground uppercase transition-opacity hover:opacity-90"
             >
               Get started free
               <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href="/site/contact"
+              href="/contact"
               className="inline-flex h-11 items-center rounded-md border border-primary-foreground/25 px-6 font-mono text-xs tracking-[0.12em] text-primary-foreground uppercase transition-colors hover:bg-primary-foreground/10"
             >
               Talk to us

@@ -7,13 +7,14 @@ import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ZequelMark } from '@/components/site/zequel-mark'
 import { ThemeToggle } from '@zequel/ui/components/theme-toggle'
+import { AUTH_LINKS } from "@/lib/site/links"
 
 const NAV_LINKS = [
-  { href: '/site/features', label: 'Features' },
-  { href: '/site/pricing', label: 'Pricing' },
-  { href: '/site/docs', label: 'Docs' },
-  { href: '/site/blog', label: 'Blog' },
-  { href: '/site/about', label: 'About' },
+  { href: '/features', label: 'Features' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/about', label: 'About' },
 ]
 
 export function SiteNav() {
@@ -40,7 +41,7 @@ export function SiteNav() {
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/site" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center gap-2.5">
           <ZequelMark size={24} className="text-foreground" />
           <span className="font-mono text-sm font-semibold tracking-[0.2em] text-foreground uppercase">Zequel</span>
         </Link>
@@ -63,13 +64,13 @@ export function SiteNav() {
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
           <Link
-            href="/auth/login"
+            href={AUTH_LINKS.login}
             className="font-mono text-xs tracking-[0.1em] text-muted-foreground uppercase transition-colors hover:text-foreground"
           >
             Sign in
           </Link>
           <Link
-            href="/auth/sign-up"
+            href={AUTH_LINKS.signup}
             className="inline-flex h-9 items-center rounded-md bg-primary px-4 font-mono text-xs tracking-[0.1em] text-primary-foreground uppercase transition-opacity hover:opacity-90"
           >
             Get started
@@ -108,13 +109,13 @@ export function SiteNav() {
             ))}
             <div className="flex flex-col gap-2 py-4">
               <Link
-                href="/auth/login"
+                href={AUTH_LINKS.login}
                 className="inline-flex h-10 items-center justify-center rounded-md border border-border font-mono text-xs tracking-[0.1em] uppercase"
               >
                 Sign in
               </Link>
               <Link
-                href="/auth/sign-up"
+                href={AUTH_LINKS.signup}
                 className="inline-flex h-10 items-center justify-center rounded-md bg-primary font-mono text-xs tracking-[0.1em] text-primary-foreground uppercase"
               >
                 Get started

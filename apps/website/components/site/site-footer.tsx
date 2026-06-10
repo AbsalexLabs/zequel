@@ -28,26 +28,26 @@ const FOOTER_COLUMNS = [
   {
     title: 'Product',
     links: [
-      { href: '/site/features', label: 'Features' },
-      { href: '/site/pricing', label: 'Pricing' },
-      { href: '/site/docs', label: 'Documentation' },
+      { href: '/features', label: 'Features' },
+      { href: '/pricing', label: 'Pricing' },
+      { href: '/docs', label: 'Documentation' },
       { href: '/workspace', label: 'Open workspace' },
     ],
   },
   {
     title: 'Company',
     links: [
-      { href: '/site/about', label: 'About' },
-      { href: '/site/blog', label: 'Blog' },
-      { href: '/site/contact', label: 'Contact' },
+      { href: '/about', label: 'About' },
+      { href: '/blog', label: 'Blog' },
+      { href: '/contact', label: 'Contact' },
     ],
   },
   {
     title: 'Resources',
     links: [
-      { href: '/site/docs', label: 'Getting started' },
-      { href: '/site/docs', label: 'API reference' },
-      { href: '/site/blog', label: 'Changelog' },
+      { href: '/docs', label: 'Getting started' },
+      { href: '/docs', label: 'API reference' },
+      { href: '/blog', label: 'Changelog' },
     ],
   },
 ]
@@ -58,7 +58,7 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-10 md:grid-cols-5">
           <div className="col-span-2 flex flex-col gap-4">
-            <Link href="/site" className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5">
               <ZequelMark size={24} className="text-foreground" />
               <span className="font-mono text-sm font-semibold tracking-[0.2em] text-foreground uppercase">Zequel</span>
             </Link>
@@ -111,10 +111,10 @@ export function SiteFooter() {
             &copy; {new Date().getFullYear()} Zequel — All rights reserved
           </p>
           <div className="flex items-center gap-6">
-            <Link href="/site/legal/privacy" className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:text-foreground">
+            <Link href="/legal/privacy" className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:text-foreground">
               Privacy
             </Link>
-            <Link href="/site/legal/terms" className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:text-foreground">
+            <Link href="/legal/terms" className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase transition-colors hover:text-foreground">
               Terms
             </Link>
             <span className="flex items-center gap-2 font-mono text-[11px] tracking-[0.12em] text-muted-foreground uppercase">

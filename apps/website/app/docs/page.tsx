@@ -77,7 +77,7 @@ export default async function DocsPage() {
                     {s.links.map((l) => (
                       <li key={l.slug}>
                         <Link
-                          href={`/site/docs/${l.slug}`}
+                          href={`/docs/${l.slug}`}
                           className="group flex items-center justify-between py-2 text-sm text-foreground/80 transition-colors hover:text-foreground"
                         >
                           {l.title}
@@ -106,7 +106,7 @@ export default async function DocsPage() {
             </p>
           </div>
           <Link
-            href="/site/contact"
+            href="/contact"
             className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md bg-foreground px-6 font-mono text-xs uppercase tracking-wider text-background transition-opacity hover:opacity-90"
           >
             Contact support

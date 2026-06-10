@@ -45,7 +45,7 @@ export default async function BlogPage() {
           <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
             <SectionLabel>Featured</SectionLabel>
             <Link
-              href={`/site/blog/${featured.slug}`}
+              href={`/blog/${featured.slug}`}
               className="group mt-6 grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-2"
             >
               <div className="flex flex-col justify-between bg-background p-8 md:p-10">
@@ -95,7 +95,7 @@ export default async function BlogPage() {
               {rest.map((p) => (
                 <Link
                   key={p.slug}
-                  href={`/site/blog/${p.slug}`}
+                  href={`/blog/${p.slug}`}
                   className="group flex flex-col gap-4 bg-background p-7 transition-colors hover:bg-muted/40"
                 >
                   <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">

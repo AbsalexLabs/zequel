@@ -1,4 +1,5 @@
 import type {
+import { AUTH_LINKS } from "@/lib/site/links"
   HeroContent,
   FeatureContent,
   PricingPlanContent,
@@ -20,9 +21,9 @@ export const HOME_HERO_FALLBACK: HeroContent = {
   subhead:
     "Zequel is a structured research workspace that turns scattered documents into evidence-backed answers — every claim sourced, every synthesis traceable, every step accountable.",
   primaryCtaLabel: "Start researching",
-  primaryCtaHref: "/auth/sign-up",
+  primaryCtaHref: AUTH_LINKS.signup,
   secondaryCtaLabel: "Explore features",
-  secondaryCtaHref: "/site/features",
+  secondaryCtaHref: "/features",
 }
 
 export const FEATURES_FALLBACK: FeatureContent[] = [

@@ -6,6 +6,7 @@ import { SectionLabel } from '@/components/site/section-label'
 import { cn } from '@/lib/utils'
 import { getPricingPlans, getFaq } from '@/lib/site/content'
 import { PRICING_FALLBACK, PRICING_FAQ_FALLBACK } from '@/lib/site/fallbacks'
+import { AUTH_LINKS } from '@/lib/site/links'
 
 export const metadata: Metadata = {
   title: 'Pricing',
@@ -40,7 +41,7 @@ export default async function PricingPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {plans.map((plan) => {
             const { price, cadence } = formatPrice(plan.priceMonthly)
-            const href = CONTACT_CTA.test(plan.ctaLabel) ? '/site/contact' : '/auth/sign-up'
+            const href = CONTACT_CTA.test(plan.ctaLabel) ? '/contact' : AUTH_LINKS.signup
             return (
               <div
                 key={plan.name}
