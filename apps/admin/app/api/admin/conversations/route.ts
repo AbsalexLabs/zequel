@@ -1,6 +1,7 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
+import { getEmailsForUserIds } from '@/lib/admin/emails'
 
 const VALID_STATUSES = ['active', 'archived', 'flagged']
 
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
       document_id,
       created_at,
       updated_at,
-      profiles:user_id ( email, full_name )
+      profiles:user_id ( full_name )
     `,
       { count: 'exact' }
     )
@@ -71,12 +72,19 @@ export async function GET(request: Request) {
     })
   }
 
+  // Resolve owner emails from auth.users (profiles has no email column).
+  const emailMap = await getEmailsForUserIds(
+    supabase,
+    (conversations || []).map((c) => c.user_id),
+  )
+
   const enriched = (conversations || []).map((c) => {
     const profile = Array.isArray(c.profiles) ? c.profiles[0] : c.profiles
+    const email = emailMap.get(c.user_id) || ''
     return {
       id: c.id,
       title: c.title,
-      user: profile?.full_name || profile?.email || 'Unknown',
+      user: profile?.full_name || email || 'Unknown',
       messages: messageCounts.get(c.id) || 0,
       documents: c.document_id ? 1 : 0,
       tokens: tokenEstimates.get(c.id) || 0,

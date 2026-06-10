@@ -1,6 +1,7 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { logAdminAction } from '@/lib/admin/audit'
+import { getEmailForUserId } from '@/lib/admin/emails'
 
 export async function GET(
   request: Request,
@@ -55,9 +56,13 @@ export async function GET(
     .limit(1)
     .single()
 
+  // Resolve email from auth.users (profiles has no email column).
+  const email = await getEmailForUserId(supabase, id)
+
   return adminResponse({
     user: {
       ...profile,
+      email,
       subscription: subscription || { plan: 'free', expires_at: null },
       totalRequests: totalRequests || 0,
       lastActivity: lastActivity?.created_at || null,

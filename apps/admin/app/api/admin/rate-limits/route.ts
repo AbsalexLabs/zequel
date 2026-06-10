@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyAdmin } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
 import { getTopUsersByVolume } from '@zequel/shared/security/advanced-rate-limit'
+import { getEmailForUserId } from '@/lib/admin/emails'
 
 export async function GET(request: Request) {
   const { user, error } = await verifyAdmin()
@@ -28,13 +29,15 @@ export async function GET(request: Request) {
         topUsers.map(async (u) => {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('email, full_name')
+            .select('full_name')
             .eq('id', u.userId)
             .single()
-          
+
+          const email = await getEmailForUserId(supabase, u.userId)
+
           return {
             user_id: u.userId,
-            email: profile?.email || 'Unknown',
+            email: email || 'Unknown',
             full_name: profile?.full_name || null,
             daily_requests: u.dailyCount,
           }
@@ -74,12 +77,8 @@ export async function GET(request: Request) {
       const enrichedViolations = await Promise.all(
         (violations || []).map(async (v) => {
           if (v.user_id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('email')
-              .eq('id', v.user_id)
-              .single()
-            return { ...v, email: profile?.email || null }
+            const email = await getEmailForUserId(supabase, v.user_id)
+            return { ...v, email: email || null }
           }
           return { ...v, email: null }
         })
