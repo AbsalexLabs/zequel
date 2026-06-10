@@ -6,8 +6,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+} from '@zequel/ui/components/dialog'
+import { Button } from '@zequel/ui/components/button'
 import { Check, ArrowRight } from 'lucide-react'
 
 export type RequiredPlan = 'premium_lite' | 'premium_pro'

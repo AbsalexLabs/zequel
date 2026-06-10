@@ -7,10 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+} from '@zequel/ui/components/dialog'
+import { Input } from '@zequel/ui/components/input'
+import { Button } from '@zequel/ui/components/button'
+import { ScrollArea } from '@zequel/ui/components/scroll-area'
 import { Search, Trash2, Brain } from 'lucide-react'
 
 export interface Memory {

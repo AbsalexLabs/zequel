@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 
 // GET /api/memories — list the current user's saved memories
 export async function GET() {

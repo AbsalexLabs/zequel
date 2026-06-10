@@ -1,11 +1,11 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { createClient } from '@zequel/shared/supabase/client'
+import { Button } from '@zequel/ui/components/button'
+import { Input } from '@zequel/ui/components/input'
 import { OtpVerify } from '@/components/otp-verify'
-import { ZequelLogo } from '@/components/zequel-logo'
-import { Separator } from '@/components/ui/separator'
+import { ZequelLogo } from '@zequel/ui/components/zequel-logo'
+import { Separator } from '@zequel/ui/components/separator'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -91,7 +91,7 @@ export default function SignUpPage() {
       if (signInError) {
         // If email not confirmed yet, show success page
         if (signInError.message.includes('email not confirmed')) {
-          router.push('/auth/sign-up-success')
+          router.push('/verify-email')
           return
         }
         setError(signInError.message)
@@ -213,7 +213,7 @@ export default function SignUpPage() {
 
             <p className="mt-6 text-center font-mono text-[11px] text-muted-foreground">
               {'Already have an account? '}
-              <Link href="/auth/login" className="text-foreground underline underline-offset-4">
+              <Link href="/login" className="text-foreground underline underline-offset-4">
                 Sign in
               </Link>
             </p>

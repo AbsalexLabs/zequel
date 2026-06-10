@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { Button } from '@zequel/ui/components/button'
+import { Separator } from '@zequel/ui/components/separator'
 import { 
   Monitor, 
   Smartphone, 

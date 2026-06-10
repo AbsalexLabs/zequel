@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { createServiceClient, canCreateServiceClient } from '@/lib/supabase/service'
-import { normalizePlan } from '@/lib/security/subscription'
+import { createClient } from '@zequel/shared/supabase/server'
+import { createServiceClient, canCreateServiceClient } from '@zequel/shared/supabase/service'
+import { normalizePlan } from '@zequel/shared/security/subscription'
 
 // Plan limits configuration
 const PLAN_LIMITS = {

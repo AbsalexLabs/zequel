@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 import { generateOtp, otpEmailHtml } from '@/lib/otp'
 
 const resend = new Resend(process.env.RESEND_API_KEY)

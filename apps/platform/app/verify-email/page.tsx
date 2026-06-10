@@ -1,4 +1,4 @@
-import { ZequelLogoFull } from '@/components/zequel-logo'
+import { ZequelLogoFull } from '@zequel/ui/components/zequel-logo'
 import Link from 'next/link'
 
 export default function SignUpSuccessPage() {
@@ -18,7 +18,7 @@ export default function SignUpSuccessPage() {
           </p>
           <div className="mt-6">
             <Link
-              href="/auth/login"
+              href="/login"
               className="font-mono text-xs text-foreground underline underline-offset-4"
             >
               Sign in

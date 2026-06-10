@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { ZequelLogo } from '@/components/zequel-logo'
+import { createClient } from '@zequel/shared/supabase/client'
+import { ZequelLogo } from '@zequel/ui/components/zequel-logo'
 import { OtpVerify } from '@/components/otp-verify'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { Input } from '@zequel/ui/components/input'
+import { Button } from '@zequel/ui/components/button'
+import { Separator } from '@zequel/ui/components/separator'
 import Link from 'next/link'
 
 type View = 'login' | 'forgot' | 'forgot_otp' | 'new_password'
@@ -215,7 +215,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center font-mono text-[11px] text-muted-foreground">
         {"Don't have an account? "}
-        <Link href="/auth/sign-up" className="text-foreground underline underline-offset-4">Create one</Link>
+        <Link href="/signup" className="text-foreground underline underline-offset-4">Create one</Link>
       </p>
     </Shell>
   )

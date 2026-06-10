@@ -1,12 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { processAIRequest, executeAICall, logStreamCompletion } from '@/lib/ai/model-service'
 import { estimateTokens } from '@/lib/logging/ai-logger'
 import { buildPersonalizationContext } from '@/lib/ai/personalization'
-import { validateRequest, codingChatRequestSchema } from '@/lib/validation/ai-schema'
+import { validateRequest, codingChatRequestSchema } from '@zequel/shared/validation/ai-schema'
 import { getCodingSystemPrompt, getCodingAction } from '@/lib/coding/prompts'
 import { getLanguageMeta } from '@/lib/coding/languages'
-import type { SystemSettings } from '@/lib/settings/system-settings'
-import type { CodingLanguage } from '@/lib/types'
+import type { SystemSettings } from '@zequel/shared/settings/system-settings'
+import type { CodingLanguage } from '@zequel/types'
 
 const MAX_FILE_CHARS = 24000
 const MAX_TOTAL_PROJECT_CHARS = 60000

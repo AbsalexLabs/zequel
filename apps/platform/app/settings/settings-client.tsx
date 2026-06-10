@@ -3,28 +3,28 @@
 import { useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { createClient } from '@/lib/supabase/client'
-import { ZequelLogo } from '@/components/zequel-logo'
+import { createClient } from '@zequel/shared/supabase/client'
+import { ZequelLogo } from '@zequel/ui/components/zequel-logo'
 import { OtpVerify } from '@/components/otp-verify'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@zequel/ui/components/input-otp'
 import { SessionsPanel } from '@/components/settings/sessions-panel'
 import { SubscriptionPanel } from '@/components/settings/subscription-panel'
 import { MemoriesDialog, type Memory } from '@/components/settings/memories-dialog'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Switch } from '@/components/ui/switch'
+import { Avatar, AvatarImage, AvatarFallback } from '@zequel/ui/components/avatar'
+import { Separator } from '@zequel/ui/components/separator'
+import { Button } from '@zequel/ui/components/button'
+import { Input } from '@zequel/ui/components/input'
+import { Textarea } from '@zequel/ui/components/textarea'
+import { Switch } from '@zequel/ui/components/switch'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { OUTPUT_FORMAT_LABELS } from '@/lib/types'
-import type { OutputFormat, UserPreferences, Profile } from '@/lib/types'
+} from '@zequel/ui/components/select'
+import { OUTPUT_FORMAT_LABELS } from '@zequel/types'
+import type { OutputFormat, UserPreferences, Profile } from '@zequel/types'
 import {
   ArrowLeft,
   Camera,
@@ -51,7 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'
+} from '@zequel/ui/components/dialog'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -337,7 +337,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
     setIsSigningOut(true)
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/auth/login')
+    router.push('/login')
   }
 
   // Export data: emails the user a JSON copy of their data
@@ -440,7 +440,7 @@ export function SettingsClient({ userId, userEmail, preferences, profile }: Sett
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete account')
       // Account gone — send them to signup/home
-      router.push('/auth/login')
+      router.push('/login')
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Failed to delete account')
       setIsDeleting(false)

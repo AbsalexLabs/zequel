@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { processAIRequest, executeAICall, createAIResponse } from '@/lib/ai/model-service'
-import type { SystemSettings } from '@/lib/settings/system-settings'
+import type { SystemSettings } from '@zequel/shared/settings/system-settings'
 
 const BASE_INSTRUCTIONS = `You are Zequel, an advanced research analysis engine by Absalex Labs. You produce exhaustive, publication-quality structured analysis.
 

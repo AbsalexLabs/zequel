@@ -1,23 +1,23 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Separator } from '@zequel/ui/components/separator'
+import { Button } from '@zequel/ui/components/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@zequel/ui/components/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@zequel/ui/components/dropdown-menu'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@zequel/ui/components/dialog'
 import { useWorkspaceStore } from '@/lib/store'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { cn } from '@/lib/utils'
 import {
@@ -39,8 +39,8 @@ import {
   Camera,
   Download,
 } from 'lucide-react'
-import type { Conversation, Message, Document } from '@/lib/types'
-import { mapMessageRow } from '@/lib/types'
+import type { Conversation, Message, Document } from '@zequel/types'
+import { mapMessageRow } from '@zequel/types'
 import { UpgradeDialog, type RequiredPlan } from './upgrade-dialog'
 
 interface AttachedFile {

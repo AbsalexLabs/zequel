@@ -11,7 +11,7 @@ import { java } from '@codemirror/lang-java'
 import { cpp } from '@codemirror/lang-cpp'
 import { sql } from '@codemirror/lang-sql'
 import type { Extension } from '@codemirror/state'
-import type { CodingLanguage } from '@/lib/types'
+import type { CodingLanguage } from '@zequel/types'
 
 function languageExtension(language: CodingLanguage): Extension[] {
   switch (language) {

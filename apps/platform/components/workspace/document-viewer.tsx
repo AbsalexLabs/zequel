@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@zequel/ui/components/dialog'
+import { Button } from '@zequel/ui/components/button'
+import { Badge } from '@zequel/ui/components/badge'
 import { FileText, Copy, Check, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
-import type { Document } from '@/lib/types'
+import type { Document } from '@zequel/types'
 
 interface DocumentViewerProps {
   document: Document | null

@@ -1,5 +1,5 @@
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import type { RequestType } from '@/lib/validation/ai-schema'
+import { createClient as createServerClient } from '@zequel/shared/supabase/server'
+import type { RequestType } from '@zequel/shared/validation/ai-schema'
 
 interface AIUsageLog {
   user_id: string

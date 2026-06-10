@@ -1,15 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
+import { Separator } from '@zequel/ui/components/separator'
+import { Button } from '@zequel/ui/components/button'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@zequel/ui/components/select'
 import { useWorkspaceStore } from '@/lib/store'
 import type {
   OutputFormat,
@@ -17,11 +17,11 @@ import type {
   SourceReference,
   ConfidenceLevel,
   QueryHistoryItem,
-} from '@/lib/types'
-import { OUTPUT_FORMAT_LABELS } from '@/lib/types'
+} from '@zequel/types'
+import { OUTPUT_FORMAT_LABELS } from '@zequel/types'
 import { cn } from '@/lib/utils'
 import { Loader2, ArrowRight, History, Clock, ChevronLeft, Trash2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { UpgradeDialog, type RequiredPlan } from './upgrade-dialog'
 
 export function ResearchPanel() {

@@ -1,11 +1,11 @@
 'use client'
 
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile } from '@zequel/ui/hooks/use-mobile'
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
-} from '@/components/ui/resizable'
+} from '@zequel/ui/components/resizable'
 import { DocumentPanel } from './document-panel'
 import { ResearchPanel } from './research-panel'
 import { StudyPanel } from './study-panel'
@@ -16,11 +16,11 @@ import { CodingEditorPanel } from './coding/coding-editor-panel'
 import { CodingAssistantPanel } from './coding/coding-assistant-panel'
 import { useCodingBootstrap } from './coding/use-coding-bootstrap'
 import { useWorkspaceStore } from '@/lib/store'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
+import { ThemeToggle } from '@zequel/ui/components/theme-toggle'
+import { Avatar, AvatarImage, AvatarFallback } from '@zequel/ui/components/avatar'
+import { Separator } from '@zequel/ui/components/separator'
 import { cn } from '@/lib/utils'
-import type { Profile, CodingActionId, WorkspaceMode } from '@/lib/types'
+import type { Profile, CodingActionId, WorkspaceMode } from '@zequel/types'
 import {
   FileText,
   Search,

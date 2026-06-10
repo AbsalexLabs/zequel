@@ -1,5 +1,5 @@
-import type { RequestType } from '@/lib/validation/ai-schema'
-import type { SubscriptionPlan } from '@/lib/security/subscription'
+import type { RequestType } from '@zequel/shared/validation/ai-schema'
+import type { SubscriptionPlan } from '@zequel/shared/security/subscription'
 
 // ============================================================================
 // ZEQUEL MODEL ROUTER

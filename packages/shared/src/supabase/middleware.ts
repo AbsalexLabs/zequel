@@ -1,7 +1,34 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function updateSession(request: NextRequest) {
+export interface UpdateSessionOptions {
+  /**
+   * Path prefixes that require an authenticated user. Defaults to the
+   * platform's protected areas.
+   */
+  protectedPaths?: string[]
+  /**
+   * Where to send unauthenticated users. May be an in-app path (e.g. "/login")
+   * or an absolute URL to another app (e.g. "https://app.zequel.xyz/login").
+   */
+  loginUrl?: string
+  /**
+   * When true, the originally requested path is attached as a `redirect`
+   * search param so the login flow can return the user afterwards.
+   */
+  attachRedirectParam?: boolean
+}
+
+export async function updateSession(
+  request: NextRequest,
+  options: UpdateSessionOptions = {},
+) {
+  const {
+    protectedPaths = ['/workspace', '/settings'],
+    loginUrl = '/login',
+    attachRedirectParam = false,
+  } = options
+
   let supabaseResponse = NextResponse.next({
     request,
   })

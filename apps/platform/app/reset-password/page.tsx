@@ -2,14 +2,14 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ZequelLogo } from '@/components/zequel-logo'
+import { ZequelLogo } from '@zequel/ui/components/zequel-logo'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
 
   useEffect(() => {
     // Password reset is now handled via OTP in the login page
-    router.replace('/auth/login')
+    router.replace('/login')
   }, [router])
 
   return (

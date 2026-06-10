@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Separator } from '@/components/ui/separator'
-import { Button } from '@/components/ui/button'
+import { Separator } from '@zequel/ui/components/separator'
+import { Button } from '@zequel/ui/components/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@zequel/ui/components/dropdown-menu'
 import { useWorkspaceStore } from '@/lib/store'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { cn } from '@/lib/utils'
 import {
   Plus,
@@ -23,8 +23,8 @@ import {
   X,
   GitBranch,
 } from 'lucide-react'
-import type { Conversation } from '@/lib/types'
-import { mapMessageRow } from '@/lib/types'
+import type { Conversation } from '@zequel/types'
+import { mapMessageRow } from '@zequel/types'
 
 export function ConversationsPanel() {
   const {

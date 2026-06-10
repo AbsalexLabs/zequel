@@ -6,12 +6,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import { createClient } from '@/lib/supabase/client'
+} from '@zequel/ui/components/dialog'
+import { Button } from '@zequel/ui/components/button'
+import { Progress } from '@zequel/ui/components/progress'
+import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
-import type { Document } from '@/lib/types'
+import type { Document } from '@zequel/types'
 import { Upload, FileText, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

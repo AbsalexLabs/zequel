@@ -1,4 +1,4 @@
-import type { CodingActionId } from '@/lib/types'
+import type { CodingActionId } from '@zequel/types'
 
 // ─── System prompts ─────────────────────────────────────────────────────────
 

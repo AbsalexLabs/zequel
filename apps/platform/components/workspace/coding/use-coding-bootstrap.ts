@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import type {
@@ -9,7 +9,7 @@ import type {
   CodingFolder,
   CodingProject,
   CodingMessage,
-} from '@/lib/types'
+} from '@zequel/types'
 
 /**
  * Loads the contents (folders, files, chat history) of a single project into

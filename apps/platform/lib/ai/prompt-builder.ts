@@ -1,4 +1,4 @@
-import type { SystemSettings } from '@/lib/settings/system-settings'
+import type { SystemSettings } from '@zequel/shared/settings/system-settings'
 
 // Response style types
 export type ResponseStyle = 'concise' | 'detailed' | 'academic'

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { redirect } from 'next/navigation'
 import { SettingsClient } from './settings-client'
 
@@ -9,7 +9,7 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login')
+    redirect('/login')
   }
 
   // Fetch preferences and profile in parallel

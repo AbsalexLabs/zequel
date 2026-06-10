@@ -1,4 +1,4 @@
-import type { CodingLanguage } from '@/lib/types'
+import type { CodingLanguage } from '@zequel/types'
 
 export interface LanguageMeta {
   id: CodingLanguage

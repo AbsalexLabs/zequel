@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { ThemeProvider } from '@/components/theme-provider'
+import { ThemeProvider } from '@zequel/ui/components/theme-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ['latin'] })

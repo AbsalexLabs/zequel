@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { Button } from '@/components/ui/button'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@zequel/ui/components/input-otp'
+import { Button } from '@zequel/ui/components/button'
 
 interface OtpVerifyProps {
   email: string

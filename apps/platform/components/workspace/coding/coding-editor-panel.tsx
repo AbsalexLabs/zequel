@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import { CodeEditor } from './code-editor'
 import { UploadPreview } from './upload-preview'
@@ -23,7 +23,7 @@ import {
   Zap,
   X,
 } from 'lucide-react'
-import type { CodingActionId, CodingFile } from '@/lib/types'
+import type { CodingActionId, CodingFile } from '@zequel/types'
 
 // Quick actions surfaced as toolbar buttons (analyze_project is shown separately).
 const TOOLBAR_ACTIONS: { id: CodingActionId; icon: React.ReactNode }[] = [

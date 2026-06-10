@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { processAIRequest, executeAICall, logStreamCompletion } from '@/lib/ai/model-service'
 import { estimateTokens } from '@/lib/logging/ai-logger'
 import { buildPersonalizationContext, extractAndSaveMemories } from '@/lib/ai/personalization'
-import type { SystemSettings } from '@/lib/settings/system-settings'
+import type { SystemSettings } from '@zequel/shared/settings/system-settings'
 
 const STUDY_SYSTEM_PROMPT = `You are Zequel, a world-class AI research assistant and study companion created by Absalex Labs. You possess extraordinary intelligence, depth of knowledge, and analytical capability rivaling the best human experts in every field.
 

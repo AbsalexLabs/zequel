@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { Loader2, Download, FileText, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import type { CodingFile } from '@/lib/types'
+import { Button } from '@zequel/ui/components/button'
+import type { CodingFile } from '@zequel/types'
 
 const UPLOAD_BUCKET = 'coding-files'
 

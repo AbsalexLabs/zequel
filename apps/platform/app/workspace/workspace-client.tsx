@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { WorkspaceShell } from '@/components/workspace/workspace-shell'
 import { UploadDialog } from '@/components/workspace/upload-dialog'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster } from '@zequel/ui/components/toaster'
 import { useWorkspaceStore } from '@/lib/store'
-import type { Document, Profile, QueryHistoryItem, Conversation } from '@/lib/types'
+import type { Document, Profile, QueryHistoryItem, Conversation } from '@zequel/types'
 
 interface WorkspaceClientProps {
   userId: string

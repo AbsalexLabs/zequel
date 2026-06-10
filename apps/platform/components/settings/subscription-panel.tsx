@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { Button } from '@zequel/ui/components/button'
+import { Separator } from '@zequel/ui/components/separator'
 import { Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { createSession } from '@/lib/session/session-manager'
 import { headers } from 'next/headers'
 
@@ -70,5 +70,5 @@ export async function GET(request: NextRequest) {
 
   // No code or error provided
   console.warn('[Zequel] Auth callback called without code or error')
-  return NextResponse.redirect(new URL('/auth/login', request.url))
+  return NextResponse.redirect(new URL('/login', request.url))
 }

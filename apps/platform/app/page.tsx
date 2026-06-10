@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { SplashScreen } from '@/components/splash-screen'
 
 export default function RootPage() {
@@ -18,11 +18,11 @@ export default function RootPage() {
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        setDestination(user ? '/workspace' : '/auth/login')
+        setDestination(user ? '/workspace' : '/login')
       } catch (error) {
         console.error('[Zequel] Auth check failed:', error)
         // Default to login page if auth fails
-        setDestination('/auth/login')
+        setDestination('/login')
       }
     }
     checkAuth()

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { redirect } from 'next/navigation'
 import { WorkspaceClient } from './workspace-client'
 
@@ -9,7 +9,7 @@ export default async function WorkspacePage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login')
+    redirect('/login')
   }
 
   const [

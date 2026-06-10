@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { createSession } from '@/lib/session/session-manager'
 import { headers } from 'next/headers'
 

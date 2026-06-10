@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@zequel/shared/supabase/server'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 
 /**
  * Permanently deletes the signed-in user's account after verifying the

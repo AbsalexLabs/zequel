@@ -1,5 +1,5 @@
-import { createServiceClient } from '@/lib/supabase/service'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@zequel/shared/supabase/service'
+import { createClient } from '@zequel/shared/supabase/server'
 import { headers } from 'next/headers'
 import { UAParser } from 'ua-parser-js'
 

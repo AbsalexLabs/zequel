@@ -1,18 +1,18 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
 import { useLoadCodingProject } from './use-coding-bootstrap'
 import { getLanguageMeta, languageFromFileName } from '@/lib/coding/languages'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { useToast } from '@/hooks/use-toast'
+import { Button } from '@zequel/ui/components/button'
+import { Input } from '@zequel/ui/components/input'
+import { Separator } from '@zequel/ui/components/separator'
+import { ThemeToggle } from '@zequel/ui/components/theme-toggle'
+import { Avatar, AvatarImage, AvatarFallback } from '@zequel/ui/components/avatar'
+import { useToast } from '@zequel/ui/hooks/use-toast'
 import { FileIcon, FolderIcon } from './file-icon'
 import {
   DropdownMenu,
@@ -21,14 +21,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@zequel/ui/components/dropdown-menu'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog'
+} from '@zequel/ui/components/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +38,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from '@zequel/ui/components/alert-dialog'
 import {
   FilePlus,
   FolderPlus,
@@ -62,7 +62,7 @@ import type {
   CodingFolder,
   CodingProject,
   Profile,
-} from '@/lib/types'
+} from '@zequel/types'
 
 type CreateTarget = { kind: 'file' | 'folder'; parentId: string | null } | null
 type DeleteTarget = { type: 'file' | 'folder' | 'project'; id: string; name: string } | null

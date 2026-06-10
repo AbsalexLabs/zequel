@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@zequel/shared/supabase/server'
 import { processAIRequest } from '@/lib/ai/model-service'
-import { getSystemSettings, isFileUploadsEnabled, getMaxFileSize } from '@/lib/settings/system-settings'
+import { getSystemSettings, isFileUploadsEnabled, getMaxFileSize } from '@zequel/shared/settings/system-settings'
 import pdfParse from 'pdf-parse'
 
 // Allowed file types

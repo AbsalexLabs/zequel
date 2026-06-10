@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Separator } from '@/components/ui/separator'
-import { ZequelLogo } from '@/components/zequel-logo'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+import { Separator } from '@zequel/ui/components/separator'
+import { ZequelLogo } from '@zequel/ui/components/zequel-logo'
+import { ThemeToggle } from '@zequel/ui/components/theme-toggle'
+import { Avatar, AvatarImage, AvatarFallback } from '@zequel/ui/components/avatar'
+import { Button } from '@zequel/ui/components/button'
 import { DocumentViewer } from './document-viewer'
 import {
   AlertDialog,
@@ -16,16 +16,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+} from '@zequel/ui/components/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { createClient } from '@/lib/supabase/client'
+} from '@zequel/ui/components/dropdown-menu'
+import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
-import type { Document, Profile } from '@/lib/types'
+import type { Document, Profile } from '@zequel/types'
 import { Upload, FileText, Check, Settings, MoreVertical, Trash2, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'

@@ -6,18 +6,18 @@ import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { UpgradeDialog, type RequiredPlan } from '../upgrade-dialog'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Button } from '@zequel/ui/components/button'
+import { Switch } from '@zequel/ui/components/switch'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from '@zequel/ui/components/dropdown-menu'
 import { Bot, Send, Loader2, FileText, Paperclip, FileCode2, X, GraduationCap } from 'lucide-react'
 import { FileIcon } from './file-icon'
-import type { CodingActionId, CodingMessage } from '@/lib/types'
+import type { CodingActionId, CodingMessage } from '@zequel/types'
 
 export interface CodingAssistantHandle {
   runAction: (action: CodingActionId) => void

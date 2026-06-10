@@ -1,4 +1,4 @@
-import { ZequelLogoFull } from '@/components/zequel-logo'
+import { ZequelLogoFull } from '@zequel/ui/components/zequel-logo'
 import Link from 'next/link'
 
 export default async function AuthErrorPage({
@@ -30,7 +30,7 @@ export default async function AuthErrorPage({
           )}
           <div className="mt-6">
             <Link
-              href="/auth/login"
+              href="/login"
               className="font-mono text-xs text-foreground underline underline-offset-4"
             >
               Return to sign in

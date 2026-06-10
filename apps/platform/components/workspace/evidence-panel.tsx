@@ -1,9 +1,9 @@
 'use client'
 
-import { Separator } from '@/components/ui/separator'
+import { Separator } from '@zequel/ui/components/separator'
 import { useWorkspaceStore } from '@/lib/store'
 import { X, BookOpen } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@zequel/ui/components/button'
 
 export function EvidencePanel() {
   const { activeSource, setActiveSource, currentResult } = useWorkspaceStore()
