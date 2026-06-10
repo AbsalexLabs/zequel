@@ -433,6 +433,8 @@ export function StudyPanel() {
       isFirstMessage.current = messages.length === 0
     }
 
+    if (!convId) return
+
     // Build message content with image references
     let messageContent = input.trim()
     const imageFiles = attachedFiles.filter((af) => af.file.type.startsWith('image/'))

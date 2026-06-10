@@ -28,7 +28,7 @@ import {
 } from "@zequel/ui/components/dropdown-menu"
 import { formatNumber, relativeTime, formatDateTime } from "@/lib/admin-dashboard/format"
 import { bugReports as initialBugs } from "@/lib/admin-dashboard/cms-mock-data"
-import type { BugReport, BugSeverity, BugStatus } from "@zequel/types"
+import type { CmsBugReport, BugSeverity, BugStatus } from "@zequel/types"
 
 const SEVERITY_META: Record<BugSeverity, { label: string; className: string }> = {
   low: { label: "Low", className: "bg-secondary text-secondary-foreground" },
@@ -47,11 +47,11 @@ const SEVERITY_ORDER: BugSeverity[] = ["critical", "high", "medium", "low"]
 const STATUS_ORDER: BugStatus[] = ["new", "triaged", "in_progress", "resolved", "wont_fix"]
 
 export default function CmsBugReportsPage() {
-  const [bugs, setBugs] = useState<BugReport[]>(initialBugs)
+  const [bugs, setBugs] = useState<CmsBugReport[]>(initialBugs)
   const [search, setSearch] = useState("")
   const [severity, setSeverity] = useState("all")
   const [status, setStatus] = useState("all")
-  const [active, setActive] = useState<BugReport | null>(null)
+  const [active, setActive] = useState<CmsBugReport | null>(null)
   const [open, setOpen] = useState(false)
 
   const filtered = useMemo(() => {
@@ -82,7 +82,7 @@ export default function CmsBugReportsPage() {
     toast.success("Bug report deleted")
   }
 
-  function openBug(b: BugReport) {
+  function openBug(b: CmsBugReport) {
     setActive(b)
     setOpen(true)
   }
@@ -128,7 +128,7 @@ export default function CmsBugReportsPage() {
         />
 
         <DataTableCard>
-          <DataTable<BugReport>
+          <DataTable<CmsBugReport>
             rows={filtered}
             rowKey={(b) => b.id}
             empty="No bug reports found."

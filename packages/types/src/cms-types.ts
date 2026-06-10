@@ -130,7 +130,7 @@ export interface FeatureRequest {
 export type BugSeverity = "low" | "medium" | "high" | "critical"
 export type BugStatus = "new" | "triaged" | "in_progress" | "resolved" | "wont_fix"
 
-export interface BugReport {
+export interface CmsBugReport {
   id: string
   title: string
   description: string

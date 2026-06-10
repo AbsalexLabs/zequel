@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@zequel/shared/supabase/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 /**
  * Gathers all of the signed-in user's data and emails them a JSON copy.
@@ -82,7 +84,7 @@ export async function POST() {
       memories: exportPayload.memories.length,
     }
 
-    const { error: sendError } = await resend.emails.send({
+    const { error: sendError } = await getResend().emails.send({
       from: 'Zequel <noreply@zequel.xyz>',
       to: user.email!,
       subject: 'Your Zequel data export',

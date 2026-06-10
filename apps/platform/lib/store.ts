@@ -12,7 +12,7 @@ import type {
   CodingFile,
   CodingMessage,
   CodingActionId,
-} from './types'
+} from '@zequel/types'
 
 interface WorkspaceState {
   // Mode

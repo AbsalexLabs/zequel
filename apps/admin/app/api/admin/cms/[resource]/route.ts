@@ -56,7 +56,7 @@ export async function GET(request: Request, ctx: Ctx) {
   const { data, count, error: queryError } = await query
   if (queryError) return adminError(queryError.message, 500)
 
-  const items = (data || []).map((row) => cmsRowToModel(config, row as Record<string, unknown>))
+  const items = (data || []).map((row) => cmsRowToModel(config, row as unknown as Record<string, unknown>))
   return adminResponse({
     items,
     total: count || 0,
@@ -89,7 +89,7 @@ export async function POST(request: Request, ctx: Ctx) {
     .single()
 
   if (insertError) return adminError(insertError.message, 500)
-  return adminResponse({ item: cmsRowToModel(config, data as Record<string, unknown>) })
+  return adminResponse({ item: cmsRowToModel(config, data as unknown as Record<string, unknown>) })
 }
 
 // Update an existing row by id.
@@ -118,7 +118,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     .single()
 
   if (updateError) return adminError(updateError.message, 500)
-  return adminResponse({ item: cmsRowToModel(config, data as Record<string, unknown>) })
+  return adminResponse({ item: cmsRowToModel(config, data as unknown as Record<string, unknown>) })
 }
 
 // Delete a row by id (passed as ?id= query param).

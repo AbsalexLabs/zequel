@@ -1,5 +1,5 @@
-import type {
 import { AUTH_LINKS } from "@/lib/site/links"
+import type {
   HeroContent,
   FeatureContent,
   PricingPlanContent,
