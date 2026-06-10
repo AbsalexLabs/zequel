@@ -1,0 +1,134 @@
+'use client'
+
+import { useState } from 'react'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@zequel/ui/components/dialog'
+import { Button } from '@zequel/ui/components/button'
+import { Badge } from '@zequel/ui/components/badge'
+import { FileText, Copy, Check, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
+import type { Document } from '@zequel/types'
+
+interface DocumentViewerProps {
+  document: Document | null
+  isOpen: boolean
+  onClose: () => void
+  extractedText: string | null
+  isLoading?: boolean
+}
+
+export function DocumentViewer({ document, isOpen, onClose, extractedText, isLoading }: DocumentViewerProps) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyText = () => {
+    if (extractedText) {
+      navigator.clipboard.writeText(extractedText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  if (!document) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-h-[80vh] max-w-2xl border-border bg-background p-0 flex flex-col gap-0 overflow-hidden">
+        <DialogTitle className="sr-only">{document.title}</DialogTitle>
+        <DialogDescription className="sr-only">Parsed text extracted from {document.file_name}</DialogDescription>
+        {/* Header */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4 pr-12">
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-sans text-sm font-semibold text-foreground truncate">{document.title}</h2>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground truncate">
+              {document.page_count > 0 ? `${document.page_count} pages` : 'N/A'} • {document.file_name}
+            </p>
+          </div>
+        </div>
+
+        {/* Status Badge */}
+        <div className="px-6 py-3 border-b border-border flex shrink-0 items-center justify-between gap-3">
+          <div>
+            <Badge 
+              variant="outline" 
+              className={`font-mono text-[10px] uppercase tracking-wider gap-1 ${
+                document.status === 'parsed' 
+                  ? 'bg-green-500/10 text-green-700 border-green-200' 
+                  : document.status === 'processing'
+                  ? 'bg-yellow-500/10 text-yellow-700 border-yellow-200'
+                  : 'bg-red-500/10 text-red-700 border-red-200'
+              }`}
+            >
+              {document.status === 'parsed' ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  Parsed
+                </>
+              ) : document.status === 'processing' ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Processing
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-3 w-3" />
+                  Error
+                </>
+              )}
+            </Badge>
+          </div>
+          {extractedText && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px] gap-2 font-mono uppercase tracking-wider"
+              onClick={handleCopyText}
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Text
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {/* Content */}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="px-6 py-4">
+            {isLoading ? (
+              <div className="py-8 text-center">
+                <p className="font-mono text-[11px] text-muted-foreground animate-pulse">Loading document content...</p>
+              </div>
+            ) : extractedText ? (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="font-sans text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words">
+                  {extractedText}
+                </div>
+              </div>
+            ) : document.status === 'processing' ? (
+              <div className="py-8 text-center">
+                <p className="font-mono text-[11px] text-muted-foreground">Document is being processed...</p>
+              </div>
+            ) : document.status === 'parsed' ? (
+              <div className="py-8 text-center">
+                <p className="font-mono text-[11px] text-muted-foreground">No text content extracted</p>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <p className="font-mono text-[11px] text-destructive">Failed to parse document</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
