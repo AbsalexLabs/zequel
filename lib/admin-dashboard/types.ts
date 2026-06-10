@@ -4,7 +4,28 @@
 
 export type AdminRole = "admin" | "superadmin"
 
-export type SubscriptionTier = "free" | "pro" | "team" | "enterprise"
+// Real Zequel plans (matches the `subscriptions.plan` column in the database).
+export type SubscriptionTier = "free" | "premium_lite" | "premium_pro"
+
+// Human-readable labels and monthly prices for each plan.
+export const TIER_LABELS: Record<SubscriptionTier, string> = {
+  free: "Free",
+  premium_lite: "Premium Lite",
+  premium_pro: "Premium Pro",
+}
+
+export const TIER_PRICES: Record<SubscriptionTier, number> = {
+  free: 0,
+  premium_lite: 12,
+  premium_pro: 29,
+}
+
+// Daily AI request allowance per plan (matches system_settings defaults).
+export const TIER_REQUEST_LIMITS: Record<SubscriptionTier, number> = {
+  free: 20,
+  premium_lite: 200,
+  premium_pro: 1000,
+}
 
 export type UserStatus = "active" | "suspended" | "invited"
 

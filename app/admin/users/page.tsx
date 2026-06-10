@@ -6,61 +6,68 @@ import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { StatusPill } from "@/components/admin/status-pill"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
-import { Button } from "@/components/ui/button"
-import { UserRowActions, InviteUserDialog, type UserPatch } from "@/components/admin/user-manager"
+import { UserRowActions, type UserPatch } from "@/components/admin/user-manager"
 import { useAdminSession } from "@/components/admin/admin-session"
-import { users as seedUsers } from "@/lib/admin-dashboard/mock-data"
+import { useUsers, patchUser as apiPatchUser } from "@/lib/admin-dashboard/api"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
 import type { AdminUser } from "@/lib/admin-dashboard/types"
 
-const TIER_LABEL: Record<string, string> = { free: "Free", pro: "Pro", team: "Team", enterprise: "Enterprise" }
+const TIER_LABEL: Record<string, string> = { free: "Free", premium_lite: "Premium Lite", premium_pro: "Premium Pro" }
 
 export default function UsersPage() {
   const { session } = useAdminSession()
   const canManageRoles = session.role === "superadmin"
 
-  const [rows, setRows] = useState<AdminUser[]>(seedUsers)
-  const [inviteOpen, setInviteOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [tier, setTier] = useState("all")
   const [status, setStatus] = useState("all")
   const [role, setRole] = useState("all")
 
+  const { users: rows, isLoading, error, mutate } = useUsers({ search })
+
   const filtered = useMemo(() => {
     return rows.filter((u) => {
-      const q = search.trim().toLowerCase()
-      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
       const matchesTier = tier === "all" || u.tier === tier
       const matchesStatus = status === "all" || u.status === status
       const matchesRole = role === "all" || u.role === role
-      return matchesSearch && matchesTier && matchesStatus && matchesRole
+      return matchesTier && matchesStatus && matchesRole
     })
-  }, [rows, search, tier, status, role])
+  }, [rows, tier, status, role])
 
   const activeCount = rows.filter((u) => u.status === "active").length
   const adminCount = rows.filter((u) => u.role !== "user").length
   const suspendedCount = rows.filter((u) => u.status === "suspended").length
 
-  function patchUser(id: string, patch: UserPatch, message: string) {
-    setRows((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)))
-    toast.success(message)
-  }
-
-  function addUser(user: AdminUser, message: string) {
-    setRows((prev) => [user, ...prev])
-    toast.success(message)
+  async function patchUser(id: string, patch: UserPatch, message: string) {
+    try {
+      if (patch.role) {
+        await apiPatchUser(id, "update_role", { role: patch.role })
+      } else if (patch.tier) {
+        await apiPatchUser(id, "update_subscription", { plan: patch.tier })
+      } else if (patch.status === "suspended") {
+        await apiPatchUser(id, "suspend")
+      } else if (patch.status === "active") {
+        await apiPatchUser(id, "unsuspend")
+      }
+      await mutate()
+      toast.success(message)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
   return (
     <>
-      <PageHeader title="Users" description="Manage accounts, roles, access, and platform activity.">
-        <Button size="sm" onClick={() => setInviteOpen(true)}>
-          Invite user
-        </Button>
-      </PageHeader>
+      <PageHeader title="Users" description="Manage accounts, roles, access, and platform activity." />
+
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load users: {error.message}
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total Users" value={formatNumber(rows.length)} hint="in view" />
+        <StatCard label="Total Users" value={isLoading ? "—" : formatNumber(rows.length)} hint="in view" />
         <StatCard label="Active" value={formatNumber(activeCount)} />
         <StatCard label="Privileged" value={formatNumber(adminCount)} hint="admin + superadmin" />
         <StatCard label="Suspended" value={formatNumber(suspendedCount)} />
@@ -80,9 +87,8 @@ export default function UsersPage() {
               options: [
                 { label: "All tiers", value: "all" },
                 { label: "Free", value: "free" },
-                { label: "Pro", value: "pro" },
-                { label: "Team", value: "team" },
-                { label: "Enterprise", value: "enterprise" },
+                { label: "Premium Lite", value: "premium_lite" },
+                { label: "Premium Pro", value: "premium_pro" },
               ],
             },
             {
@@ -94,7 +100,6 @@ export default function UsersPage() {
                 { label: "All status", value: "all" },
                 { label: "Active", value: "active" },
                 { label: "Suspended", value: "suspended" },
-                { label: "Invited", value: "invited" },
               ],
             },
             {
@@ -174,11 +179,9 @@ export default function UsersPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {rows.length} users
+          {isLoading ? "Loading users…" : `Showing ${filtered.length} of ${rows.length} users`}
         </p>
       </div>
-
-      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} onInvite={addUser} />
     </>
   )
 }

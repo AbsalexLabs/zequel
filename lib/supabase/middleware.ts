@@ -44,12 +44,16 @@ export async function updateSession(request: NextRequest) {
   if (
     // if the user is not logged in and a protected path is accessed, redirect to login
     (request.nextUrl.pathname.startsWith('/workspace') ||
-      request.nextUrl.pathname.startsWith('/settings')) &&
+      request.nextUrl.pathname.startsWith('/settings') ||
+      request.nextUrl.pathname.startsWith('/admin')) &&
     !user
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+      url.searchParams.set('redirect', request.nextUrl.pathname)
+    }
     return NextResponse.redirect(url)
   }
 

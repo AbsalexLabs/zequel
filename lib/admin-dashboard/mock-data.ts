@@ -75,9 +75,8 @@ export const modelUsage = [
 
 export const tierBreakdown = [
   { tier: "Free", users: 11240, fill: "var(--confidence-low)" },
-  { tier: "Pro", users: 5120, fill: "var(--confidence-medium)" },
-  { tier: "Team", users: 1980, fill: "var(--confidence-high)" },
-  { tier: "Enterprise", users: 402, fill: "var(--primary)" },
+  { tier: "Premium Lite", users: 5120, fill: "var(--confidence-medium)" },
+  { tier: "Premium Pro", users: 2382, fill: "var(--primary)" },
 ]
 
 export const activityFeed = [
@@ -92,7 +91,7 @@ export const activityFeed = [
 
 const FIRST = ["Elena", "Marcus", "Priya", "Tomas", "Aiko", "Leon", "Sara", "Devon", "Mara", "Kojo", "Ines", "Rafael"]
 const LAST = ["Royce", "Vaughn", "Nair", "Lind", "Tanaka", "Mercer", "Holt", "Quist", "Bellini", "Asante", "Vega", "Cruz"]
-const TIERS = ["free", "pro", "team", "enterprise"] as const
+const TIERS = ["free", "premium_lite", "premium_pro"] as const
 const STATUSES = ["active", "active", "active", "suspended", "invited"] as const
 
 export const users: AdminUser[] = Array.from({ length: 48 }).map((_, i) => {
@@ -103,7 +102,7 @@ export const users: AdminUser[] = Array.from({ length: 48 }).map((_, i) => {
   return {
     id: `usr_${(1000 + i).toString(36)}`,
     name: `${first} ${last}`,
-    email: `${first.toLowerCase()}.${last.toLowerCase()}@${tier === "enterprise" ? "lab.org" : "mail.com"}`,
+    email: `${first.toLowerCase()}.${last.toLowerCase()}@${tier === "premium_pro" ? "lab.org" : "mail.com"}`,
     role,
     tier,
     status: STATUSES[(i * 2) % STATUSES.length],
@@ -116,11 +115,11 @@ export const users: AdminUser[] = Array.from({ length: 48 }).map((_, i) => {
 })
 
 // Pricing model used to compute MRR when granting / changing plans.
-export const TIER_MRR: Record<SubscriptionTier, number> = { free: 0, pro: 29, team: 99, enterprise: 1200 }
-export const TIER_SEATS: Record<SubscriptionTier, number> = { free: 1, pro: 1, team: 12, enterprise: 80 }
+export const TIER_MRR: Record<SubscriptionTier, number> = { free: 0, premium_lite: 12, premium_pro: 29 }
+export const TIER_SEATS: Record<SubscriptionTier, number> = { free: 1, premium_lite: 1, premium_pro: 1 }
 
 export function computeMrr(tier: SubscriptionTier): number {
-  return TIER_MRR[tier] * (tier === "enterprise" ? 1 : TIER_SEATS[tier])
+  return TIER_MRR[tier]
 }
 
 export const subscriptions: Subscription[] = users
@@ -133,7 +132,7 @@ export const subscriptions: Subscription[] = users
       email: u.email,
       tier: u.tier,
       status: statuses[(i * 3) % statuses.length],
-      mrr: TIER_MRR[u.tier] * (u.tier === "enterprise" ? 1 : TIER_SEATS[u.tier]),
+      mrr: TIER_MRR[u.tier],
       seats: TIER_SEATS[u.tier],
       renewsAt: daysAgo(-(5 + (i % 25))),
       startedAt: daysAgo(120 - i * 2),
@@ -141,7 +140,7 @@ export const subscriptions: Subscription[] = users
   })
 
 // Per-subscription event history. New admin actions get prepended at runtime.
-const HISTORY_TIERS: SubscriptionTier[] = ["pro", "team", "enterprise"]
+const HISTORY_TIERS: SubscriptionTier[] = ["free", "premium_lite", "premium_pro"]
 
 export const subscriptionEvents: SubscriptionEvent[] = subscriptions.flatMap((sub, i) => {
   const events: SubscriptionEvent[] = [

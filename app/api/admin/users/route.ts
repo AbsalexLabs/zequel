@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       email,
       full_name,
       role,
+      suspended,
       created_at,
       updated_at
     `, { count: 'exact' })

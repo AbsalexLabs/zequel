@@ -49,10 +49,10 @@ export async function GET() {
 
   const planCounts = {
     free: 0,
-    premium: 0,
-    enterprise: 0,
+    premium_lite: 0,
+    premium_pro: 0,
   }
-  
+
   subscriptions?.forEach(s => {
     if (s.plan in planCounts) {
       planCounts[s.plan as keyof typeof planCounts]++

@@ -1,17 +1,25 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import { AdminSessionProvider } from "@/components/admin/admin-session"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminTopbar } from "@/components/admin/admin-topbar"
 import { Toaster } from "@/components/ui/sonner"
+import { verifyAdmin } from "@/lib/admin/auth"
 
 export const metadata: Metadata = {
   title: "Zequel Control Center",
   description: "Operational dashboard for the Zequel research platform.",
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, error } = await verifyAdmin()
+
+  if (error || !user) {
+    redirect("/auth/login?redirect=/admin")
+  }
+
   return (
-    <AdminSessionProvider>
+    <AdminSessionProvider session={{ id: user.id, name: user.name, email: user.email, role: user.role }}>
       <div className="flex h-[100dvh] overflow-hidden bg-background">
         <aside className="hidden h-full w-64 shrink-0 border-r border-border lg:block">
           <AdminSidebar />
