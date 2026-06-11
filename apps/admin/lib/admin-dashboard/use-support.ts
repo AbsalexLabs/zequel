@@ -33,12 +33,12 @@ function listKey(params: TicketListParams): string {
 }
 
 export function useSupportTickets(params: TicketListParams) {
-  const { data, error, isLoading, mutate } = useSWR<SupportListResponse>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<SupportListResponse>(
     listKey(params),
     fetcher,
     { revalidateOnFocus: false, keepPreviousData: true },
   )
-  return { data, error, isLoading, mutate }
+  return { data, error, isLoading, isValidating, mutate }
 }
 
 export function useSupportTicket(id: string | null) {

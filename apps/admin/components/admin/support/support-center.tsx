@@ -1,19 +1,17 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, AlertCircle } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ArrowLeft, AlertCircle, RefreshCw, LifeBuoy, PanelLeft, PanelRight } from "lucide-react"
 import { toast } from "sonner"
 import { useIsMobile } from "@zequel/ui/hooks/use-mobile"
 import { Button } from "@zequel/ui/components/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@zequel/ui/components/sheet"
-import { cn } from "@/lib/utils"
 import { SupportCategorySidebar } from "./support-category-sidebar"
 import { SupportTicketList, type SortKey } from "./support-ticket-list"
 import { SupportConversation } from "./support-conversation"
 import { SupportContextPanel } from "./support-context-panel"
 import {
   CATEGORIES,
-  STATUS_LABEL,
   type CategoryId,
   type TicketSource,
   type TicketStatus,
@@ -52,6 +50,7 @@ export function SupportCenter() {
     data,
     error: listError,
     isLoading: listLoading,
+    isValidating: listValidating,
     mutate: mutateList,
   } = useSupportTickets({
     category: source === null ? category : "all",
@@ -209,15 +208,56 @@ export function SupportCenter() {
     />
   )
 
+  const openCount = data?.categoryCounts?.open ?? 0
+  const totalCount = data?.categoryCounts?.all ?? 0
+
+  // Compact, integrated workspace header — replaces the generic page header so
+  // the support surface reads as one dedicated, self-contained tool.
+  const header = (
+    <header className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <span className="hidden size-9 shrink-0 items-center justify-center rounded-md border border-border bg-secondary/50 text-foreground sm:flex">
+          <LifeBuoy className="size-4" />
+        </span>
+        <div className="space-y-0.5">
+          <h1 className="text-balance text-lg font-semibold tracking-tight text-foreground">Support Center</h1>
+          <p className="text-pretty text-xs text-muted-foreground">
+            Tickets, conversations, and assignment across every support channel.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-1.5">
+          <Stat label="Open" value={openCount} highlight />
+          <span className="h-5 w-px bg-border" aria-hidden />
+          <Stat label="Total" value={totalCount} />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refresh()}
+          disabled={listValidating}
+          aria-label="Refresh tickets"
+        >
+          <RefreshCw className={listValidating ? "size-3.5 animate-spin" : "size-3.5"} />
+          <span className="hidden sm:inline">Refresh</span>
+        </Button>
+      </div>
+    </header>
+  )
+
   if (listError) {
     return (
-      <div className="flex h-[calc(100dvh-12rem)] flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card text-center">
-        <AlertCircle className="size-7 text-muted-foreground" />
-        <p className="text-sm font-medium text-foreground">Could not load tickets</p>
-        <p className="max-w-sm text-xs text-muted-foreground">{listError.message}</p>
-        <Button variant="outline" size="sm" className="mt-2" onClick={() => mutateList()}>
-          Retry
-        </Button>
+      <div className="flex h-full flex-col gap-3 p-4 sm:p-6">
+        {header}
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card text-center">
+          <AlertCircle className="size-7 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground">Could not load tickets</p>
+          <p className="max-w-sm text-xs text-muted-foreground">{listError.message}</p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => mutateList()}>
+            Retry
+          </Button>
+        </div>
       </div>
     )
   }
@@ -225,14 +265,15 @@ export function SupportCenter() {
   // ---- Mobile ----
   if (isMobile) {
     return (
-      <div className="flex h-[calc(100dvh-9rem)] flex-col">
+      <div className="flex h-full flex-col gap-3 p-3">
+        {header}
         {mobileView === "list" ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
             <div className="flex shrink-0 items-center gap-2 border-b border-border p-3">
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm">
-                    Categories
+                    <PanelLeft className="size-3.5" /> Categories
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-72 p-0">
@@ -240,7 +281,7 @@ export function SupportCenter() {
                   {categorySidebar}
                 </SheetContent>
               </Sheet>
-              <span className="font-mono text-[11px] text-muted-foreground">{tickets.length} tickets</span>
+              <span className="ml-auto font-mono text-[11px] text-muted-foreground">{tickets.length} tickets</span>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">{listPanel}</div>
           </div>
@@ -253,7 +294,7 @@ export function SupportCenter() {
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="ml-auto" disabled={!selected}>
-                    Details
+                    <PanelRight className="size-3.5" /> Details
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80 p-0">
@@ -271,49 +312,66 @@ export function SupportCenter() {
 
   // ---- Tablet & Desktop ----
   return (
-    <div className="space-y-4">
-      <div className="flex h-[calc(100dvh-11rem)] min-h-[32rem] overflow-hidden rounded-lg border border-border bg-card">
-        {/* Left — categories */}
+    <div className="flex h-full flex-col gap-3 p-4 sm:p-6">
+      {header}
+
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        {/* Left — categories (xl and up) */}
         <div className="hidden w-56 shrink-0 border-r border-border xl:block">{categorySidebar}</div>
 
         {/* Middle — ticket list */}
-        <div className="w-full max-w-sm shrink-0 border-r border-border md:w-80 lg:w-96">{listPanel}</div>
+        <div className="flex w-full max-w-sm shrink-0 flex-col border-r border-border md:w-80 lg:w-96">
+          {/* Tablet/desktop-below-xl toolbar: surface category + context entry points */}
+          <div className="flex shrink-0 items-center gap-2 border-b border-border p-2 xl:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <PanelLeft className="size-3.5" /> Categories
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetTitle className="sr-only">Support categories</SheetTitle>
+                {categorySidebar}
+              </SheetContent>
+            </Sheet>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto lg:hidden" disabled={!selected}>
+                  <PanelRight className="size-3.5" /> Details
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 p-0">
+                <SheetTitle className="sr-only">Ticket details</SheetTitle>
+                {contextPanel}
+              </SheetContent>
+            </Sheet>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">{listPanel}</div>
+        </div>
 
         {/* Main — conversation */}
         <div className="min-w-0 flex-1">{conversation}</div>
 
-        {/* Right — context (desktop only) */}
+        {/* Right — context (lg and up) */}
         <div className="hidden w-80 shrink-0 border-l border-border lg:block">{contextPanel}</div>
       </div>
+    </div>
+  )
+}
 
-      {/* Tablet: categories + context move into a toolbar of sheets */}
-      <div className="flex items-center gap-2 lg:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm">
-              Categories &amp; Sources
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
-            <SheetTitle className="sr-only">Support categories</SheetTitle>
-            {categorySidebar}
-          </SheetContent>
-        </Sheet>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" disabled={!selected}>
-              Ticket Details
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-80 p-0">
-            <SheetTitle className="sr-only">Ticket details</SheetTitle>
-            {contextPanel}
-          </SheetContent>
-        </Sheet>
-        <span className="ml-auto font-mono text-[11px] text-muted-foreground">
-          {selected ? STATUS_LABEL[selected.status] : "No ticket selected"}
-        </span>
-      </div>
+function Stat({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span
+        className={
+          highlight
+            ? "font-mono text-sm font-semibold tabular-nums text-foreground"
+            : "font-mono text-sm font-semibold tabular-nums text-muted-foreground"
+        }
+      >
+        {value}
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
     </div>
   )
 }
