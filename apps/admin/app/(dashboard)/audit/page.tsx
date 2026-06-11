@@ -158,7 +158,10 @@ export default function AuditPage() {
       </RoleGuard>
 
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <DialogContent showCloseButton={false} className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogContent
+          showCloseButton={false}
+          className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-lg"
+        >
           <DialogHeader className="border-b border-border px-5 py-4">
             <DialogTitle className="flex items-center gap-2">
               <ScrollText className="size-4 text-muted-foreground" />
@@ -171,7 +174,7 @@ export default function AuditPage() {
           </DialogHeader>
 
           {selected && (
-            <div className="space-y-4 px-5 py-5">
+            <div className="space-y-4 overflow-y-auto overscroll-contain px-5 py-5">
               <div className="rounded-lg border border-border bg-secondary/40 p-3">
                 <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Action</p>
                 <p className="mt-1 text-sm font-medium capitalize text-foreground">{selected.action}</p>
