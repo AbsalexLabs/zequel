@@ -66,8 +66,14 @@ export function parseDeviceInfo(userAgent: string): DeviceInfo {
  */
 export async function getClientIP(): Promise<string | null> {
   const headersList = await headers()
+  // `x-forwarded-for` is a comma-separated list with the original client first.
+  // On Vercel `x-vercel-forwarded-for` carries the real client IP and is the
+  // most reliable source, so we check it (and the other proxy headers) too.
+  const forwarded =
+    headersList.get('x-forwarded-for') || headersList.get('x-vercel-forwarded-for')
+  const first = forwarded?.split(',')[0]?.trim()
   return (
-    headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    first ||
     headersList.get('x-real-ip') ||
     headersList.get('cf-connecting-ip') ||
     null
