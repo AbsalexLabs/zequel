@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@zequel/shared/supabase/server'
+import { createSupportTicket } from '@zequel/shared/support/create-ticket'
 
 /**
  * Submits a bug report from the signed-in user. The report is stored in the
@@ -61,6 +62,25 @@ export async function POST(request: Request) {
     if (insertError) {
       console.error('[Zequel] Bug report insert error:', insertError)
       return NextResponse.json({ error: 'Failed to submit bug report' }, { status: 500 })
+    }
+
+    // Also create a unified support ticket so the report appears in the admin
+    // Support Center. Best-effort: a failure here must not fail the submission.
+    try {
+      await createSupportTicket({
+        source: 'bug_report',
+        userId: user.id,
+        userEmail: user.email ?? '',
+        userName,
+        subject,
+        body: description,
+        bug: {
+          pageUrl,
+          description,
+        },
+      })
+    } catch (ticketError) {
+      console.error('[Zequel] Bug report -> support ticket failed:', ticketError)
     }
 
     return NextResponse.json({ success: true })
