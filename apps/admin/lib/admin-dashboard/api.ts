@@ -159,6 +159,7 @@ interface ApiAuditRow {
   target_type: string
   target_id: string | null
   details: Record<string, unknown> | null
+  ip_address: string | null
   created_at: string
   admin?: { email?: string | null; full_name?: string | null } | null
 }
@@ -170,7 +171,8 @@ export function mapAudit(row: ApiAuditRow): AuditLogEntry {
     actorRole: "admin",
     action: row.action.replace(/_/g, " "),
     target: row.target_id ? `${row.target_type}:${row.target_id}` : row.target_type,
-    ip: "—",
+    ip: row.ip_address || "—",
+    details: row.details ?? null,
     createdAt: row.created_at,
   }
 }

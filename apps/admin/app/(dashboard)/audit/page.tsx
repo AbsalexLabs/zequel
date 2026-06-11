@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ScrollText, Clock, Globe, ShieldCheck } from "lucide-react"
+import { ScrollText, Clock, Globe, ShieldCheck, Crosshair, Copy, Check } from "lucide-react"
 import { PageHeader } from "@/components/admin/page-header"
 import { RoleGuard } from "@/components/admin/role-guard"
 import { DataTable, DataTableCard, TableToolbar } from "@/components/admin/data-table"
@@ -158,55 +158,80 @@ export default function AuditPage() {
       </RoleGuard>
 
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent showCloseButton={false} className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <DialogHeader className="border-b border-border px-5 py-4">
             <DialogTitle className="flex items-center gap-2">
-              <ScrollText className="size-4" />
+              <ScrollText className="size-4 text-muted-foreground" />
               Audit entry
             </DialogTitle>
-            <DialogDescription className="font-mono text-[11px]">{selected?.id}</DialogDescription>
+            <DialogDescription className="flex items-center gap-1.5 font-mono text-[11px]">
+              <span className="truncate">{selected?.id}</span>
+              {selected && <CopyButton value={selected.id} label="Copy entry ID" />}
+            </DialogDescription>
           </DialogHeader>
 
           {selected && (
-            <div className="space-y-5 py-1">
+            <div className="space-y-4 px-5 py-5">
               <div className="rounded-lg border border-border bg-secondary/40 p-3">
-                <p className="text-xs text-muted-foreground">Action</p>
-                <p className="mt-1 text-sm font-medium text-foreground">{selected.action}</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Action</p>
+                <p className="mt-1 text-sm font-medium capitalize text-foreground">{selected.action}</p>
               </div>
 
-              <dl className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <dt className="flex items-center gap-1.5 text-muted-foreground">
+              <dl className="divide-y divide-border rounded-lg border border-border">
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <dt className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
                     <ShieldCheck className="size-3.5" /> Actor
                   </dt>
-                  <dd className="text-foreground">
+                  <dd className="min-w-0 truncate text-right text-sm text-foreground">
                     {selected.actor}{" "}
                     <span className="font-mono text-[11px] uppercase text-muted-foreground">
                       ({selected.actorRole})
                     </span>
                   </dd>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Target</dt>
-                  <dd className="font-mono text-xs text-foreground">{selected.target}</dd>
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <dt className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+                    <Crosshair className="size-3.5" /> Target
+                  </dt>
+                  <dd className="flex min-w-0 items-center justify-end gap-1.5">
+                    <span className="truncate font-mono text-xs text-foreground">{selected.target}</span>
+                    <CopyButton value={selected.target} label="Copy target" />
+                  </dd>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="flex items-center gap-1.5 text-muted-foreground">
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <dt className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
                     <Globe className="size-3.5" /> IP address
                   </dt>
-                  <dd className="font-mono text-xs text-foreground">{selected.ip}</dd>
+                  <dd className="flex min-w-0 items-center justify-end gap-1.5">
+                    <span className="truncate font-mono text-xs text-foreground">{selected.ip}</span>
+                    {selected.ip && selected.ip !== "—" && (
+                      <CopyButton value={selected.ip} label="Copy IP address" />
+                    )}
+                  </dd>
                 </div>
-                <div className="flex items-center justify-between">
-                  <dt className="flex items-center gap-1.5 text-muted-foreground">
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                  <dt className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
                     <Clock className="size-3.5" /> Timestamp
                   </dt>
-                  <dd className="text-foreground">{formatDateTime(selected.createdAt)}</dd>
+                  <dd className="text-right text-sm text-foreground">{formatDateTime(selected.createdAt)}</dd>
                 </div>
               </dl>
+
+              {selected.details && Object.keys(selected.details).length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Details</p>
+                  <pre className="max-h-48 overflow-auto rounded-lg border border-border bg-secondary/40 p-3 font-mono text-[11px] leading-relaxed text-foreground">
+                    {JSON.stringify(selected.details, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-border px-5 py-4">
             <Button variant="outline" onClick={() => setSelected(null)}>
               Close
             </Button>
@@ -214,5 +239,32 @@ export default function AuditPage() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/**
+ * Small inline copy-to-clipboard button used for the target and IP fields in
+ * the audit entry dialog.
+ */
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard can be unavailable (e.g. insecure context); fail silently.
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+      aria-label={label}
+    >
+      {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+    </button>
   )
 }

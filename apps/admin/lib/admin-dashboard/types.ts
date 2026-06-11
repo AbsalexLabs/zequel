@@ -140,6 +140,7 @@ export interface AuditLogEntry {
   action: string
   target: string
   ip: string
+  details?: Record<string, unknown> | null
   createdAt: string
 }
 
