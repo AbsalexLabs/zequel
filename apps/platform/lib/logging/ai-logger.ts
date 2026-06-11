@@ -1,4 +1,4 @@
-import { createClient as createServerClient } from '@zequel/shared/supabase/server'
+import { createServiceClient } from '@zequel/shared/supabase/service'
 import type { RequestType } from '@zequel/shared/validation/ai-schema'
 
 interface AIUsageLog {
@@ -14,8 +14,12 @@ interface AIUsageLog {
 
 export async function logAIUsage(log: AIUsageLog): Promise<void> {
   try {
-    const supabase = await createServerClient()
-    await supabase.from('ai_usage_logs').insert({
+    // Use the service-role client so the insert bypasses RLS. The
+    // `ai_usage_logs` table only has a SELECT policy (auth.uid() = user_id) and
+    // NO insert policy, so the cookie/anon client was being silently rejected —
+    // which is why the admin AI Usage page showed no data.
+    const supabase = createServiceClient()
+    const { error } = await supabase.from('ai_usage_logs').insert({
       user_id: log.user_id,
       endpoint: log.endpoint,
       model: log.model,
@@ -26,9 +30,12 @@ export async function logAIUsage(log: AIUsageLog): Promise<void> {
       latency_ms: log.latency_ms || 0,
       created_at: new Date().toISOString(),
     })
+    if (error) {
+      console.error('[v0] Failed to insert AI usage log:', error.message)
+    }
   } catch (err) {
     // Don't fail the request if logging fails - just console error
-    console.error('Failed to log AI usage:', err)
+    console.error('[v0] Failed to log AI usage:', err)
   }
 }
 
