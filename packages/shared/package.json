@@ -12,6 +12,7 @@
     "./security/advanced-rate-limit": "./src/security/advanced-rate-limit.ts",
     "./security/subscription": "./src/security/subscription.ts",
     "./settings/system-settings": "./src/settings/system-settings.ts",
+    "./support/create-ticket": "./src/support/create-ticket.ts",
     "./validation/ai-schema": "./src/validation/ai-schema.ts"
   },
   "scripts": {

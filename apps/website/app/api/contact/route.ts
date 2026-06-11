@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { canCreateServiceClient, createServiceClient } from "@zequel/shared/supabase/service"
+import { createSupportTicket } from "@zequel/shared/support/create-ticket"
 
 /**
  * Public contact form submission. Stores the message in cms_contact_messages
@@ -44,6 +45,20 @@ export async function POST(request: Request) {
     if (error) {
       console.log("[v0] contact insert error:", error.message)
       return NextResponse.json({ error: "Failed to send message." }, { status: 500 })
+    }
+
+    // Also create a unified support ticket so the message appears in the admin
+    // Support Center. Best-effort: a failure here must not fail the submission.
+    try {
+      await createSupportTicket({
+        source: "contact_form",
+        userEmail: email,
+        userName: name,
+        subject,
+        body: message,
+      })
+    } catch (ticketError) {
+      console.log("[v0] contact -> support ticket failed:", (ticketError as Error).message)
     }
 
     return NextResponse.json({ success: true })
