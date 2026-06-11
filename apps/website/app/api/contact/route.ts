@@ -34,21 +34,11 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServiceClient()
-    const { error } = await supabase.from("cms_contact_messages").insert({
-      name,
-      email,
-      subject,
-      message,
-      status: "new",
-    })
 
-    if (error) {
-      console.log("[v0] contact insert error:", error.message)
-      return NextResponse.json({ error: "Failed to send message." }, { status: 500 })
-    }
-
-    // Also create a unified support ticket so the message appears in the admin
-    // Support Center. Best-effort: a failure here must not fail the submission.
+    // Primary: create a unified support ticket so the message lands in the
+    // admin Support Center (the "contact form" source). This is the source of
+    // truth for the support inbox.
+    let ticketCreated = false
     try {
       await createSupportTicket({
         source: "contact_form",
@@ -57,8 +47,28 @@ export async function POST(request: Request) {
         subject,
         body: message,
       })
+      ticketCreated = true
     } catch (ticketError) {
       console.log("[v0] contact -> support ticket failed:", (ticketError as Error).message)
+    }
+
+    // Secondary (best-effort): mirror into the legacy CMS inbox. A failure here
+    // must not fail the submission as long as the support ticket was created.
+    const { error: cmsError } = await supabase.from("cms_contact_messages").insert({
+      name,
+      email,
+      subject,
+      message,
+      status: "new",
+    })
+
+    if (cmsError) {
+      console.log("[v0] contact cms insert error:", cmsError.message)
+    }
+
+    // Only fail if nothing was stored anywhere.
+    if (!ticketCreated && cmsError) {
+      return NextResponse.json({ error: "Failed to send message." }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

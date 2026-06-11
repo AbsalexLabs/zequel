@@ -8,6 +8,16 @@
 --
 -- Admin access is via the service-role client (bypasses RLS); end users may
 -- read/insert their own tickets and messages. Safe to run multiple times.
+--
+-- INBOUND EMAIL (email -> Support Center)
+-- ---------------------------------------
+-- Emails sent to your support address become tickets via the Resend Inbound
+-- webhook at: POST /api/webhooks/inbound-email (admin app). Required env vars:
+--   RESEND_API_KEY          - send admin replies + fetch inbound bodies
+--   RESEND_WEBHOOK_SECRET   - verify the Resend inbound webhook signature
+--   SUPPORT_INBOUND_ADDRESS - reply-to address (defaults to support@zequel.xyz)
+-- In Resend: enable receiving on your domain and point the inbound route at
+-- the webhook URL. Replies thread onto a ticket via the "[ZQ-####]" subject ref.
 -- ===========================================================================
 
 -- --- Tickets ---------------------------------------------------------------

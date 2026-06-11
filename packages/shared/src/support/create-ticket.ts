@@ -90,3 +90,86 @@ export async function createSupportTicket(
 
   return { ticketId: ticket.id, ref: ticket.ref ?? null }
 }
+
+export interface InboundEmailInput {
+  /** Sender email address (the user). */
+  fromEmail: string
+  /** Sender display name, if the email provided one. */
+  fromName?: string | null
+  /** Email subject line (may contain a "[ZQ-1234]" ticket ref). */
+  subject: string
+  /** Plain-text (or stripped) body of the email. */
+  body: string
+  /** Address the email was sent to, e.g. support@zequel.xyz. */
+  toEmail?: string | null
+}
+
+/**
+ * Extract a Zequel ticket ref (e.g. "ZQ-4821") from an email subject so replies
+ * thread onto the original ticket. Returns null when no ref is present.
+ */
+export function parseTicketRef(subject: string | null | undefined): string | null {
+  if (!subject) return null
+  const match = subject.match(/ZQ-\d{4,}/i)
+  return match ? match[0].toUpperCase() : null
+}
+
+/**
+ * Ingest an inbound support email. If the subject carries a known ticket ref,
+ * the email is appended to that ticket as a new user message (and the ticket is
+ * reopened). Otherwise a brand-new `support_email` ticket is created. This is
+ * what powers email -> Support Center and admin <-> user email threading.
+ */
+export async function ingestInboundEmail(
+  input: InboundEmailInput,
+): Promise<{ ticketId: string; ref: string | null; threaded: boolean }> {
+  if (!canCreateServiceClient()) {
+    throw new Error('SUPPORT_SERVICE_UNAVAILABLE')
+  }
+
+  const supabase = createServiceClient()
+  const ref = parseTicketRef(input.subject)
+
+  // Try to thread onto an existing ticket when we recognise the ref.
+  if (ref) {
+    const { data: existing } = await supabase
+      .from('support_tickets')
+      .select('id, ref')
+      .eq('ref', ref)
+      .maybeSingle()
+
+    if (existing) {
+      const { error: msgError } = await supabase.from('support_messages').insert({
+        ticket_id: existing.id,
+        kind: 'user',
+        author: input.fromName || input.fromEmail,
+        body: input.body,
+        email_from: input.fromEmail,
+        email_to: input.toEmail ?? null,
+        email_subject: input.subject,
+      })
+      if (msgError) {
+        throw new Error(msgError.message)
+      }
+
+      // A user reply reopens a resolved/closed ticket and flags it for staff.
+      await supabase
+        .from('support_tickets')
+        .update({ status: 'open' })
+        .eq('id', existing.id)
+
+      return { ticketId: existing.id, ref: existing.ref ?? ref, threaded: true }
+    }
+  }
+
+  // No matching ticket -> create a fresh support_email ticket.
+  const created = await createSupportTicket({
+    source: 'support_email',
+    userEmail: input.fromEmail,
+    userName: input.fromName ?? null,
+    subject: input.subject || '(no subject)',
+    body: input.body,
+  })
+
+  return { ...created, threaded: false }
+}

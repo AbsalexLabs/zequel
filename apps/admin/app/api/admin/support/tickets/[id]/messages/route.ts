@@ -3,6 +3,9 @@ import { createServiceClient } from '@zequel/shared/supabase/service'
 import { Resend } from 'resend'
 
 const SUPPORT_FROM = 'Zequel Support <support@zequel.xyz>'
+// Inbound address users reply to. Replies hit the Resend inbound webhook and
+// thread back onto the ticket via the "[ZQ-####]" ref in the subject.
+const SUPPORT_REPLY_TO = process.env.SUPPORT_INBOUND_ADDRESS || 'support@zequel.xyz'
 
 function supportEmailHtml({ ticketRef, subject, body }: { ticketRef: string; subject: string; body: string }) {
   const safeBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
@@ -74,6 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const { error: sendError } = await resend.emails.send({
           from: SUPPORT_FROM,
           to: ticket.user_email,
+          replyTo: SUPPORT_REPLY_TO,
           subject,
           html: supportEmailHtml({ ticketRef: ticket.ref, subject: ticket.subject, body: text }),
         })
