@@ -20,12 +20,10 @@ import {
 import { StatusPill } from "@/components/admin/status-pill"
 import { formatDateTime } from "@/lib/admin-dashboard/format"
 import {
-  ADMINS,
-  ACCOUNT_STATUS_LABEL,
   PLAN_LABEL,
   SOURCE_LABEL,
   STATUS_PILL,
-  SUPER_ADMIN,
+  type AdminOption,
   type SupportTicketDetail,
 } from "@/lib/admin-dashboard/support-center"
 
@@ -60,25 +58,33 @@ function Section({
 
 export function SupportContextPanel({
   ticket,
+  admins,
+  superAdminId,
+  busy,
   onAssign,
   onStatus,
   onForward,
 }: {
   ticket: SupportTicketDetail | null
-  onAssign: (admin: string) => void
+  admins: AdminOption[]
+  superAdminId: string | null
+  busy?: boolean
+  onAssign: (adminId: string) => void
   onStatus: (status: SupportTicketDetail["status"], label: string) => void
   onForward: () => void
 }) {
   if (!ticket) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-center">
-        <p className="text-xs text-muted-foreground">Ticket details appear here.</p>
+        <p className="text-xs text-muted-foreground">Select a ticket to see user and ticket details.</p>
       </div>
     )
   }
 
   const isClosed = ticket.status === "closed"
   const isResolved = ticket.status === "resolved"
+  const superAdmin = admins.find((a) => a.id === superAdminId)
+  const superAdminFirstName = superAdmin?.name.split(" ")[0] ?? "Super Admin"
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4">
@@ -97,7 +103,7 @@ export function SupportContextPanel({
         </Section>
 
         <Section icon={Ticket} title="Ticket">
-          <Field label="Ticket ID" value={ticket.id} mono />
+          <Field label="Reference" value={ticket.ref} mono />
           <Field label="Source" value={SOURCE_LABEL[ticket.source]} />
           <div className="flex items-center justify-between gap-3 py-1">
             <dt className="text-xs text-muted-foreground">Status</dt>
@@ -113,17 +119,18 @@ export function SupportContextPanel({
           <div className="py-1.5">
             <p className="mb-1.5 text-xs text-muted-foreground">Assigned Admin</p>
             <Select
-              value={ticket.assignedAdmin ?? "unassigned"}
+              value={ticket.assignedAdminId ?? "unassigned"}
               onValueChange={(v) => onAssign(v === "unassigned" ? "" : v)}
+              disabled={busy}
             >
               <SelectTrigger className="h-8 text-xs">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
-                {ADMINS.map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {a}
+                {admins.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -136,11 +143,25 @@ export function SupportContextPanel({
             Actions
           </h3>
           <div className="grid gap-1.5">
-            <Button variant="outline" size="sm" className="justify-start" onClick={onForward}>
-              <ArrowUpCircle className="size-3.5" /> Forward to {SUPER_ADMIN.split(" ")[0]} (Super Admin)
-            </Button>
+            {superAdminId && ticket.assignedAdminId !== superAdminId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start"
+                disabled={busy}
+                onClick={onForward}
+              >
+                <ArrowUpCircle className="size-3.5" /> Forward to {superAdminFirstName} (Super Admin)
+              </Button>
+            ) : null}
             {isClosed || isResolved ? (
-              <Button variant="outline" size="sm" className="justify-start" onClick={() => onStatus("open", "reopened")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start"
+                disabled={busy}
+                onClick={() => onStatus("open", "reopened")}
+              >
                 <RotateCcw className="size-3.5" /> Reopen Ticket
               </Button>
             ) : (
@@ -148,6 +169,7 @@ export function SupportContextPanel({
                 variant="outline"
                 size="sm"
                 className="justify-start"
+                disabled={busy}
                 onClick={() => onStatus("resolved", "marked resolved")}
               >
                 <CheckCircle2 className="size-3.5" /> Resolve Ticket
@@ -158,7 +180,7 @@ export function SupportContextPanel({
               size="sm"
               className="justify-start text-destructive hover:text-destructive"
               onClick={() => onStatus("closed", "closed")}
-              disabled={isClosed}
+              disabled={isClosed || busy}
             >
               <XCircle className="size-3.5" /> Close Ticket
             </Button>
