@@ -1,13 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowLeft } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useIsMobile } from "@zequel/ui/hooks/use-mobile"
 import { Button } from "@zequel/ui/components/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@zequel/ui/components/sheet"
-import { StatCard } from "@/components/admin/stat-card"
-import { formatNumber } from "@/lib/admin-dashboard/format"
 import { cn } from "@/lib/utils"
 import { SupportCategorySidebar } from "./support-category-sidebar"
 import { SupportTicketList, type SortKey } from "./support-ticket-list"
@@ -15,154 +13,155 @@ import { SupportConversation } from "./support-conversation"
 import { SupportContextPanel } from "./support-context-panel"
 import {
   CATEGORIES,
-  CURRENT_ADMIN,
-  MOCK_TICKETS,
   STATUS_LABEL,
-  SUPER_ADMIN,
-  matchesCategory,
   type CategoryId,
-  type SupportTicketDetail,
   type TicketSource,
   type TicketStatus,
-  type TimelineItem,
 } from "@/lib/admin-dashboard/support-center"
-
-function makeItem(
-  kind: TimelineItem["kind"],
-  author: string,
-  body: string,
-  event?: string,
-): TimelineItem {
-  return {
-    id: `t_${Math.random().toString(36).slice(2, 8)}`,
-    kind,
-    author,
-    body,
-    event,
-    createdAt: new Date().toISOString(),
-  }
-}
+import {
+  useSupportTickets,
+  useSupportTicket,
+  postMessage,
+  patchTicket,
+  type MessageKind,
+} from "@/lib/admin-dashboard/use-support"
 
 export function SupportCenter() {
   const isMobile = useIsMobile()
-  const [tickets, setTickets] = useState<SupportTicketDetail[]>(MOCK_TICKETS)
   const [category, setCategory] = useState<CategoryId>("all")
   const [source, setSource] = useState<TicketSource | null>(null)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sourceFilter, setSourceFilter] = useState("all")
   const [sort, setSort] = useState<SortKey>("newest")
-  const [selectedId, setSelectedId] = useState<string | null>(MOCK_TICKETS[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileView, setMobileView] = useState<"list" | "detail">("list")
+  const [busy, setBusy] = useState(false)
 
-  // Metrics
-  const metrics = useMemo(() => {
-    return {
-      total: tickets.length,
-      open: tickets.filter((t) => t.status === "open").length,
-      waiting: tickets.filter((t) => t.status === "waiting_for_user").length,
-      resolved: tickets.filter((t) => t.status === "resolved").length,
-      closed: tickets.filter((t) => t.status === "closed").length,
+  // Debounce the search box so we don't refetch on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // The sidebar source filter takes precedence over the category source filter.
+  const effectiveSource = source ?? (sourceFilter !== "all" ? (sourceFilter as TicketSource) : undefined)
+
+  const {
+    data,
+    error: listError,
+    isLoading: listLoading,
+    mutate: mutateList,
+  } = useSupportTickets({
+    category: source === null ? category : "all",
+    source: effectiveSource,
+    status: statusFilter !== "all" ? (statusFilter as TicketStatus) : undefined,
+    search: debouncedSearch,
+    sort,
+  })
+
+  const tickets = data?.tickets ?? []
+  const admins = data?.admins ?? []
+
+  // Keep a valid selection as the list changes.
+  useEffect(() => {
+    if (tickets.length === 0) {
+      setSelectedId(null)
+      return
     }
-  }, [tickets])
+    if (!selectedId || !tickets.some((t) => t.id === selectedId)) {
+      if (!isMobile) setSelectedId(tickets[0].id)
+    }
+  }, [tickets, selectedId, isMobile])
 
-  // Filtered + sorted list
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const list = tickets.filter((t) => {
-      const inCategory = source === null ? matchesCategory(t, category) : t.source === source
-      const inStatus = statusFilter === "all" || t.status === statusFilter
-      const inSource = sourceFilter === "all" || t.source === sourceFilter
-      const inSearch =
-        q.length === 0 ||
-        t.subject.toLowerCase().includes(q) ||
-        t.userName.toLowerCase().includes(q) ||
-        t.userEmail.toLowerCase().includes(q) ||
-        t.id.toLowerCase().includes(q)
-      return inCategory && inStatus && inSource && inSearch
-    })
-    return list.sort((a, b) => {
-      const key = sort === "newest" ? "createdAt" : "lastActivityAt"
-      return new Date(b[key]).getTime() - new Date(a[key]).getTime()
-    })
-  }, [tickets, category, source, statusFilter, sourceFilter, search, sort])
+  const {
+    ticket: selected,
+    isLoading: detailLoading,
+    mutate: mutateDetail,
+  } = useSupportTicket(selectedId)
 
-  const selected = useMemo(
-    () => tickets.find((t) => t.id === selectedId) ?? null,
-    [tickets, selectedId],
-  )
-
-  const listTitle = source === null ? CATEGORIES.find((c) => c.id === category)?.label ?? "Tickets" : "Tickets"
+  const listTitle =
+    source === null ? CATEGORIES.find((c) => c.id === category)?.label ?? "Tickets" : "Tickets"
 
   function selectTicket(id: string) {
     setSelectedId(id)
-    setTickets((prev) => prev.map((t) => (t.id === id ? { ...t, unread: false } : t)))
     if (isMobile) setMobileView("detail")
   }
 
-  function patch(id: string, updater: (t: SupportTicketDetail) => SupportTicketDetail) {
-    setTickets((prev) => prev.map((t) => (t.id === id ? updater(t) : t)))
+  async function refresh() {
+    await Promise.all([mutateList(), mutateDetail()])
   }
 
-  function handleSend(kind: "reply" | "email" | "note", body: string) {
-    if (!selected) return
-    const id = selected.id
-    const now = new Date().toISOString()
-    if (kind === "note") {
-      patch(id, (t) => ({ ...t, timeline: [...t.timeline, makeItem("note", CURRENT_ADMIN, body)], updatedAt: now }))
-      toast.success("Internal note added")
+  async function handleSend(kind: MessageKind, body: string) {
+    if (!selectedId) return
+    setBusy(true)
+    try {
+      const res = (await postMessage(selectedId, { kind, body })) as { emailed?: boolean }
+      await refresh()
+      if (kind === "note") toast.success("Internal note added")
+      else if (res.emailed) toast.success(`Sent — emailed ${selected?.userEmail ?? "the user"}`)
+      else toast.success("Message saved (email not sent — check email config)")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send message")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleStatus(status: TicketStatus, label: string) {
+    if (!selectedId) return
+    setBusy(true)
+    try {
+      await patchTicket(selectedId, { status })
+      await refresh()
+      toast.success(`Ticket ${label}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update status")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleAssign(adminId: string) {
+    if (!selectedId) return
+    setBusy(true)
+    try {
+      await patchTicket(selectedId, { assignedAdminId: adminId || null })
+      await refresh()
+      const name = admins.find((a) => a.id === adminId)?.name
+      toast.success(name ? `Assigned to ${name}` : "Ticket unassigned")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign ticket")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleForward() {
+    if (!selectedId || !data?.superAdminId) {
+      toast.error("No Super Admin is configured")
       return
     }
-    const itemKind = kind === "email" ? "email" : "admin"
-    patch(id, (t) => ({
-      ...t,
-      timeline: [...t.timeline, makeItem(itemKind, CURRENT_ADMIN, body)],
-      updatedAt: now,
-      lastActivityAt: now,
-    }))
-    toast.success(kind === "email" ? `Email sent to ${selected.userEmail}` : `Reply sent — emailed ${selected.userEmail}`)
-  }
-
-  function handleStatus(status: TicketStatus, label: string) {
-    if (!selected) return
-    const id = selected.id
-    const now = new Date().toISOString()
-    const eventName =
-      status === "resolved" ? "Resolved" : status === "closed" ? "Closed" : status === "open" ? "Reopened" : "Updated"
-    patch(id, (t) => ({
-      ...t,
-      status,
-      updatedAt: now,
-      lastActivityAt: now,
-      timeline: [...t.timeline, makeItem("system", "System", `Ticket ${label} by ${CURRENT_ADMIN}`, eventName)],
-    }))
-    toast.success(`${id} ${label}`)
-  }
-
-  function handleAssign(admin: string) {
-    if (!selected) return
-    const id = selected.id
-    const now = new Date().toISOString()
-    patch(id, (t) => ({
-      ...t,
-      assignedAdmin: admin || null,
-      updatedAt: now,
-      timeline: admin
-        ? [...t.timeline, makeItem("system", "System", `Assigned to ${admin}`, "Assigned to Admin")]
-        : t.timeline,
-    }))
-    toast.success(admin ? `Assigned to ${admin}` : "Ticket unassigned")
-  }
-
-  function handleForward() {
-    if (!selected) return
-    handleAssign(SUPER_ADMIN)
-    toast.success(`Forwarded to ${SUPER_ADMIN} for review`)
+    setBusy(true)
+    try {
+      await patchTicket(selectedId, {
+        assignedAdminId: data.superAdminId,
+        forwardToSuperAdmin: true,
+      })
+      await refresh()
+      toast.success("Forwarded to Super Admin for review")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to forward ticket")
+    } finally {
+      setBusy(false)
+    }
   }
 
   const listPanel = (
     <SupportTicketList
-      tickets={filtered}
+      tickets={tickets}
+      loading={listLoading}
       selectedId={selectedId}
       onSelect={selectTicket}
       search={search}
@@ -179,13 +178,49 @@ export function SupportCenter() {
 
   const categorySidebar = (
     <SupportCategorySidebar
-      tickets={tickets}
+      categoryCounts={data?.categoryCounts}
+      sourceCounts={data?.sourceCounts}
       category={category}
       source={source}
       onSelectCategory={setCategory}
       onSelectSource={setSource}
     />
   )
+
+  const contextPanel = (
+    <SupportContextPanel
+      ticket={selected ?? null}
+      admins={admins}
+      superAdminId={data?.superAdminId ?? null}
+      busy={busy}
+      onAssign={handleAssign}
+      onStatus={handleStatus}
+      onForward={handleForward}
+    />
+  )
+
+  const conversation = (
+    <SupportConversation
+      ticket={selected ?? null}
+      loading={detailLoading && !!selectedId}
+      busy={busy}
+      onSend={handleSend}
+      onStatus={handleStatus}
+    />
+  )
+
+  if (listError) {
+    return (
+      <div className="flex h-[calc(100dvh-12rem)] flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card text-center">
+        <AlertCircle className="size-7 text-muted-foreground" />
+        <p className="text-sm font-medium text-foreground">Could not load tickets</p>
+        <p className="max-w-sm text-xs text-muted-foreground">{listError.message}</p>
+        <Button variant="outline" size="sm" className="mt-2" onClick={() => mutateList()}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
 
   // ---- Mobile ----
   if (isMobile) {
@@ -205,7 +240,7 @@ export function SupportCenter() {
                   {categorySidebar}
                 </SheetContent>
               </Sheet>
-              <span className="font-mono text-[11px] text-muted-foreground">{filtered.length} tickets</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{tickets.length} tickets</span>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">{listPanel}</div>
           </div>
@@ -217,24 +252,17 @@ export function SupportCenter() {
               </Button>
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="ml-auto">
+                  <Button variant="outline" size="sm" className="ml-auto" disabled={!selected}>
                     Details
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80 p-0">
                   <SheetTitle className="sr-only">Ticket details</SheetTitle>
-                  <SupportContextPanel
-                    ticket={selected}
-                    onAssign={handleAssign}
-                    onStatus={handleStatus}
-                    onForward={handleForward}
-                  />
+                  {contextPanel}
                 </SheetContent>
               </Sheet>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <SupportConversation ticket={selected} onSend={handleSend} onStatus={handleStatus} />
-            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">{conversation}</div>
           </div>
         )}
       </div>
@@ -244,15 +272,7 @@ export function SupportCenter() {
   // ---- Tablet & Desktop ----
   return (
     <div className="space-y-4">
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatCard label="Total Tickets" value={formatNumber(metrics.total)} />
-        <StatCard label="Open" value={formatNumber(metrics.open)} />
-        <StatCard label="Waiting For User" value={formatNumber(metrics.waiting)} />
-        <StatCard label="Resolved" value={formatNumber(metrics.resolved)} />
-        <StatCard label="Closed" value={formatNumber(metrics.closed)} />
-      </section>
-
-      <div className="flex h-[calc(100dvh-15rem)] min-h-[32rem] overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex h-[calc(100dvh-11rem)] min-h-[32rem] overflow-hidden rounded-lg border border-border bg-card">
         {/* Left — categories */}
         <div className="hidden w-56 shrink-0 border-r border-border xl:block">{categorySidebar}</div>
 
@@ -260,19 +280,10 @@ export function SupportCenter() {
         <div className="w-full max-w-sm shrink-0 border-r border-border md:w-80 lg:w-96">{listPanel}</div>
 
         {/* Main — conversation */}
-        <div className="min-w-0 flex-1">
-          <SupportConversation ticket={selected} onSend={handleSend} onStatus={handleStatus} />
-        </div>
+        <div className="min-w-0 flex-1">{conversation}</div>
 
         {/* Right — context (desktop only) */}
-        <div className="hidden w-80 shrink-0 border-l border-border lg:block">
-          <SupportContextPanel
-            ticket={selected}
-            onAssign={handleAssign}
-            onStatus={handleStatus}
-            onForward={handleForward}
-          />
-        </div>
+        <div className="hidden w-80 shrink-0 border-l border-border lg:block">{contextPanel}</div>
       </div>
 
       {/* Tablet: categories + context move into a toolbar of sheets */}
@@ -296,12 +307,7 @@ export function SupportCenter() {
           </SheetTrigger>
           <SheetContent side="right" className="w-80 p-0">
             <SheetTitle className="sr-only">Ticket details</SheetTitle>
-            <SupportContextPanel
-              ticket={selected}
-              onAssign={handleAssign}
-              onStatus={handleStatus}
-              onForward={handleForward}
-            />
+            {contextPanel}
           </SheetContent>
         </Sheet>
         <span className="ml-auto font-mono text-[11px] text-muted-foreground">
