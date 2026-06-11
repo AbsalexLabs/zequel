@@ -1,5 +1,12 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
+import {
+  mapSummary,
+  buildCategoryCounts,
+  buildSourceCounts,
+  mapAdmins,
+  type TicketRow,
+} from '@/lib/admin-dashboard/support-server'
 
 const VALID_STATUSES = ['open', 'waiting_for_user', 'resolved', 'closed']
 const VALID_SOURCES = ['support_email', 'information_request', 'bug_report', 'contact_form']
@@ -82,19 +89,8 @@ export async function GET(request: Request) {
   }
 
   const rows = allRows || []
-  const counts = {
-    all: rows.length,
-    assigned_to_me: rows.filter((r) => r.assigned_admin_id === user.id).length,
-    unassigned: rows.filter((r) => !r.assigned_admin_id).length,
-    open: rows.filter((r) => r.status === 'open').length,
-    waiting_for_user: rows.filter((r) => r.status === 'waiting_for_user').length,
-    resolved: rows.filter((r) => r.status === 'resolved').length,
-    closed: rows.filter((r) => r.status === 'closed').length,
-    support_email: rows.filter((r) => r.source === 'support_email').length,
-    information_request: rows.filter((r) => r.source === 'information_request').length,
-    bug_report: rows.filter((r) => r.source === 'bug_report').length,
-    contact_form: rows.filter((r) => r.source === 'contact_form').length,
-  }
+  const categoryCounts = buildCategoryCounts(rows, user.id)
+  const sourceCounts = buildSourceCounts(rows)
 
   // Admin roster for the assignment dropdown.
   const { data: admins } = await supabase
@@ -103,10 +99,15 @@ export async function GET(request: Request) {
     .in('role', ['admin', 'superadmin'])
     .order('full_name', { ascending: true })
 
+  const superAdmin = (admins || []).find((a) => a.role === 'superadmin')
+
   return adminResponse({
-    tickets: tickets || [],
-    counts,
-    admins: admins || [],
+    tickets: ((tickets as TicketRow[] | null) || []).map(mapSummary),
+    categoryCounts,
+    sourceCounts,
+    admins: mapAdmins(admins || []),
     currentAdminId: user.id,
+    currentAdminName: user.name,
+    superAdminId: superAdmin?.id || null,
   })
 }

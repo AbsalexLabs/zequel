@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 import {
   SOURCE_LABEL,
   STATUS_PILL,
-  type SupportTicketDetail,
+  type SupportTicketSummary,
 } from "@/lib/admin-dashboard/support-center"
 
 export type SortKey = "newest" | "updated"
@@ -34,7 +34,7 @@ function TicketCard({
   active,
   onClick,
 }: {
-  ticket: SupportTicketDetail
+  ticket: SupportTicketSummary
   active: boolean
   onClick: () => void
 }) {
@@ -65,7 +65,7 @@ function TicketCard({
         <div className="min-w-0">
           <p className="truncate text-xs text-foreground">{ticket.userName}</p>
         </div>
-        <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">{ticket.id}</span>
+        <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">{ticket.ref}</span>
       </div>
 
       <p className="line-clamp-1 text-xs text-muted-foreground">{ticket.preview}</p>
@@ -82,6 +82,7 @@ function TicketCard({
 
 export function SupportTicketList({
   tickets,
+  loading,
   selectedId,
   onSelect,
   search,
@@ -94,7 +95,8 @@ export function SupportTicketList({
   onSortChange,
   title,
 }: {
-  tickets: SupportTicketDetail[]
+  tickets: SupportTicketSummary[]
+  loading?: boolean
   selectedId: string | null
   onSelect: (id: string) => void
   search: string
@@ -167,7 +169,17 @@ export function SupportTicketList({
 
       {/* List */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tickets.length === 0 ? (
+        {loading && tickets.length === 0 ? (
+          <div className="space-y-3 p-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-3 w-3/4 animate-pulse rounded bg-secondary" />
+                <div className="h-2.5 w-1/2 animate-pulse rounded bg-secondary/70" />
+                <div className="h-2.5 w-2/3 animate-pulse rounded bg-secondary/50" />
+              </div>
+            ))}
+          </div>
+        ) : tickets.length === 0 ? (
           <div className="flex h-full items-center justify-center p-8 text-center">
             <p className="text-sm text-muted-foreground">No tickets match your filters.</p>
           </div>

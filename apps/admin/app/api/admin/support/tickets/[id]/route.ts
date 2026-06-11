@@ -1,5 +1,6 @@
 import { verifyAdmin, adminResponse, adminError } from '@/lib/admin/auth'
 import { createServiceClient } from '@zequel/shared/supabase/service'
+import { mapDetail, type TicketRow, type MessageRow } from '@/lib/admin-dashboard/support-server'
 
 const VALID_STATUSES = ['open', 'waiting_for_user', 'resolved', 'closed']
 
@@ -91,8 +92,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   return adminResponse({
-    ticket: { ...ticket, plan, account_status: accountStatus },
-    messages: messages || [],
+    ticket: mapDetail(
+      { ...(ticket as TicketRow), plan, account_status: accountStatus },
+      (messages as MessageRow[] | null) || [],
+    ),
   })
 }
 
@@ -146,7 +149,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         .eq('id', assignedId)
         .maybeSingle()
       const name = admin?.full_name || 'admin'
-      const forwarded = body.forward === true
+      const forwarded = body.forwardToSuperAdmin === true
       events.push({
         event: forwarded ? 'Forwarded to Super Admin' : 'Assigned to Admin',
         body: forwarded ? `Forwarded to ${name} for review` : `Assigned to ${name}`,

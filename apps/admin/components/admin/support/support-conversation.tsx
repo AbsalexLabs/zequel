@@ -29,11 +29,12 @@ import {
   type TimelineItem,
 } from "@/lib/admin-dashboard/support-center"
 
-type Composer = "reply" | "email" | "note"
+type Composer = "admin" | "email" | "note"
 
 const EVENT_ICON: Record<string, typeof CircleDot> = {
   "Ticket Created": CircleDot,
   "Assigned to Admin": UserCheck,
+  "Forwarded to Super Admin": UserCheck,
   Resolved: CheckCircle2,
   Reopened: RotateCcw,
   Closed: XCircle,
@@ -137,15 +138,31 @@ function MessageBubble({ item }: { item: TimelineItem }) {
 
 export function SupportConversation({
   ticket,
+  loading,
+  busy,
   onSend,
   onStatus,
 }: {
   ticket: SupportTicketDetail | null
+  loading?: boolean
+  busy?: boolean
   onSend: (kind: Composer, body: string) => void
   onStatus: (status: SupportTicketDetail["status"], label: string) => void
 }) {
-  const [composer, setComposer] = useState<Composer>("reply")
+  const [composer, setComposer] = useState<Composer>("admin")
   const [body, setBody] = useState("")
+
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col gap-4 p-6">
+        <div className="h-4 w-1/2 animate-pulse rounded bg-secondary" />
+        <div className="h-3 w-1/3 animate-pulse rounded bg-secondary/70" />
+        <div className="mt-4 h-16 w-3/4 animate-pulse rounded-lg bg-secondary/50" />
+        <div className="ml-auto h-16 w-2/3 animate-pulse rounded-lg bg-secondary/40" />
+        <div className="h-16 w-3/4 animate-pulse rounded-lg bg-secondary/50" />
+      </div>
+    )
+  }
 
   if (!ticket) {
     return (
@@ -170,7 +187,7 @@ export function SupportConversation({
   }
 
   const composerMeta: Record<Composer, { placeholder: string; cta: string; icon: typeof Send }> = {
-    reply: {
+    admin: {
       placeholder: `Reply to ${ticket.userName} — this will email ${ticket.userEmail}`,
       cta: "Send Reply",
       icon: Send,
@@ -197,7 +214,7 @@ export function SupportConversation({
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold text-foreground">{ticket.subject}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="font-mono text-[11px] text-muted-foreground">{ticket.id}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{ticket.ref}</span>
               <span className="text-muted-foreground">·</span>
               <span className="font-mono text-[11px] text-muted-foreground">{SOURCE_LABEL[ticket.source]}</span>
               <StatusPill status={STATUS_PILL[ticket.status]} />
@@ -205,11 +222,11 @@ export function SupportConversation({
           </div>
           <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
             {isClosed || isResolved ? (
-              <Button variant="outline" size="sm" onClick={() => onStatus("open", "reopened")}>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("open", "reopened")}>
                 <RotateCcw className="size-3.5" /> Reopen
               </Button>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => onStatus("resolved", "marked resolved")}>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => onStatus("resolved", "marked resolved")}>
                 <CheckCircle2 className="size-3.5" /> Resolve
               </Button>
             )}
@@ -246,7 +263,7 @@ export function SupportConversation({
       {/* Composer */}
       <div className="shrink-0 border-t border-border p-3">
         <div className="mb-2 flex items-center gap-1">
-          <ComposerTab active={composer === "reply"} onClick={() => setComposer("reply")} icon={MessageSquareReply}>
+          <ComposerTab active={composer === "admin"} onClick={() => setComposer("admin")} icon={MessageSquareReply}>
             Reply
           </ComposerTab>
           <ComposerTab active={composer === "email"} onClick={() => setComposer("email")} icon={Mail}>
@@ -272,10 +289,10 @@ export function SupportConversation({
             <Paperclip className="size-4" /> Attach
           </Button>
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" disabled={!valid} onClick={() => setBody("")}>
+            <Button variant="outline" size="sm" disabled={!valid || busy} onClick={() => setBody("")}>
               <Save className="size-3.5" /> Save Draft
             </Button>
-            <Button size="sm" disabled={!valid} onClick={submit}>
+            <Button size="sm" disabled={!valid || busy} onClick={submit}>
               <Cta className="size-3.5" /> {meta.cta}
             </Button>
           </div>

@@ -18,10 +18,9 @@ import { cn } from "@/lib/utils"
 import {
   CATEGORIES,
   SOURCES,
-  categoryCount,
-  sourceCount,
+  type CategoryCounts,
   type CategoryId,
-  type SupportTicketDetail,
+  type SourceCounts,
   type TicketSource,
 } from "@/lib/admin-dashboard/support-center"
 
@@ -80,13 +79,15 @@ function Row({
 }
 
 export function SupportCategorySidebar({
-  tickets,
+  categoryCounts,
+  sourceCounts,
   category,
   source,
   onSelectCategory,
   onSelectSource,
 }: {
-  tickets: SupportTicketDetail[]
+  categoryCounts?: CategoryCounts
+  sourceCounts?: SourceCounts
   category: CategoryId
   source: TicketSource | null
   onSelectCategory: (id: CategoryId) => void
@@ -104,7 +105,7 @@ export function SupportCategorySidebar({
               key={c.id}
               icon={CATEGORY_ICON[c.id]}
               label={c.label}
-              count={categoryCount(tickets, c.id)}
+              count={categoryCounts?.[c.id] ?? 0}
               active={source === null && category === c.id}
               onClick={() => {
                 onSelectSource(null)
@@ -123,7 +124,7 @@ export function SupportCategorySidebar({
               key={s.id}
               icon={SOURCE_ICON[s.id]}
               label={s.label}
-              count={sourceCount(tickets, s.id)}
+              count={sourceCounts?.[s.id] ?? 0}
               active={source === s.id}
               onClick={() => onSelectSource(source === s.id ? null : s.id)}
             />

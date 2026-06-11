@@ -16,8 +16,8 @@ function supportEmailHtml({ ticketRef, subject, body }: { ticketRef: string; sub
   </div>`
 }
 
-// Post a new message to a ticket. kind: reply | email | note.
-//   reply / email -> stored AND emailed to the ticket's user via Resend.
+// Post a new message to a ticket. kind: admin (reply) | email | note.
+//   admin / email -> stored AND emailed to the ticket's user via Resend.
 //   note          -> stored as an internal note, never emailed.
 // Admin only.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const kind = typeof body?.kind === 'string' ? body.kind : ''
   const text = typeof body?.body === 'string' ? body.body.trim() : ''
 
-  if (!['reply', 'email', 'note'].includes(kind)) {
+  if (!['admin', 'email', 'note'].includes(kind)) {
     return adminError('Invalid message kind', 400)
   }
   if (!text) {
@@ -51,10 +51,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return adminError(ticketError?.message || 'Ticket not found', 404)
   }
 
-  const dbKind = kind === 'reply' ? 'admin' : kind === 'email' ? 'email' : 'note'
   const insert: Record<string, unknown> = {
     ticket_id: id,
-    kind: dbKind,
+    kind,
     author: user.name,
     author_id: user.id,
     body: text,
@@ -62,8 +61,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   let emailed = false
 
-  // Reply and Email both send an email to the user.
-  if (kind === 'reply' || kind === 'email') {
+  // Admin reply and Email both send an email to the user.
+  if (kind === 'admin' || kind === 'email') {
     const subject = `Re: ${ticket.subject} [${ticket.ref}]`
     insert.email_from = SUPPORT_FROM
     insert.email_to = ticket.user_email
