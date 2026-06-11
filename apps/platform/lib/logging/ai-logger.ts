@@ -19,7 +19,9 @@ export async function logAIUsage(log: AIUsageLog): Promise<void> {
     // NO insert policy, so the cookie/anon client was being silently rejected —
     // which is why the admin AI Usage page showed no data.
     const supabase = createServiceClient()
-    const { error } = await supabase.from('ai_usage_logs').insert({
+
+    // Base row that only uses columns guaranteed to exist on the table.
+    const baseRow = {
       user_id: log.user_id,
       endpoint: log.endpoint,
       model: log.model,
@@ -27,11 +29,31 @@ export async function logAIUsage(log: AIUsageLog): Promise<void> {
       output_tokens: log.output_tokens || 0,
       status: log.status,
       error_message: log.error_message || null,
-      latency_ms: log.latency_ms || 0,
       created_at: new Date().toISOString(),
-    })
+    }
+
+    // Preferred insert including latency_ms (added by scripts/ai-usage-latency.sql).
+    const { error } = await supabase
+      .from('ai_usage_logs')
+      .insert({ ...baseRow, latency_ms: log.latency_ms || 0 })
+
     if (error) {
-      console.error('[v0] Failed to insert AI usage log:', error.message)
+      // If the latency_ms column doesn't exist yet (migration not applied),
+      // Postgres returns code 42703 / PGRST204. Retry without it so usage is
+      // still recorded rather than silently lost.
+      const missingColumn =
+        error.code === '42703' ||
+        error.code === 'PGRST204' ||
+        /latency_ms/i.test(error.message)
+
+      if (missingColumn) {
+        const { error: retryError } = await supabase.from('ai_usage_logs').insert(baseRow)
+        if (retryError) {
+          console.error('[v0] Failed to insert AI usage log (retry):', retryError.message)
+        }
+      } else {
+        console.error('[v0] Failed to insert AI usage log:', error.message)
+      }
     }
   } catch (err) {
     // Don't fail the request if logging fails - just console error
