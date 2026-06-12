@@ -27,8 +27,10 @@ import {
   DropdownMenuTrigger,
 } from "@zequel/ui/components/dropdown-menu"
 import { formatNumber, relativeTime, formatDateTime } from "@/lib/admin-dashboard/format"
-import { bugReports as initialBugs } from "@/lib/admin-dashboard/cms-mock-data"
+import { useCmsList, updateCmsItem, deleteCmsItem } from "@/lib/admin-dashboard/cms-api"
 import type { CmsBugReport, BugSeverity, BugStatus } from "@zequel/types"
+
+const RESOURCE = "bug-reports"
 
 const SEVERITY_META: Record<BugSeverity, { label: string; className: string }> = {
   low: { label: "Low", className: "bg-secondary text-secondary-foreground" },
@@ -47,7 +49,7 @@ const SEVERITY_ORDER: BugSeverity[] = ["critical", "high", "medium", "low"]
 const STATUS_ORDER: BugStatus[] = ["new", "triaged", "in_progress", "resolved", "wont_fix"]
 
 export default function CmsBugReportsPage() {
-  const [bugs, setBugs] = useState<CmsBugReport[]>(initialBugs)
+  const { items: bugs, isLoading, error, mutate } = useCmsList<CmsBugReport>(RESOURCE)
   const [search, setSearch] = useState("")
   const [severity, setSeverity] = useState("all")
   const [status, setStatus] = useState("all")
@@ -71,15 +73,25 @@ export default function CmsBugReportsPage() {
   const critical = bugs.filter((b) => b.severity === "critical").length
   const resolved = bugs.filter((b) => b.status === "resolved").length
 
-  function setStatusFor(id: string, next: BugStatus) {
-    setBugs((prev) => prev.map((b) => (b.id === id ? { ...b, status: next } : b)))
+  async function setStatusFor(id: string, next: BugStatus) {
     setActive((prev) => (prev && prev.id === id ? { ...prev, status: next } : prev))
-    toast.success(`Status set to "${STATUS_META[next].label}"`)
+    try {
+      await updateCmsItem<CmsBugReport>(RESOURCE, id, { status: next })
+      await mutate()
+      toast.success(`Status set to "${STATUS_META[next].label}"`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed")
+    }
   }
 
-  function remove(id: string) {
-    setBugs((prev) => prev.filter((b) => b.id !== id))
-    toast.success("Bug report deleted")
+  async function remove(id: string) {
+    try {
+      await deleteCmsItem(RESOURCE, id)
+      await mutate()
+      toast.success("Bug report deleted")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed")
+    }
   }
 
   function openBug(b: CmsBugReport) {
@@ -99,6 +111,11 @@ export default function CmsBugReportsPage() {
       </section>
 
       <div className="space-y-4">
+        {error && (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            Failed to load bug reports: {error.message}
+          </p>
+        )}
         <TableToolbar
           search={search}
           onSearchChange={setSearch}
@@ -212,7 +229,7 @@ export default function CmsBugReportsPage() {
         </DataTableCard>
 
         <p className="text-xs text-muted-foreground">
-          Showing {filtered.length} of {bugs.length} reports
+          {isLoading ? "Loading bug reports…" : `Showing ${filtered.length} of ${bugs.length} reports`}
         </p>
       </div>
 

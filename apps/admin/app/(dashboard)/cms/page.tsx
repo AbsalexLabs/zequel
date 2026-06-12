@@ -21,37 +21,50 @@ import { Card } from "@zequel/ui/components/card"
 import { Button } from "@zequel/ui/components/button"
 import { CmsStatusPill } from "@/components/admin/cms/cms-status-pill"
 import { formatNumber, relativeTime } from "@/lib/admin-dashboard/format"
-import {
-  blogPosts,
-  bugReports,
-  cmsPages,
-  contactMessages,
-  docArticles,
-  faqItems,
-  featureItems,
-  featureRequests,
-  mediaAssets,
-  pricingPlans,
-} from "@/lib/admin-dashboard/cms-mock-data"
-
-const QUICK_LINKS = [
-  { label: "Pages", href: "/cms/pages", icon: Files, count: cmsPages.length },
-  { label: "Features", href: "/cms/features", icon: Sparkles, count: featureItems.length },
-  { label: "Pricing", href: "/cms/pricing", icon: Tags, count: pricingPlans.length },
-  { label: "Documentation", href: "/cms/docs", icon: BookOpen, count: docArticles.length },
-  { label: "Blog", href: "/cms/blog", icon: Newspaper, count: blogPosts.length },
-  { label: "FAQ", href: "/cms/faq", icon: HelpCircle, count: faqItems.length },
-  { label: "Media Library", href: "/cms/media", icon: ImageIcon, count: mediaAssets.length },
-  { label: "Changelog", href: "/cms/changelog", icon: GitCommitVertical, count: 5 },
-]
+import { useCmsList } from "@/lib/admin-dashboard/cms-api"
+import type {
+  CmsPage,
+  FeatureItem,
+  PricingPlan,
+  DocArticle,
+  BlogPost,
+  FaqItem,
+  MediaAsset,
+  ContactMessage,
+  FeatureRequest,
+  CmsBugReport,
+} from "@zequel/types"
 
 export default function CmsOverviewPage() {
-  const newMessages = contactMessages.filter((m) => m.status === "new").length
-  const openRequests = featureRequests.filter((r) => r.status === "open").length
-  const openBugs = bugReports.filter((b) => b.status !== "resolved" && b.status !== "wont_fix").length
-  const published = cmsPages.filter((p) => p.status === "published").length
+  const pages = useCmsList<CmsPage>("pages")
+  const features = useCmsList<FeatureItem>("features")
+  const pricing = useCmsList<PricingPlan>("pricing")
+  const docs = useCmsList<DocArticle>("docs")
+  const blog = useCmsList<BlogPost>("blog")
+  const faq = useCmsList<FaqItem>("faq")
+  const media = useCmsList<MediaAsset>("media")
+  const changelog = useCmsList<{ id: string }>("changelog")
+  const contact = useCmsList<ContactMessage>("contact")
+  const requests = useCmsList<FeatureRequest>("feature-requests")
+  const bugs = useCmsList<CmsBugReport>("bug-reports")
 
-  const recent = [...cmsPages]
+  const quickLinks = [
+    { label: "Pages", href: "/cms/pages", icon: Files, count: pages.total },
+    { label: "Features", href: "/cms/features", icon: Sparkles, count: features.total },
+    { label: "Pricing", href: "/cms/pricing", icon: Tags, count: pricing.total },
+    { label: "Documentation", href: "/cms/docs", icon: BookOpen, count: docs.total },
+    { label: "Blog", href: "/cms/blog", icon: Newspaper, count: blog.total },
+    { label: "FAQ", href: "/cms/faq", icon: HelpCircle, count: faq.total },
+    { label: "Media Library", href: "/cms/media", icon: ImageIcon, count: media.total },
+    { label: "Changelog", href: "/cms/changelog", icon: GitCommitVertical, count: changelog.total },
+  ]
+
+  const newMessages = contact.items.filter((m) => m.status === "new").length
+  const openRequests = requests.items.filter((r) => r.status === "open").length
+  const openBugs = bugs.items.filter((b) => b.status !== "resolved" && b.status !== "wont_fix").length
+  const published = pages.items.filter((p) => p.status === "published").length
+
+  const recent = [...pages.items]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5)
 
@@ -69,7 +82,7 @@ export default function CmsOverviewPage() {
       </PageHeader>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Published Pages" value={`${published}/${cmsPages.length}`} />
+        <StatCard label="Published Pages" value={`${published}/${pages.total}`} />
         <StatCard label="New Messages" value={formatNumber(newMessages)} />
         <StatCard label="Open Requests" value={formatNumber(openRequests)} />
         <StatCard label="Open Bugs" value={formatNumber(openBugs)} />
@@ -81,7 +94,7 @@ export default function CmsOverviewPage() {
             Content sections
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-            {QUICK_LINKS.map((link) => {
+            {quickLinks.map((link) => {
               const Icon = link.icon
               return (
                 <Link key={link.href} href={link.href}>
@@ -108,22 +121,28 @@ export default function CmsOverviewPage() {
             Recently updated
           </h2>
           <Card className="divide-y divide-border p-0">
-            {recent.map((page) => (
-              <Link
-                key={page.id}
-                href="/cms/pages"
-                className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-secondary/40"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{page.title}</p>
-                  <p className="truncate font-mono text-[11px] text-muted-foreground">{page.slug}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <CmsStatusPill status={page.status} />
-                  <span className="text-[11px] text-muted-foreground">{relativeTime(page.updatedAt)}</span>
-                </div>
-              </Link>
-            ))}
+            {recent.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-muted-foreground">
+                {pages.isLoading ? "Loading…" : "No pages yet."}
+              </p>
+            ) : (
+              recent.map((page) => (
+                <Link
+                  key={page.id}
+                  href="/cms/pages"
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-secondary/40"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{page.title}</p>
+                    <p className="truncate font-mono text-[11px] text-muted-foreground">{page.slug}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <CmsStatusPill status={page.status} />
+                    <span className="text-[11px] text-muted-foreground">{relativeTime(page.updatedAt)}</span>
+                  </div>
+                </Link>
+              ))
+            )}
           </Card>
 
           <Card className="space-y-3 p-4">

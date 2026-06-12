@@ -142,6 +142,70 @@ export interface CmsBugReport {
   createdAt: string
 }
 
+export interface StatItem {
+  id: string
+  value: string
+  label: string
+  group: string
+  order: number
+  status: PublishStatus
+  updatedAt: string
+}
+
+export interface StepItem {
+  id: string
+  step: string
+  title: string
+  body: string
+  order: number
+  status: PublishStatus
+  updatedAt: string
+}
+
+export interface TestimonialItem {
+  id: string
+  quote: string
+  name: string
+  role: string
+  order: number
+  status: PublishStatus
+  updatedAt: string
+}
+
+export interface PrincipleItem {
+  id: string
+  title: string
+  body: string
+  order: number
+  status: PublishStatus
+  updatedAt: string
+}
+
+export interface PillarPoint {
+  icon: string
+  text: string
+}
+
+export interface PillarItem {
+  id: string
+  label: string
+  title: string
+  body: string
+  points: PillarPoint[]
+  image: string
+  url: string
+  order: number
+  status: PublishStatus
+  updatedAt: string
+}
+
+export interface AboutStory {
+  id: string
+  body: string
+  status: PublishStatus
+  updatedAt: string
+}
+
 export type MediaType = "image" | "video" | "document" | "icon"
 
 export interface MediaAsset {

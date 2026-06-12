@@ -109,6 +109,42 @@ export interface DocArticleContent {
   readingMinutes: number
 }
 
+export interface StatContent {
+  value: string
+  label: string
+}
+
+export interface StepContent {
+  step: string
+  title: string
+  body: string
+}
+
+export interface TestimonialContent {
+  quote: string
+  name: string
+  role: string
+}
+
+export interface PrincipleContent {
+  title: string
+  body: string
+}
+
+export interface PillarPointContent {
+  icon: string
+  text: string
+}
+
+export interface PillarContent {
+  label: string
+  title: string
+  body: string
+  points: PillarPointContent[]
+  image: string
+  url: string
+}
+
 // --- Readers (one per site section) ----------------------------------------
 
 export async function getHero(page: string, fallback: HeroContent): Promise<HeroContent> {
@@ -199,4 +235,87 @@ export function getDocArticles(fallback: DocArticleContent[]): Promise<DocArticl
       })),
     fallback,
   )
+}
+
+export function getStats(fallback: StatContent[]): Promise<StatContent[]> {
+  return withFallback(
+    "stats",
+    (rows) =>
+      rows.map((r) => ({
+        value: (r.value as string) || "",
+        label: (r.label as string) || "",
+      })),
+    fallback,
+  )
+}
+
+export function getSteps(fallback: StepContent[]): Promise<StepContent[]> {
+  return withFallback(
+    "steps",
+    (rows) =>
+      rows.map((r) => ({
+        step: (r.step as string) || "",
+        title: (r.title as string) || "",
+        body: (r.body as string) || "",
+      })),
+    fallback,
+  )
+}
+
+export function getTestimonials(fallback: TestimonialContent[]): Promise<TestimonialContent[]> {
+  return withFallback(
+    "testimonials",
+    (rows) =>
+      rows.map((r) => ({
+        quote: (r.quote as string) || "",
+        name: (r.name as string) || "",
+        role: (r.role as string) || "",
+      })),
+    fallback,
+  )
+}
+
+export function getPrinciples(fallback: PrincipleContent[]): Promise<PrincipleContent[]> {
+  return withFallback(
+    "principles",
+    (rows) =>
+      rows.map((r) => ({
+        title: (r.title as string) || "",
+        body: (r.body as string) || "",
+      })),
+    fallback,
+  )
+}
+
+export function getPillars(fallback: PillarContent[]): Promise<PillarContent[]> {
+  return withFallback(
+    "pillars",
+    (rows) =>
+      rows.map((r) => ({
+        label: (r.label as string) || "",
+        title: (r.title as string) || "",
+        body: (r.body as string) || "",
+        points: Array.isArray(r.points)
+          ? (r.points as PillarPointContent[]).map((p) => ({
+              icon: (p?.icon as string) || "",
+              text: (p?.text as string) || "",
+            }))
+          : [],
+        image: (r.image as string) || "",
+        url: (r.url as string) || "",
+      })),
+    fallback,
+  )
+}
+
+/** Singleton about-story paragraphs (stored as one row, body split on blank lines). */
+export async function getAboutStory(fallback: string[]): Promise<string[]> {
+  const rows = await readPublished("about-story")
+  const body = rows?.[0]?.body
+  if (typeof body !== "string" || body.trim().length === 0) return fallback
+  const paragraphs = body
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  return paragraphs.length > 0 ? paragraphs : fallback
 }
