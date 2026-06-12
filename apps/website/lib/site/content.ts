@@ -237,14 +237,16 @@ export function getDocArticles(fallback: DocArticleContent[]): Promise<DocArticl
   )
 }
 
-export function getStats(fallback: StatContent[]): Promise<StatContent[]> {
+export function getStats(fallback: StatContent[], group?: string): Promise<StatContent[]> {
   return withFallback(
     "stats",
     (rows) =>
-      rows.map((r) => ({
-        value: (r.value as string) || "",
-        label: (r.label as string) || "",
-      })),
+      rows
+        .filter((r) => (group ? (r.group as string) === group : true))
+        .map((r) => ({
+          value: (r.value as string) || "",
+          label: (r.label as string) || "",
+        })),
     fallback,
   )
 }

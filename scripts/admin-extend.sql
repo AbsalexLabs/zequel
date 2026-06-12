@@ -199,12 +199,89 @@ CREATE TABLE IF NOT EXISTS public.cms_media_assets (
   uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Stats (home page numbers band + about page values band; grouped by group_name)
+CREATE TABLE IF NOT EXISTS public.cms_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  value TEXT NOT NULL,
+  label TEXT NOT NULL,
+  group_name TEXT NOT NULL DEFAULT 'home',
+  sort_order INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Steps (home page "how it works" workflow)
+CREATE TABLE IF NOT EXISTS public.cms_steps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  step TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  sort_order INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Testimonials (home page customer quotes)
+CREATE TABLE IF NOT EXISTS public.cms_testimonials (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quote TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT,
+  sort_order INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Principles (about page "what we build by" cards)
+CREATE TABLE IF NOT EXISTS public.cms_principles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  body TEXT,
+  sort_order INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Feature pillars (features page large alternating sections; points stored as JSONB)
+CREATE TABLE IF NOT EXISTS public.cms_pillars (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  label TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  points JSONB DEFAULT '[]'::jsonb,
+  image TEXT,
+  url TEXT,
+  sort_order INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- About story (singleton: opening paragraphs on the about page, blank-line separated)
+CREATE TABLE IF NOT EXISTS public.cms_about_story (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  body TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('published','draft','scheduled','archived')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for ordering / filtering
 CREATE INDEX IF NOT EXISTS idx_cms_feature_items_order ON public.cms_feature_items(sort_order);
 CREATE INDEX IF NOT EXISTS idx_cms_pricing_plans_order ON public.cms_pricing_plans(sort_order);
 CREATE INDEX IF NOT EXISTS idx_cms_doc_articles_order ON public.cms_doc_articles(sort_order);
 CREATE INDEX IF NOT EXISTS idx_cms_faq_items_order ON public.cms_faq_items(sort_order);
 CREATE INDEX IF NOT EXISTS idx_cms_blog_posts_status ON public.cms_blog_posts(status);
+CREATE INDEX IF NOT EXISTS idx_cms_stats_order ON public.cms_stats(sort_order);
+CREATE INDEX IF NOT EXISTS idx_cms_stats_group ON public.cms_stats(group_name);
+CREATE INDEX IF NOT EXISTS idx_cms_steps_order ON public.cms_steps(sort_order);
+CREATE INDEX IF NOT EXISTS idx_cms_testimonials_order ON public.cms_testimonials(sort_order);
+CREATE INDEX IF NOT EXISTS idx_cms_principles_order ON public.cms_principles(sort_order);
+CREATE INDEX IF NOT EXISTS idx_cms_pillars_order ON public.cms_pillars(sort_order);
 
 -- ===========================================================================
 -- 3. Row Level Security
@@ -225,6 +302,12 @@ ALTER TABLE public.cms_contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cms_feature_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cms_bug_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cms_media_assets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_steps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_principles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_pillars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cms_about_story ENABLE ROW LEVEL SECURITY;
 
 -- Public website may read published content of presentational CMS tables.
 DROP POLICY IF EXISTS "cms_pages_public_read" ON public.cms_pages;
@@ -245,6 +328,18 @@ DROP POLICY IF EXISTS "cms_faq_public_read" ON public.cms_faq_items;
 CREATE POLICY "cms_faq_public_read" ON public.cms_faq_items FOR SELECT USING (status = 'published');
 DROP POLICY IF EXISTS "cms_media_public_read" ON public.cms_media_assets;
 CREATE POLICY "cms_media_public_read" ON public.cms_media_assets FOR SELECT USING (true);
+DROP POLICY IF EXISTS "cms_stats_public_read" ON public.cms_stats;
+CREATE POLICY "cms_stats_public_read" ON public.cms_stats FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "cms_steps_public_read" ON public.cms_steps;
+CREATE POLICY "cms_steps_public_read" ON public.cms_steps FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "cms_testimonials_public_read" ON public.cms_testimonials;
+CREATE POLICY "cms_testimonials_public_read" ON public.cms_testimonials FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "cms_principles_public_read" ON public.cms_principles;
+CREATE POLICY "cms_principles_public_read" ON public.cms_principles FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "cms_pillars_public_read" ON public.cms_pillars;
+CREATE POLICY "cms_pillars_public_read" ON public.cms_pillars FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "cms_about_story_public_read" ON public.cms_about_story;
+CREATE POLICY "cms_about_story_public_read" ON public.cms_about_story FOR SELECT USING (status = 'published');
 
 -- Anonymous visitors may submit inbound messages from the public website.
 DROP POLICY IF EXISTS "cms_contact_anon_insert" ON public.cms_contact_messages;
