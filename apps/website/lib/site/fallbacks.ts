@@ -332,7 +332,7 @@ export const FEATURES_PILLARS_FALLBACK: PillarContent[] = [
     label: "Evidence",
     title: "Answers grounded in your sources",
     body: "Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.",
-    image: "/product-overview.png",
+    image: "/site/product-overview.png",
     url: "zequel.xyz/workspace",
     points: [
       { icon: "FileSearch", text: "Ingest PDFs, papers, and notes at scale" },
@@ -344,7 +344,7 @@ export const FEATURES_PILLARS_FALLBACK: PillarContent[] = [
     label: "Traceability",
     title: "Reasoning you can follow end to end",
     body: "Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.",
-    image: "/product-charts.png",
+    image: "/site/product-charts.png",
     url: "zequel.xyz/workspace/overview",
     points: [
       { icon: "GitBranch", text: "Step-by-step reasoning trails" },
@@ -356,7 +356,7 @@ export const FEATURES_PILLARS_FALLBACK: PillarContent[] = [
     label: "Governance",
     title: "Accountable by design",
     body: "Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.",
-    image: "/product-safety.png",
+    image: "/site/product-safety.png",
     url: "zequel.xyz/workspace/safety",
     points: [
       { icon: "ShieldCheck", text: "Automated safety and policy flags" },

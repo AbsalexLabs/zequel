@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 export const revalidate = 60
 
 export default async function FeaturesPage() {
+  // Pillars resolve from published CMS rows, falling back to bundled defaults.
   const pillars = await getPillars(FEATURES_PILLARS_FALLBACK)
 
   return (
