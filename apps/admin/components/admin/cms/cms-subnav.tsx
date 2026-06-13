@@ -16,6 +16,12 @@ import {
   Lightbulb,
   Bug,
   Image as ImageIcon,
+  Columns3,
+  BarChart3,
+  ListOrdered,
+  MessageSquareQuote,
+  Compass,
+  BookText,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -35,6 +41,12 @@ const ICONS: Record<string, LucideIcon> = {
   Lightbulb,
   Bug,
   Image: ImageIcon,
+  Columns3,
+  BarChart3,
+  ListOrdered,
+  MessageSquareQuote,
+  Compass,
+  BookText,
 }
 
 export function CmsSubnav() {

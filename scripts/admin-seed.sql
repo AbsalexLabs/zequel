@@ -154,3 +154,61 @@ SELECT * FROM (VALUES
   ('demo-walkthrough.mp4','video','/cms-media/demo-walkthrough.mp4',24100,NULL,NULL,'Marcus Vaughn')
 ) AS v(name,type,url,size_kb,width,height,uploaded_by)
 WHERE NOT EXISTS (SELECT 1 FROM public.cms_media_assets);
+
+-- Stats (home band + about values band)
+INSERT INTO public.cms_stats (value, label, group_name, sort_order, status)
+SELECT * FROM (VALUES
+  ('92,418','Documents indexed','home',1,'published'),
+  ('1.3M','Evidence-backed queries','home',2,'published'),
+  ('612ms','Median response','home',3,'published'),
+  ('99.98%','Uptime','home',4,'published'),
+  ('2023','Founded','about',1,'published'),
+  ('Remote','Team','about',2,'published'),
+  ('Absalex Labs','Built by','about',3,'published'),
+  ('Research-first','Mandate','about',4,'published')
+) AS v(value,label,group_name,sort_order,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_stats);
+
+-- How it works steps (home)
+INSERT INTO public.cms_steps (step, title, body, sort_order, status)
+SELECT * FROM (VALUES
+  ('01','Bring your sources','Upload documents, papers, and notes — or connect a corpus. Zequel indexes everything into a searchable evidence base.',1,'published'),
+  ('02','Ask in plain language','Pose questions the way you think about them. Zequel retrieves the relevant passages and reasons across them.',2,'published'),
+  ('03','Get traceable answers','Receive synthesized conclusions with every claim cited back to its source — ready to verify, share, or build on.',3,'published')
+) AS v(step,title,body,sort_order,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_steps);
+
+-- Testimonials (home)
+INSERT INTO public.cms_testimonials (quote, name, role, sort_order, status)
+SELECT * FROM (VALUES
+  ('Zequel changed how my lab handles literature reviews. Every synthesis comes with citations, so I can verify in seconds instead of hours.','Dr. Elena Royce','Principal Researcher, Computational Biology',1,'published'),
+  ('The traceable reasoning is the killer feature. I can show reviewers exactly how a conclusion was reached, step by step.','Marcus Adeyemi','Policy Analyst',2,'published'),
+  ('It feels like an instrument built for serious work — dense, fast, and honest about its sources. Nothing else comes close.','Priya Nair','Research Lead, Legal Tech',3,'published')
+) AS v(quote,name,role,sort_order,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_testimonials);
+
+-- Principles (about)
+INSERT INTO public.cms_principles (title, body, sort_order, status)
+SELECT * FROM (VALUES
+  ('Evidence over assertion','A confident answer means nothing without a source. We hold every output to the standard of provable, citable evidence.',1,'published'),
+  ('Transparency over magic','Research tools should show their work. We expose the full reasoning path so results can be inspected and reproduced.',2,'published'),
+  ('Rigor over speed','We move fast, but never at the expense of correctness. Defensible conclusions are the only conclusions worth shipping.',3,'published'),
+  ('Accountability over convenience','Serious research demands a record. Audit trails and governance are foundations, not afterthoughts.',4,'published')
+) AS v(title,body,sort_order,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_principles);
+
+-- Feature pillars (features page)
+INSERT INTO public.cms_pillars (label, title, body, points, image, url, sort_order, status)
+SELECT * FROM (VALUES
+  ('Evidence','Answers grounded in your sources','Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.','[{"icon":"FileSearch","text":"Ingest PDFs, papers, and notes at scale"},{"icon":"Quote","text":"Inline citations on every generated claim"},{"icon":"Database","text":"Searchable, persistent evidence base"}]'::jsonb,'/site/product-overview.png','zequel.xyz/workspace',1,'published'),
+  ('Traceability','Reasoning you can follow end to end','Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.','[{"icon":"GitBranch","text":"Step-by-step reasoning trails"},{"icon":"Gauge","text":"Live latency and request analytics"},{"icon":"Layers","text":"Structured threads and findings"}]'::jsonb,'/site/product-charts.png','zequel.xyz/workspace/overview',2,'published'),
+  ('Governance','Accountable by design','Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.','[{"icon":"ShieldCheck","text":"Automated safety and policy flags"},{"icon":"Users","text":"Role-based access and review queues"},{"icon":"Bell","text":"Full, immutable audit trail"}]'::jsonb,'/site/product-safety.png','zequel.xyz/workspace/safety',3,'published')
+) AS v(label,title,body,points,image,url,sort_order,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_pillars);
+
+-- About story (singleton)
+INSERT INTO public.cms_about_story (body, status)
+SELECT * FROM (VALUES
+  (E'Most AI tools optimize for fluency. They produce text that sounds right, whether or not it is. For research — where a wrong conclusion has real consequences — that is not good enough.\n\nWe built Zequel as an instrument, not a chatbot. It reasons across the documents you trust, cites every claim it makes, and records the path from question to answer so you can verify each step. The point is not to replace the researcher, but to make rigorous work faster and more accountable.\n\nWe are a small, focused team at Absalex Labs, building for the people who cannot afford to be wrong.','published')
+) AS v(body,status)
+WHERE NOT EXISTS (SELECT 1 FROM public.cms_about_story);

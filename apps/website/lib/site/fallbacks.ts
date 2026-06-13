@@ -6,6 +6,11 @@ import type {
   FaqContent,
   BlogPostContent,
   DocArticleContent,
+  StatContent,
+  StepContent,
+  TestimonialContent,
+  PrincipleContent,
+  PillarContent,
 } from "@/lib/site/content"
 
 // ---------------------------------------------------------------------------
@@ -236,3 +241,127 @@ export const DOC_CATEGORY_ICONS: Record<string, string> = {
   "Security & trust": "Shield",
   "Admin & teams": "Layers",
 }
+
+// --- Home: stats band ------------------------------------------------------
+export const HOME_STATS_FALLBACK: StatContent[] = [
+  { value: "92,418", label: "Documents indexed" },
+  { value: "1.3M", label: "Evidence-backed queries" },
+  { value: "612ms", label: "Median response" },
+  { value: "99.98%", label: "Uptime" },
+]
+
+// --- Home: how it works ----------------------------------------------------
+export const HOME_STEPS_FALLBACK: StepContent[] = [
+  {
+    step: "01",
+    title: "Bring your sources",
+    body: "Upload documents, papers, and notes — or connect a corpus. Zequel indexes everything into a searchable evidence base.",
+  },
+  {
+    step: "02",
+    title: "Ask in plain language",
+    body: "Pose questions the way you think about them. Zequel retrieves the relevant passages and reasons across them.",
+  },
+  {
+    step: "03",
+    title: "Get traceable answers",
+    body: "Receive synthesized conclusions with every claim cited back to its source — ready to verify, share, or build on.",
+  },
+]
+
+// --- Home: testimonials ----------------------------------------------------
+export const HOME_TESTIMONIALS_FALLBACK: TestimonialContent[] = [
+  {
+    quote:
+      "Zequel changed how my lab handles literature reviews. Every synthesis comes with citations, so I can verify in seconds instead of hours.",
+    name: "Dr. Elena Royce",
+    role: "Principal Researcher, Computational Biology",
+  },
+  {
+    quote:
+      "The traceable reasoning is the killer feature. I can show reviewers exactly how a conclusion was reached, step by step.",
+    name: "Marcus Adeyemi",
+    role: "Policy Analyst",
+  },
+  {
+    quote:
+      "It feels like an instrument built for serious work — dense, fast, and honest about its sources. Nothing else comes close.",
+    name: "Priya Nair",
+    role: "Research Lead, Legal Tech",
+  },
+]
+
+// --- About: story paragraphs ----------------------------------------------
+export const ABOUT_STORY_FALLBACK: string[] = [
+  "Most AI tools optimize for fluency. They produce text that sounds right, whether or not it is. For research — where a wrong conclusion has real consequences — that is not good enough.",
+  "We built Zequel as an instrument, not a chatbot. It reasons across the documents you trust, cites every claim it makes, and records the path from question to answer so you can verify each step. The point is not to replace the researcher, but to make rigorous work faster and more accountable.",
+  "We are a small, focused team at Absalex Labs, building for the people who cannot afford to be wrong.",
+]
+
+// --- About: values band ----------------------------------------------------
+export const ABOUT_VALUES_FALLBACK: StatContent[] = [
+  { value: "2023", label: "Founded" },
+  { value: "Remote", label: "Team" },
+  { value: "Absalex Labs", label: "Built by" },
+  { value: "Research-first", label: "Mandate" },
+]
+
+// --- About: principles -----------------------------------------------------
+export const ABOUT_PRINCIPLES_FALLBACK: PrincipleContent[] = [
+  {
+    title: "Evidence over assertion",
+    body: "A confident answer means nothing without a source. We hold every output to the standard of provable, citable evidence.",
+  },
+  {
+    title: "Transparency over magic",
+    body: "Research tools should show their work. We expose the full reasoning path so results can be inspected and reproduced.",
+  },
+  {
+    title: "Rigor over speed",
+    body: "We move fast, but never at the expense of correctness. Defensible conclusions are the only conclusions worth shipping.",
+  },
+  {
+    title: "Accountability over convenience",
+    body: "Serious research demands a record. Audit trails and governance are foundations, not afterthoughts.",
+  },
+]
+
+// --- Features: pillars -----------------------------------------------------
+export const FEATURES_PILLARS_FALLBACK: PillarContent[] = [
+  {
+    label: "Evidence",
+    title: "Answers grounded in your sources",
+    body: "Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.",
+    image: "/site/product-overview.png",
+    url: "zequel.xyz/workspace",
+    points: [
+      { icon: "FileSearch", text: "Ingest PDFs, papers, and notes at scale" },
+      { icon: "Quote", text: "Inline citations on every generated claim" },
+      { icon: "Database", text: "Searchable, persistent evidence base" },
+    ],
+  },
+  {
+    label: "Traceability",
+    title: "Reasoning you can follow end to end",
+    body: "Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.",
+    image: "/site/product-charts.png",
+    url: "zequel.xyz/workspace/overview",
+    points: [
+      { icon: "GitBranch", text: "Step-by-step reasoning trails" },
+      { icon: "Gauge", text: "Live latency and request analytics" },
+      { icon: "Layers", text: "Structured threads and findings" },
+    ],
+  },
+  {
+    label: "Governance",
+    title: "Accountable by design",
+    body: "Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.",
+    image: "/site/product-safety.png",
+    url: "zequel.xyz/workspace/safety",
+    points: [
+      { icon: "ShieldCheck", text: "Automated safety and policy flags" },
+      { icon: "Users", text: "Role-based access and review queues" },
+      { icon: "Bell", text: "Full, immutable audit trail" },
+    ],
+  },
+]
