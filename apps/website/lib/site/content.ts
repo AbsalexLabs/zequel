@@ -142,6 +142,7 @@ export interface PillarContent {
   body: string
   points: PillarPointContent[]
   image: string
+  imageDark?: string
   url: string
 }
 
@@ -304,6 +305,7 @@ export function getPillars(fallback: PillarContent[]): Promise<PillarContent[]> 
             }))
           : [],
         image: (r.image as string) || "",
+        imageDark: (r.imageDark as string) || undefined,
         url: (r.url as string) || "",
       })),
     fallback,
