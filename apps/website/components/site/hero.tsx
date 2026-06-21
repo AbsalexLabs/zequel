@@ -52,7 +52,7 @@ export async function Hero() {
             videoSrc="/site/workspace-overview.mp4"
             poster="/site/workspace-light.jpg"
             alt="Zequel AI workspace in action — document analysis with an evidence-backed chat"
-            label="zequel.xyz/workspace"
+            label="zequel Demo"
             priority
           />
         </div>
