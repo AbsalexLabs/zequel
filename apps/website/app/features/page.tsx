@@ -11,7 +11,7 @@ import { resolveIcon } from '@/lib/site/icons'
 export const metadata: Metadata = {
   title: 'Features',
   description:
-    'Multi-document analysis, cited synthesis, traceable reasoning, and built-in governance — every capability Zequel offers for rigorous research.',
+    'Three connected workspaces — Study, Research, and Coding — with evidence-backed answers, deep document analysis, and an AI coding companion.',
 }
 
 export const revalidate = 60
@@ -24,8 +24,8 @@ export default async function FeaturesPage() {
     <>
       <PageHero
         label="Features"
-        title="Capabilities built for serious research"
-        description="Zequel pairs powerful retrieval with disciplined reasoning. The result is research output that is not just plausible, but defensible."
+        title="Three workspaces, one intelligent instrument"
+        description="Study, research, and code in connected workspaces — each pairing powerful retrieval with disciplined reasoning, so the work you produce is not just plausible, but defensible."
       />
 
       <section className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
@@ -51,7 +51,7 @@ export default async function FeaturesPage() {
                 </ul>
               </div>
               <div className={cn(i % 2 === 1 && 'lg:order-1')}>
-                <ProductFrame src={pillar.image} alt={pillar.title} label={pillar.url} />
+                <ProductFrame src={pillar.image} srcDark={pillar.imageDark} alt={pillar.title} label={pillar.url} />
               </div>
             </div>
           ))}

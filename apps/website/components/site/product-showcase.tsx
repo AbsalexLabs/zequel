@@ -35,13 +35,14 @@ const SHOWCASE: ShowcaseItem[] = [
     points: ['Summarize and define key terms', 'Evidence panel with referenced sources', 'Page-level citations you can verify'],
   },
   {
-    label: 'Membership',
-    title: 'Plans that scale with the work',
-    body: 'Grant, change, or revoke access and review billing history without leaving the workspace.',
-    src: '/site/product-subscriptions.png',
-    alt: 'Zequel subscriptions page showing recurring revenue trend',
-    url: 'zequel.xyz/workspace/subscriptions',
-    points: ['Flexible plan management', 'Recurring revenue trends', 'One-click exports'],
+    label: 'Coding Workspace',
+    title: 'An AI companion that understands your project',
+    body: 'Open your codebase in a full editor with an AI assistant beside it. Explain code, find bugs, refactor, optimize, and generate documentation — with project files attached for context and a Learning Mode that guides instead of just answering.',
+    src: '/site/coding-light.jpg',
+    srcDark: '/site/coding-dark.jpg',
+    alt: 'Zequel coding workspace showing a file explorer, code editor, and an AI coding assistant',
+    url: 'zequel coding workspace',
+    points: ['Explain, refactor, and review code', 'Attach project files for real context', 'Learning Mode for guided hints'],
   },
 ]
 

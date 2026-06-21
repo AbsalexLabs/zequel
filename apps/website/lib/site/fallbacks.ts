@@ -276,18 +276,21 @@ export const HOME_TESTIMONIALS_FALLBACK: TestimonialContent[] = [
       "Zequel changed how my lab handles literature reviews. Every synthesis comes with citations, so I can verify in seconds instead of hours.",
     name: "Dr. Elena Royce",
     role: "Principal Researcher, Computational Biology",
+    avatar: "/site/voice-elena.png",
   },
   {
     quote:
       "The traceable reasoning is the killer feature. I can show reviewers exactly how a conclusion was reached, step by step.",
     name: "Marcus Adeyemi",
     role: "Policy Analyst",
+    avatar: "/site/voice-marcus.png",
   },
   {
     quote:
       "It feels like an instrument built for serious work — dense, fast, and honest about its sources. Nothing else comes close.",
     name: "Priya Nair",
     role: "Research Lead, Legal Tech",
+    avatar: "/site/voice-priya.png",
   },
 ]
 
@@ -329,39 +332,42 @@ export const ABOUT_PRINCIPLES_FALLBACK: PrincipleContent[] = [
 // --- Features: pillars -----------------------------------------------------
 export const FEATURES_PILLARS_FALLBACK: PillarContent[] = [
   {
-    label: "Evidence",
-    title: "Answers grounded in your sources",
-    body: "Zequel reads across your entire corpus and reasons over it as a connected body of evidence. Every conclusion is assembled from passages you can open, read, and verify.",
-    image: "/site/product-overview.png",
-    url: "zequel.xyz/workspace",
+    label: "Study Workspace",
+    title: "Read, ask, and learn in one place",
+    body: "Study mode brings your documents and an AI tutor into a single focused view. Read source material on one side, ask questions on the other, and keep every answer anchored to the passages it came from.",
+    image: "/site/workspace-light.jpg",
+    imageDark: "/site/workspace-dark.jpg",
+    url: "zequel study workspace",
     points: [
-      { icon: "FileSearch", text: "Ingest PDFs, papers, and notes at scale" },
-      { icon: "Quote", text: "Inline citations on every generated claim" },
-      { icon: "Database", text: "Searchable, persistent evidence base" },
+      { icon: "FileSearch", text: "Documents and chat side by side" },
+      { icon: "Quote", text: "Answers anchored to the source text" },
+      { icon: "Layers", text: "Everything saved to your study" },
     ],
   },
   {
-    label: "Traceability",
-    title: "Reasoning you can follow end to end",
-    body: "Inspect the full chain from question to conclusion. Each inference is recorded so results are reproducible and reviewable — not a black box.",
-    image: "/site/product-charts.png",
-    url: "zequel.xyz/workspace/overview",
+    label: "Research Workspace",
+    title: "Deep research, grounded in evidence",
+    body: "Research mode lets you summarize, define key terms, and analyze documents at depth. Every response is backed by an evidence panel listing the exact referenced sources and pages, so conclusions stay defensible.",
+    image: "/site/research-light.jpg",
+    imageDark: "/site/research-dark.jpg",
+    url: "zequel Research Workspace",
     points: [
-      { icon: "GitBranch", text: "Step-by-step reasoning trails" },
-      { icon: "Gauge", text: "Live latency and request analytics" },
-      { icon: "Layers", text: "Structured threads and findings" },
+      { icon: "Quote", text: "Summarize and define key terms" },
+      { icon: "Database", text: "Evidence panel with referenced sources" },
+      { icon: "GitBranch", text: "Page-level citations you can verify" },
     ],
   },
   {
-    label: "Governance",
-    title: "Accountable by design",
-    body: "Safety flags, audit logs, and role-based controls keep research defensible across individuals and teams. Know who did what, and why.",
-    image: "/site/product-safety.png",
-    url: "zequel.xyz/workspace/safety",
+    label: "Coding Workspace",
+    title: "Code with an AI companion that knows your project",
+    body: "Coding mode pairs a full editor with an AI assistant that reads your files for context. Explain code, find bugs, refactor, optimize, and generate documentation — with a Learning Mode that guides you instead of just handing over answers.",
+    image: "/site/coding-light.jpg",
+    imageDark: "/site/coding-dark.jpg",
+    url: "zequel coding workspace",
     points: [
-      { icon: "ShieldCheck", text: "Automated safety and policy flags" },
-      { icon: "Users", text: "Role-based access and review queues" },
-      { icon: "Bell", text: "Full, immutable audit trail" },
+      { icon: "GitBranch", text: "Explain, refactor, and review code" },
+      { icon: "Layers", text: "Attach project files for real context" },
+      { icon: "Gauge", text: "Learning Mode for guided hints" },
     ],
   },
 ]

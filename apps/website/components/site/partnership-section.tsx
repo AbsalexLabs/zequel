@@ -1,14 +1,20 @@
 import { SectionLabel } from '@/components/site/section-label'
 
-const PARTNERS = [
-  'Absalex Labs',
-  'OpenAlex',
-  'Semantic Scholar',
-  'CrossRef',
-  'arXiv',
-  'PubMed',
-  'Zenodo',
-  'ORCID',
+type Partner = {
+  name: string
+  /** Path to a monochrome SVG mark. When omitted, only the wordmark is shown. */
+  logo?: string
+}
+
+const PARTNERS: Partner[] = [
+  { name: 'Absalex Labs' },
+  { name: 'OpenAlex' },
+  { name: 'Semantic Scholar', logo: '/site/partners/semantic-scholar.svg' },
+  { name: 'CrossRef' },
+  { name: 'arXiv', logo: '/site/partners/arxiv.svg' },
+  { name: 'PubMed', logo: '/site/partners/pubmed.svg' },
+  { name: 'Zenodo', logo: '/site/partners/zenodo.svg' },
+  { name: 'ORCID', logo: '/site/partners/orcid.svg' },
 ]
 
 const TIERS = [
@@ -41,18 +47,44 @@ export function PartnershipSection() {
           </p>
         </div>
 
-        {/* Partner logo wall */}
-        <div className="mt-12 grid grid-cols-2 overflow-hidden rounded-xl border border-border sm:grid-cols-4">
-          {PARTNERS.map((name, i) => (
-            <div
-              key={name}
-              className="flex h-24 items-center justify-center border-b border-r border-border p-4 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r [&:nth-child(4n)]:sm:border-r-0"
-            >
-              <span className="text-center font-mono text-xs tracking-[0.15em] text-muted-foreground uppercase">
-                {name}
-              </span>
-            </div>
-          ))}
+        {/* Partner logo line — single row, dimmed and faded toward both edges */}
+        <div
+          className="mt-12 overflow-x-auto"
+          style={{
+            maskImage:
+              'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+            WebkitMaskImage:
+              'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
+          }}
+        >
+          <ul className="flex w-max min-w-full items-center justify-between gap-10 py-2 sm:gap-14">
+            {PARTNERS.map((partner) => (
+              <li
+                key={partner.name}
+                className="flex shrink-0 items-center gap-2.5 opacity-50 grayscale transition hover:opacity-90"
+              >
+                {partner.logo && (
+                  <span
+                    aria-hidden="true"
+                    className="h-5 w-5 bg-foreground"
+                    style={{
+                      maskImage: `url(${partner.logo})`,
+                      WebkitMaskImage: `url(${partner.logo})`,
+                      maskSize: 'contain',
+                      WebkitMaskSize: 'contain',
+                      maskRepeat: 'no-repeat',
+                      WebkitMaskRepeat: 'no-repeat',
+                      maskPosition: 'center',
+                      WebkitMaskPosition: 'center',
+                    }}
+                  />
+                )}
+                <span className="whitespace-nowrap font-mono text-xs tracking-[0.15em] text-foreground uppercase">
+                  {partner.name}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Partnership tiers */}

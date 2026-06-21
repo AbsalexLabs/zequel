@@ -124,6 +124,7 @@ export interface TestimonialContent {
   quote: string
   name: string
   role: string
+  avatar?: string
 }
 
 export interface PrincipleContent {
@@ -142,6 +143,7 @@ export interface PillarContent {
   body: string
   points: PillarPointContent[]
   image: string
+  imageDark?: string
   url: string
 }
 
@@ -272,6 +274,7 @@ export function getTestimonials(fallback: TestimonialContent[]): Promise<Testimo
         quote: (r.quote as string) || "",
         name: (r.name as string) || "",
         role: (r.role as string) || "",
+        avatar: (r.avatar as string) || undefined,
       })),
     fallback,
   )
@@ -304,6 +307,7 @@ export function getPillars(fallback: PillarContent[]): Promise<PillarContent[]> 
             }))
           : [],
         image: (r.image as string) || "",
+        imageDark: (r.imageDark as string) || undefined,
         url: (r.url as string) || "",
       })),
     fallback,
