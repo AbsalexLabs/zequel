@@ -124,6 +124,7 @@ export interface TestimonialContent {
   quote: string
   name: string
   role: string
+  avatar?: string
 }
 
 export interface PrincipleContent {
@@ -273,6 +274,7 @@ export function getTestimonials(fallback: TestimonialContent[]): Promise<Testimo
         quote: (r.quote as string) || "",
         name: (r.name as string) || "",
         role: (r.role as string) || "",
+        avatar: (r.avatar as string) || undefined,
       })),
     fallback,
   )

@@ -276,18 +276,21 @@ export const HOME_TESTIMONIALS_FALLBACK: TestimonialContent[] = [
       "Zequel changed how my lab handles literature reviews. Every synthesis comes with citations, so I can verify in seconds instead of hours.",
     name: "Dr. Elena Royce",
     role: "Principal Researcher, Computational Biology",
+    avatar: "/site/voice-elena.png",
   },
   {
     quote:
       "The traceable reasoning is the killer feature. I can show reviewers exactly how a conclusion was reached, step by step.",
     name: "Marcus Adeyemi",
     role: "Policy Analyst",
+    avatar: "/site/voice-marcus.png",
   },
   {
     quote:
       "It feels like an instrument built for serious work — dense, fast, and honest about its sources. Nothing else comes close.",
     name: "Priya Nair",
     role: "Research Lead, Legal Tech",
+    avatar: "/site/voice-priya.png",
   },
 ]
 
