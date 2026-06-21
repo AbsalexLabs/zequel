@@ -2,15 +2,27 @@ import { SectionLabel } from '@/components/site/section-label'
 import { ProductFrame } from '@/components/site/product-frame'
 import { cn } from '@/lib/utils'
 
-const SHOWCASE = [
+type ShowcaseItem = {
+  label: string
+  title: string
+  body: string
+  src: string
+  srcDark?: string
+  alt: string
+  url: string
+  points: string[]
+}
+
+const SHOWCASE: ShowcaseItem[] = [
   {
-    label: 'Control Center',
-    title: 'A real-time operational view',
-    body: 'Track usage, indexed documents, latency, and system health from a single dense overview built for people who run on data.',
-    src: '/site/product-charts.png',
-    alt: 'Zequel analytics charts showing request volume and users by tier',
+    label: 'Study Workspace',
+    title: 'Your entire study, in one interface',
+    body: 'The study workspace brings documents, evidence, and an AI chat into a single focused view. Read source material on one side, ask questions on the other, and every answer stays anchored to the passages it came from.',
+    src: '/site/workspace-light.jpg',
+    srcDark: '/site/workspace-dark.jpg',
+    alt: 'Zequel study workspace showing a document alongside an evidence-backed AI chat',
     url: 'zequel.xyz/workspace/overview',
-    points: ['Live request volume', 'Users and tiers at a glance', 'Latency and error monitoring'],
+    points: ['Documents and chat side by side', 'Answers anchored to evidence', 'Everything saved to your study'],
   },
   {
     label: 'Safety Center',
@@ -65,7 +77,7 @@ export function ProductShowcase() {
                 </ul>
               </div>
               <div className={cn(i % 2 === 1 && 'lg:order-1')}>
-                <ProductFrame src={item.src} alt={item.alt} label={item.url} />
+                <ProductFrame src={item.src} srcDark={item.srcDark} alt={item.alt} label={item.url} />
               </div>
             </div>
           ))}
