@@ -8,12 +8,15 @@ import { cn } from '@/lib/utils'
  */
 export function ProductFrame({
   src,
+  srcDark,
   alt,
   label,
   className,
   priority,
 }: {
   src: string
+  /** Optional dark-mode screenshot. When provided, it is shown in dark mode and `src` in light mode. */
+  srcDark?: string
   alt: string
   label?: string
   className?: string
@@ -42,8 +45,18 @@ export function ProductFrame({
         width={1440}
         height={900}
         priority={priority}
-        className="h-auto w-full"
+        className={cn('h-auto w-full', srcDark && 'dark:hidden')}
       />
+      {srcDark && (
+        <Image
+          src={srcDark}
+          alt={alt}
+          width={1440}
+          height={900}
+          priority={priority}
+          className="hidden h-auto w-full dark:block"
+        />
+      )}
     </figure>
   )
 }

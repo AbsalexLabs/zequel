@@ -21,10 +21,10 @@ import type {
 // ---------------------------------------------------------------------------
 
 export const HOME_HERO_FALLBACK: HeroContent = {
-  eyebrow: "Research System v2.0",
-  headline: "Reasoning you can trace, evidence you can trust",
+  eyebrow: "AI Workspace",
+  headline: "Research better. Learn faster. Build smarter.",
   subhead:
-    "Zequel is a structured research workspace that turns scattered documents into evidence-backed answers — every claim sourced, every synthesis traceable, every step accountable.",
+    "Zequel is an intelligent workspace for students, researchers, and developers. Analyze documents, discover insights, learn complex topics, and create projects with AI that prioritizes transparency, evidence, and trust.",
   primaryCtaLabel: "Start researching",
   primaryCtaHref: AUTH_LINKS.signup,
   secondaryCtaLabel: "Explore features",
