@@ -49,8 +49,9 @@ export async function Hero() {
 
         <div className="relative mx-auto mt-16 max-w-5xl">
           <ProductFrame
-            src="/site/product-overview.png"
-            alt="Zequel control center showing usage, revenue, and system health"
+            src="/site/workspace-light.jpg"
+            srcDark="/site/workspace-dark.jpg"
+            alt="Zequel AI workspace showing document analysis and an evidence-backed chat"
             label="zequel.xyz/workspace"
             priority
           />
