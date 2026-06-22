@@ -16,7 +16,8 @@
 }
 
 .animate-partner-marquee {
-  animation: zequel-marquee 60s linear infinite;
+  animation: zequel-marquee 40s linear infinite;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
