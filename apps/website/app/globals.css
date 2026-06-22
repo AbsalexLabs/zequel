@@ -4,3 +4,23 @@
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../components/**/*.{ts,tsx}";
 @source "../app/**/*.{ts,tsx}";
+
+/* Slow, seamless partner logo marquee */
+@keyframes zequel-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-partner-marquee {
+  animation: zequel-marquee 60s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-partner-marquee {
+    animation: none;
+  }
+}
