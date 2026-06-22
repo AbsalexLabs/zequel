@@ -57,17 +57,17 @@ export function PartnershipSection() {
               'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
           }}
         >
-          <ul className="animate-partner-marquee flex w-max items-center gap-10 py-2 group-hover:[animation-play-state:paused] sm:gap-14">
+          <ul className="animate-partner-marquee flex w-max items-center gap-8 py-2 group-hover:[animation-play-state:paused] sm:gap-10">
             {[...PARTNERS, ...PARTNERS].map((partner, i) => (
               <li
                 key={`${partner.name}-${i}`}
                 aria-hidden={i >= PARTNERS.length}
-                className="flex shrink-0 items-center gap-2.5 opacity-50 grayscale transition hover:opacity-90"
+                className="flex shrink-0 items-center gap-2 opacity-50 grayscale transition hover:opacity-90"
               >
                 {partner.logo && (
                   <span
                     aria-hidden="true"
-                    className="h-5 w-5 bg-foreground"
+                    className="h-3.5 w-3.5 bg-foreground"
                     style={{
                       maskImage: `url(${partner.logo})`,
                       WebkitMaskImage: `url(${partner.logo})`,
@@ -80,7 +80,7 @@ export function PartnershipSection() {
                     }}
                   />
                 )}
-                <span className="whitespace-nowrap font-mono text-xs tracking-[0.15em] text-foreground uppercase">
+                <span className="whitespace-nowrap font-mono text-[10px] tracking-[0.15em] text-foreground uppercase">
                   {partner.name}
                 </span>
               </li>
