@@ -47,9 +47,9 @@ export function PartnershipSection() {
           </p>
         </div>
 
-        {/* Partner logo line — single row, dimmed and faded toward both edges */}
+        {/* Partner logo line — slow infinite loop, dimmed and faded toward both edges */}
         <div
-          className="mt-12 overflow-x-auto"
+          className="group mt-12 overflow-hidden"
           style={{
             maskImage:
               'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
@@ -57,10 +57,11 @@ export function PartnershipSection() {
               'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
           }}
         >
-          <ul className="flex w-max min-w-full items-center justify-between gap-10 py-2 sm:gap-14">
-            {PARTNERS.map((partner) => (
+          <ul className="animate-partner-marquee flex w-max items-center gap-10 py-2 group-hover:[animation-play-state:paused] sm:gap-14">
+            {[...PARTNERS, ...PARTNERS].map((partner, i) => (
               <li
-                key={partner.name}
+                key={`${partner.name}-${i}`}
+                aria-hidden={i >= PARTNERS.length}
                 className="flex shrink-0 items-center gap-2.5 opacity-50 grayscale transition hover:opacity-90"
               >
                 {partner.logo && (
