@@ -491,7 +491,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   removeQuiz: (id) =>
     set((state) => ({ quizzes: state.quizzes.filter((q) => q.id !== id) })),
 
-  classroomVoice: { muted: false, speed: 1, playing: false },
+  classroomVoice: { muted: false, speed: 1, playing: false, volume: 80, micActive: false },
   setClassroomVoice: (updates) =>
     set((state) => ({ classroomVoice: { ...state.classroomVoice, ...updates } })),
 }))

@@ -278,6 +278,11 @@ export interface ClassroomVoiceSettings {
   speed: number
   // Whether the (future) narration is "playing". Drives the speaker indicator.
   playing: boolean
+  // Output volume (0–100). Placeholder only.
+  volume: number
+  // Whether the student microphone is "listening". Placeholder — real audio
+  // capture / interruption handling is added later.
+  micActive: boolean
 }
 
 // ─── Coding Mode ────────────────────────────────────────────────────────────
