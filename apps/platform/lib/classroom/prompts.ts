@@ -57,6 +57,23 @@ Rules:
 - No prose outside the JSON.`
 }
 
+export function lectureInstruction(topicTitle: string, topicSummary: string): string {
+  return `Deliver a live, spoken lecture on the topic "${topicTitle}" (${topicSummary}) as if you are standing at a whiteboard teaching it in real time. Break the delivery into a sequence of small BEATS. Each beat is one short thing you say out loud, paired with the small change it makes to the board at that moment — so the board fills up gradually as you speak, never all at once.
+
+Return ONLY minified JSON of this exact shape:
+{"segments":[{"say":"<one or two spoken sentences for this beat>","board":{"title":"<topic title — ONLY on the first beat>","explanation":"<a short new paragraph to append, or omit>","keyPoints":["<bullet to add>"],"examples":["<example to add>"],"equations":["<LaTeX to add>"]}}]}
+
+Rules:
+- Produce 5 to 9 beats that flow in a natural teaching order: open the topic, build the explanation, surface key points, then work through an example, then a brief wrap-up.
+- The FIRST beat must set "board.title" to the topic title and usually open with a welcoming line and the first explanation paragraph.
+- Each beat's board fields are ONLY the NEW content introduced at that moment (a delta), not the whole board. Add at most one short explanation paragraph, and/or one to three bullets/examples/equations per beat.
+- Most beats change the board; a few may speak with no board change (omit "board" or use an empty object) — e.g. transitions or the wrap-up.
+- "say" is natural conversational lecturer speech ("Let's start with...", "Notice that...", "For example..."). It must NOT be a verbatim copy of what is written; it explains and narrates.
+- "explanation" paragraphs are plain text (no markdown headers). Keep each one to 2-4 sentences.
+- Use LaTeX in "equations" (e.g. "E = mc^2"). Include equations only when relevant.
+- Ground everything in the provided materials. No prose outside the JSON.`
+}
+
 export function interactInstruction(params: {
   action: StudentActionId | null
   message: string | null

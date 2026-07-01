@@ -5,6 +5,7 @@ import {
   CLASSROOM_SYSTEM_PROMPT,
   OUTLINE_INSTRUCTION,
   teachInstruction,
+  lectureInstruction,
   interactInstruction,
   SUMMARY_INSTRUCTION,
   NOTES_INSTRUCTION,
@@ -157,6 +158,9 @@ export async function POST(request: Request) {
         break
       case 'teach':
         instruction = teachInstruction(topic_title ?? lesson_title ?? 'this topic', topic_summary ?? '')
+        break
+      case 'lecture':
+        instruction = lectureInstruction(topic_title ?? lesson_title ?? 'this topic', topic_summary ?? '')
         break
       case 'interact':
         instruction = interactInstruction({

@@ -141,6 +141,37 @@ export interface WhiteboardContent {
   equations?: string[]
 }
 
+// ── Autonomous lecture (Classroom Director) ─────────────────────────────────
+//
+// A lecture is delivered as an ordered list of small "segments". Each segment
+// is one beat of the lecture: a short thing the instructor SAYS out loud, paired
+// with the incremental change it makes to the whiteboard (a delta). The Director
+// plays segments one at a time — writing the board delta, then speaking — so the
+// board fills gradually in sync with the voice, exactly like a real lecturer.
+
+// An incremental change applied to the whiteboard for a single segment. Fields
+// are additive: text is appended / bullets are pushed onto the existing board.
+export interface WhiteboardDelta {
+  // Sets the topic title (normally only on the first segment of a topic).
+  title?: string
+  // A new paragraph appended to the running explanation.
+  explanation?: string
+  // Key point bullet(s) added to the right zone.
+  keyPoints?: string[]
+  // Worked example(s) added to the bottom zone.
+  examples?: string[]
+  // LaTeX equation(s) added to the bottom zone.
+  equations?: string[]
+}
+
+// One beat of an autonomous lecture.
+export interface LectureSegment {
+  // What the instructor says aloud for this beat (spoken lecturer voice).
+  say: string
+  // How the board changes as this beat is delivered (optional).
+  board?: WhiteboardDelta
+}
+
 export type LessonTopicStatus = 'pending' | 'active' | 'completed'
 
 // A single teachable section within a lesson outline.
@@ -182,8 +213,10 @@ export interface ClassroomMessage {
 export type ClassroomSessionStatus =
   | 'idle' // no lesson loaded
   | 'analyzing' // AI is reading materials / building the outline
-  | 'outline' // outline ready, awaiting student to begin
-  | 'teaching' // actively teaching a topic
+  | 'outline' // outline ready, awaiting student to begin the class
+  | 'teaching' // actively lecturing (Director is playing segments)
+  | 'awaiting_question' // student interrupted; lecture paused for their question
+  | 'responding' // instructor is answering the student's question
   | 'paused' // lesson paused by the student
   | 'ended' // session finished
 

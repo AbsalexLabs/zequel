@@ -92,6 +92,7 @@ export const classroomRequestSchema = z.object({
   intent: z.enum([
     'outline',
     'teach',
+    'lecture',
     'interact',
     'summary',
     'notes',
