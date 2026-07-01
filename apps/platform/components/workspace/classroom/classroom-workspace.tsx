@@ -36,27 +36,24 @@ export function ClassroomWorkspace({
 
         <ResizableHandle />
 
-        {/* Main workspace */}
-        <ResizablePanel defaultSize={78} minSize={50}>
+        {/* Center — the teaching whiteboard occupies the majority of the screen */}
+        <ResizablePanel defaultSize={54} minSize={38}>
           <div className="flex h-full flex-col overflow-hidden">
             <div className="flex shrink-0 items-center justify-center px-4 py-2.5">
               <ModeSwitcher />
             </div>
             <Separator className="shrink-0" />
-
-            {/* Whiteboard (top) + conversation (bottom) */}
             <div className="min-h-0 flex-1">
-              <ResizablePanelGroup direction="vertical" className="h-full">
-                <ResizablePanel defaultSize={64} minSize={35}>
-                  <ClassroomBoardPanel />
-                </ResizablePanel>
-                <ResizableHandle />
-                <ResizablePanel defaultSize={36} minSize={20}>
-                  <ClassroomChatPanel />
-                </ResizablePanel>
-              </ResizablePanelGroup>
+              <ClassroomBoardPanel />
             </div>
           </div>
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        {/* Right — the interaction panel (conversation, timeline, session) */}
+        <ResizablePanel defaultSize={24} minSize={18} maxSize={34}>
+          <ClassroomChatPanel />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

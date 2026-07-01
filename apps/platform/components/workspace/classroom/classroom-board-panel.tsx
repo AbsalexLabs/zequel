@@ -10,6 +10,7 @@ import {
 import { useWorkspaceStore } from '@/lib/store'
 import { useClassroom } from './use-classroom'
 import { TeachingWhiteboardCanvas } from './teaching-whiteboard-canvas'
+import { ClassroomVoiceBar } from './classroom-voice-bar'
 import { cn } from '@/lib/utils'
 import {
   Play,
@@ -21,9 +22,6 @@ import {
   ListChecks,
   Layers,
   Loader2,
-  Volume2,
-  VolumeX,
-  Gauge,
   GraduationCap,
   CheckCircle2,
   Circle,
@@ -75,8 +73,6 @@ export function ClassroomBoardPanel() {
     currentTopicIndex,
     whiteboard,
     isClassroomBusy,
-    classroomVoice,
-    setClassroomVoice,
   } = useWorkspaceStore()
 
   const {
@@ -97,15 +93,13 @@ export function ClassroomBoardPanel() {
   const started = isTeaching || isPaused || classroomStatus === 'ended'
   const progress = total > 0 ? ((currentTopicIndex + (started ? 1 : 0)) / total) * 100 : 0
 
-  const cycleSpeed = () => {
-    const speeds = [0.75, 1, 1.25, 1.5, 2]
-    const idx = speeds.indexOf(classroomVoice.speed)
-    setClassroomVoice({ speed: speeds[(idx + 1) % speeds.length] })
-  }
-
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* ── Classroom controls toolbar ─────────────────────────────────────── */}
+      {/* ── Voice-first bar — the classroom is driven by narration ─────────── */}
+      <ClassroomVoiceBar />
+      <Separator className="shrink-0" />
+
+      {/* ── Lesson controls toolbar ───────────────────────────────────────── */}
       <div className="flex shrink-0 items-center gap-1 overflow-x-auto px-3 py-2">
         {/* Playback */}
         {isTeaching ? (
@@ -204,85 +198,43 @@ export function ClassroomBoardPanel() {
         )}
       </div>
 
-      {/* ── Topic rail + voice controls ───────────────────────────────────── */}
+      {/* ── Topic stepper rail ────────────────────────────────────────────── */}
       <Separator className="shrink-0" />
-      <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-        {/* Topic stepper */}
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {activeLesson?.outline.map((t, i) => {
-            const done = t.status === 'completed'
-            const current = i === currentTopicIndex && started
-            return (
-              <Tooltip key={t.id}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => teachIndex(i)}
-                    disabled={isClassroomBusy || !started}
-                    aria-label={`Topic ${i + 1}: ${t.title}`}
-                    className={cn(
-                      'flex h-6 shrink-0 items-center gap-1 rounded px-1.5 transition-colors disabled:opacity-50',
-                      current ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {current ? (
-                      <CircleDot className="h-3.5 w-3.5" />
-                    ) : done ? (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    ) : (
-                      <Circle className="h-3.5 w-3.5" />
-                    )}
-                    <span className="font-mono text-[10px]">{i + 1}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[200px] font-sans text-[11px]">{t.title}</TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </div>
-
-        {/* Voice controls — placeholder UI; real narration added later */}
-        <div className="flex shrink-0 items-center gap-0.5 border-l border-border pl-2">
-          <span
-            className={cn(
-              'mr-1 flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider',
-              classroomVoice.playing && !classroomVoice.muted ? 'text-foreground' : 'text-muted-foreground/60'
-            )}
-            aria-label="Voice status"
-          >
-            <span
-              className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                classroomVoice.playing && !classroomVoice.muted ? 'animate-pulse bg-foreground' : 'bg-muted-foreground/40'
-              )}
-            />
-            Voice
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto px-3 py-2">
+        {activeLesson?.outline.map((t, i) => {
+          const done = t.status === 'completed'
+          const current = i === currentTopicIndex && started
+          return (
+            <Tooltip key={t.id}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => teachIndex(i)}
+                  disabled={isClassroomBusy || !started}
+                  aria-label={`Topic ${i + 1}: ${t.title}`}
+                  className={cn(
+                    'flex h-6 shrink-0 items-center gap-1 rounded px-1.5 transition-colors disabled:opacity-50',
+                    current ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {current ? (
+                    <CircleDot className="h-3.5 w-3.5" />
+                  ) : done ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Circle className="h-3.5 w-3.5" />
+                  )}
+                  <span className="font-mono text-[10px]">{i + 1}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[200px] font-sans text-[11px]">{t.title}</TooltipContent>
+            </Tooltip>
+          )
+        })}
+        {!hasLesson && (
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+            No topics yet
           </span>
-          <ToolBtn
-            label={classroomVoice.playing ? 'Pause voice' : 'Play voice'}
-            icon={classroomVoice.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            onClick={() => setClassroomVoice({ playing: !classroomVoice.playing })}
-          />
-          <ToolBtn label="Replay voice" icon={<RotateCcw className="h-3.5 w-3.5" />} onClick={() => setClassroomVoice({ playing: true })} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={cycleSpeed}
-                aria-label="Voice speed"
-                className="flex h-8 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                <Gauge className="h-3.5 w-3.5" />
-                <span className="font-mono text-[10px]">{classroomVoice.speed}x</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="font-mono text-[10px] uppercase tracking-wider">Voice speed</TooltipContent>
-          </Tooltip>
-          <ToolBtn
-            label={classroomVoice.muted ? 'Unmute' : 'Mute'}
-            icon={classroomVoice.muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-            onClick={() => setClassroomVoice({ muted: !classroomVoice.muted })}
-            active={classroomVoice.muted}
-          />
-        </div>
+        )}
       </div>
     </div>
   )
