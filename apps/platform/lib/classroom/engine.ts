@@ -4,6 +4,8 @@ import type {
   Lesson,
   LessonTopic,
   WhiteboardContent,
+  WhiteboardDelta,
+  LectureSegment,
   Flashcard,
   QuizQuestion,
   StudentActionId,
@@ -125,6 +127,71 @@ export async function teachTopic(params: {
     whiteboard: normalizeWhiteboard(o.whiteboard, topic?.title || lesson.title),
     say: asString(o.say, 'Let us begin.'),
   }
+}
+
+// ── Autonomous lecture (Classroom Director) ────────────────────────────────
+
+function normalizeDelta(raw: unknown): WhiteboardDelta | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const o = raw as Record<string, unknown>
+  const delta: WhiteboardDelta = {}
+  const title = asString(o.title).trim()
+  const explanation = asString(o.explanation).trim()
+  const keyPoints = asStringArray(o.keyPoints)
+  const examples = asStringArray(o.examples)
+  const equations = asStringArray(o.equations)
+  if (title) delta.title = title
+  if (explanation) delta.explanation = explanation
+  if (keyPoints.length) delta.keyPoints = keyPoints
+  if (examples.length) delta.examples = examples
+  if (equations.length) delta.equations = equations
+  return Object.keys(delta).length ? delta : undefined
+}
+
+export interface LectureResult {
+  segments: LectureSegment[]
+}
+
+// Fetch the segmented lecture script for a single topic. The Director plays the
+// returned segments one at a time (write board delta, then speak).
+export async function generateLecture(params: {
+  lesson: Lesson
+  topicIndex: number
+}): Promise<LectureResult> {
+  const { lesson, topicIndex } = params
+  const topic = lesson.outline[topicIndex]
+  const { data } = await post({
+    intent: 'lecture',
+    document_ids: lesson.source_document_ids,
+    lesson_title: lesson.title,
+    lesson_description: lesson.description,
+    outline: lesson.outline.map((t) => ({ id: t.id, title: t.title, summary: t.summary })),
+    topic_index: topicIndex,
+    topic_title: topic?.title,
+    topic_summary: topic?.summary,
+  })
+
+  const o = (data ?? {}) as Record<string, unknown>
+  const raw = Array.isArray(o.segments) ? o.segments : []
+  const segments: LectureSegment[] = raw
+    .map((seg): LectureSegment | null => {
+      const obj = (seg ?? {}) as Record<string, unknown>
+      const say = asString(obj.say).trim()
+      const board = normalizeDelta(obj.board)
+      if (!say && !board) return null
+      return { say, board }
+    })
+    .filter((s): s is LectureSegment => s !== null)
+
+  // Guarantee at least a minimal beat so the class never stalls on a bad reply.
+  if (segments.length === 0) {
+    segments.push({
+      say: `Let's look at ${topic?.title ?? 'this topic'}.`,
+      board: { title: topic?.title ?? lesson.title, explanation: topic?.summary ?? '' },
+    })
+  }
+
+  return { segments }
 }
 
 export interface InteractResult {

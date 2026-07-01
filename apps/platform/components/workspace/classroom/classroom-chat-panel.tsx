@@ -9,11 +9,7 @@ import { cn } from '@/lib/utils'
 import {
   Send,
   Hand,
-  HelpCircle,
-  Gauge,
-  Repeat,
-  Plus,
-  SkipForward,
+  Play,
   LogOut,
   GraduationCap,
   Loader2,
@@ -26,23 +22,6 @@ import {
   Circle,
   BookOpen,
 } from 'lucide-react'
-import type { StudentActionId } from '@zequel/types'
-
-// Local labels + icons (kept out of the server prompt module so it isn't
-// bundled into the client).
-const STUDENT_ACTIONS: {
-  id: StudentActionId
-  label: string
-  icon: React.ReactNode
-}[] = [
-  { id: 'ask_question', label: 'Ask Question', icon: <HelpCircle className="h-3 w-3" /> },
-  { id: 'raise_hand', label: 'Raise Hand', icon: <Hand className="h-3 w-3" /> },
-  { id: 'slow_down', label: 'Slow Down', icon: <Gauge className="h-3 w-3" /> },
-  { id: 'repeat_explanation', label: 'Repeat', icon: <Repeat className="h-3 w-3" /> },
-  { id: 'another_example', label: 'Another Example', icon: <Plus className="h-3 w-3" /> },
-  { id: 'skip_topic', label: 'Skip Topic', icon: <SkipForward className="h-3 w-3" /> },
-  { id: 'end_session', label: 'End Session', icon: <LogOut className="h-3 w-3" /> },
-]
 
 type InteractionTab = 'conversation' | 'timeline' | 'session'
 
@@ -61,7 +40,7 @@ export function ClassroomChatPanel() {
     currentTopicIndex,
     classroomVoice,
   } = useWorkspaceStore()
-  const { askQuestion, studentAction, teachIndex } = useClassroom()
+  const { askQuestion, raiseHand, resumeClass, endSession } = useClassroom()
 
   const [tab, setTab] = useState<InteractionTab>('conversation')
   const [input, setInput] = useState('')
@@ -69,11 +48,12 @@ export function ClassroomChatPanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const hasLesson = !!activeLesson
-  const disabled = !hasLesson || isClassroomBusy
-  const started =
-    classroomStatus === 'teaching' ||
-    classroomStatus === 'paused' ||
-    classroomStatus === 'ended'
+  const isTeaching = classroomStatus === 'teaching'
+  const awaiting = classroomStatus === 'awaiting_question'
+  const inClass = isTeaching || awaiting || classroomStatus === 'responding'
+  const started = inClass || classroomStatus === 'ended'
+  // Questions can be asked while teaching or once the hand is already raised.
+  const canAsk = hasLesson && (isTeaching || awaiting)
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -93,7 +73,8 @@ export function ClassroomChatPanel() {
 
   const handleSend = () => {
     const text = input.trim()
-    if (!text || disabled) return
+    if (!text || !canAsk) return
+    // Typing a question while the lecture is running raises your hand implicitly.
     askQuestion(text)
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = '24px'
@@ -152,7 +133,7 @@ export function ClassroomChatPanel() {
                 </p>
                 <p className="mt-1 font-sans text-xs text-muted-foreground/60">
                   {hasLesson
-                    ? 'Start the lesson, then speak or type to interrupt any time.'
+                    ? 'Press Start AI Class. Raise your hand or type any time to interrupt.'
                     : 'Build and load a lesson to begin.'}
                 </p>
               </div>
@@ -177,28 +158,45 @@ export function ClassroomChatPanel() {
             )}
           </div>
 
-          {/* Student controls */}
+          {/* Raise-hand / resume / end controls — the class runs itself, so the
+              student only ever interrupts, resumes, or ends. */}
           <Separator className="shrink-0" />
-          <div className="flex shrink-0 flex-wrap gap-1.5 px-3 py-2">
-            {STUDENT_ACTIONS.map((a) => (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 py-2">
+            {awaiting ? (
               <button
-                key={a.id}
-                onClick={() => studentAction(a.id, a.label)}
-                disabled={disabled}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-40',
-                  a.id === 'end_session'
-                    ? 'border-destructive/40 text-destructive hover:bg-destructive/10'
-                    : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
-                )}
+                onClick={resumeClass}
+                className="flex items-center gap-1.5 rounded-full border border-foreground/40 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-foreground transition-colors hover:bg-secondary"
               >
-                {a.icon}
-                {a.label}
+                <Play className="h-3 w-3" />
+                Resume Lecture
               </button>
-            ))}
+            ) : (
+              <button
+                onClick={raiseHand}
+                disabled={!isTeaching}
+                className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-40"
+              >
+                <Hand className="h-3 w-3" />
+                Raise Hand
+              </button>
+            )}
+            {inClass && (
+              <button
+                onClick={endSession}
+                className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-destructive transition-colors hover:bg-destructive/10"
+              >
+                <LogOut className="h-3 w-3" />
+                End Class
+              </button>
+            )}
+            {awaiting && (
+              <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                Ask your question below
+              </span>
+            )}
           </div>
 
-          {/* Input */}
+          {/* Input — type a question to interrupt the lecture at any time */}
           <div className="shrink-0 px-3 pb-3">
             <div className="flex items-end gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
               <textarea
@@ -217,13 +215,19 @@ export function ClassroomChatPanel() {
                   }
                 }}
                 rows={1}
-                placeholder={hasLesson ? 'Ask the instructor a question…' : 'Load a lesson to interact'}
-                disabled={disabled}
+                placeholder={
+                  canAsk
+                    ? 'Ask the instructor a question…'
+                    : hasLesson
+                      ? 'Start the class to ask questions'
+                      : 'Load a lesson to interact'
+                }
+                disabled={!canAsk}
                 className="max-h-[120px] min-h-[24px] flex-1 resize-none bg-transparent font-sans text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={disabled || !input.trim()}
+                disabled={!canAsk || !input.trim()}
                 aria-label="Send"
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background transition-opacity hover:bg-foreground/90 disabled:opacity-30"
               >
@@ -250,11 +254,9 @@ export function ClassroomChatPanel() {
                     {i < activeLesson.outline.length - 1 && (
                       <span className="absolute left-[11px] top-6 h-full w-px bg-border" aria-hidden="true" />
                     )}
-                    <button
-                      onClick={() => teachIndex(i)}
-                      disabled={isClassroomBusy || !started}
-                      aria-label={`Go to topic ${i + 1}`}
-                      className="z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    <span
+                      aria-label={`Topic ${i + 1}`}
+                      className="z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground"
                     >
                       {current ? (
                         <CircleDot className="h-4 w-4 text-foreground" />
@@ -263,7 +265,7 @@ export function ClassroomChatPanel() {
                       ) : (
                         <Circle className="h-4 w-4" />
                       )}
-                    </button>
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
@@ -358,6 +360,10 @@ function statusLabel(status: string) {
       return 'Ready'
     case 'teaching':
       return 'Teaching'
+    case 'awaiting_question':
+      return 'Your turn'
+    case 'responding':
+      return 'Answering'
     case 'paused':
       return 'Paused'
     case 'ended':

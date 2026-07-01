@@ -90,11 +90,15 @@ function joinExamples(examples: string[], equations?: string[]): string {
 function resolveText(wb: WhiteboardContent | null, hint: string) {
   return {
     title: wb?.title?.trim() || 'Classroom',
-    explanation: wb?.explanation?.trim() || hint,
+    // When a board is present, mirror its (possibly empty) explanation exactly so
+    // gradual appends diff cleanly; only fall back to the hint before any board.
+    explanation: wb ? wb.explanation.trim() : hint,
     keyPoints: wb ? joinKeyPoints(wb.keyPoints) : '—',
     examples: wb ? joinExamples(wb.examples, wb.equations) : '—',
   }
 }
+
+type ZoneText = { title: string; explanation: string; keyPoints: string; examples: string }
 
 export interface TeachingWhiteboardCanvasProps {
   content: WhiteboardContent | null
@@ -113,6 +117,9 @@ export function TeachingWhiteboardCanvas({
   // Signature of the last content we applied — lets us skip redundant work so
   // duplicate effect runs / re-renders never cause a flash or re-animation.
   const lastSigRef = useRef<string | null>(null)
+  // The last fully-applied text per zone — lets us animate only the appended
+  // suffix (so the board keeps growing rather than re-typing from scratch).
+  const prevRef = useRef<ZoneText>({ title: '', explanation: '', keyPoints: '', examples: '' })
   // Whether we've fit the camera to the board yet (only done once).
   const fittedRef = useRef(false)
 
@@ -249,17 +256,20 @@ export function TeachingWhiteboardCanvas({
     )
   }, [])
 
-  // Progressively reveal the title + body zones so the board reads like it's
-  // being written live. A blinking cursor trails the current segment.
+  // Progressively reveal each changed zone so the board reads like it's being
+  // written live. Each segment carries a `prefix` (text already on the board);
+  // animation writes only the appended suffix, so the board grows in place
+  // instead of re-typing everything. A blinking cursor trails the active zone.
   const animateWriting = useCallback(
-    (editor: Editor, segments: { id: TLShapeId; text: string }[]) => {
+    (editor: Editor, segments: { id: TLShapeId; text: string; prefix: string }[]) => {
       stopAnimations()
+      if (segments.length === 0) return
 
-      // Clear the animated segments first so writing starts from empty.
-      segments.forEach((seg) => setText(editor, seg.id, ''))
+      // Seed each segment with its already-written prefix.
+      segments.forEach((seg) => setText(editor, seg.id, seg.prefix))
 
       let segIndex = 0
-      let charIndex = 0
+      let charIndex = segments[0].prefix.length
 
       let cursorOn = true
       cursorTimerRef.current = setInterval(() => {
@@ -281,7 +291,7 @@ export function TeachingWhiteboardCanvas({
         if (charIndex >= seg.text.length) {
           setText(editor, seg.id, seg.text) // finish segment cleanly
           segIndex += 1
-          charIndex = 0
+          charIndex = segments[segIndex]?.prefix.length ?? 0
           if (segIndex >= segments.length) stopAnimations()
         }
       }, WRITE_INTERVAL_MS)
@@ -301,22 +311,51 @@ export function TeachingWhiteboardCanvas({
       lastSigRef.current = sig
 
       const t = resolveText(wb, hint)
+      const prev = prevRef.current
 
       // Headers are static; only the title + body text change per topic.
-      // Animate when there is real lesson content; render placeholder instantly.
       if (wb) {
-        animateWriting(editor, [
-          { id: IDS.titleText, text: t.title },
-          { id: IDS.explText, text: t.explanation },
-          { id: IDS.keyText, text: t.keyPoints },
-          { id: IDS.exText, text: t.examples },
-        ])
+        // Build an animation segment per zone that actually changed. When the
+        // new text simply extends the old (a gradual append), animate just the
+        // new suffix; otherwise rewrite the whole zone from empty.
+        const zones: { id: TLShapeId; next: string; prevText: string }[] = [
+          { id: IDS.titleText, next: t.title, prevText: prev.title },
+          { id: IDS.explText, next: t.explanation, prevText: prev.explanation },
+          { id: IDS.keyText, next: t.keyPoints, prevText: prev.keyPoints },
+          { id: IDS.exText, next: t.examples, prevText: prev.examples },
+        ]
+
+        const segments = zones
+          .filter((z) => z.next !== z.prevText)
+          .map((z) => ({
+            id: z.id,
+            text: z.next,
+            prefix: z.prevText && z.next.startsWith(z.prevText) ? z.prevText : '',
+          }))
+
+        // Record the fully-applied text now so the next append diffs correctly.
+        prevRef.current = {
+          title: t.title,
+          explanation: t.explanation,
+          keyPoints: t.keyPoints,
+          examples: t.examples,
+        }
+
+        if (segments.length > 0) {
+          animateWriting(editor, segments)
+        }
       } else {
         stopAnimations()
         setText(editor, IDS.titleText, t.title)
         setText(editor, IDS.explText, t.explanation)
         setText(editor, IDS.keyText, t.keyPoints)
         setText(editor, IDS.exText, t.examples)
+        prevRef.current = {
+          title: t.title,
+          explanation: t.explanation,
+          keyPoints: t.keyPoints,
+          examples: t.examples,
+        }
       }
 
       // Fit the camera to the board a single time (no repeated animations).
@@ -339,6 +378,7 @@ export function TeachingWhiteboardCanvas({
       // A fresh editor has no zones; force a rebuild + reapply.
       lastSigRef.current = null
       fittedRef.current = false
+      prevRef.current = { title: '', explanation: '', keyPoints: '', examples: '' }
       applyContent(editor, content, placeholder)
     },
     [content, placeholder, applyContent]

@@ -10,7 +10,7 @@ import { ModeSwitcher } from '../mode-switcher'
 import { ClassroomSidebar } from './classroom-sidebar'
 import { ClassroomBoardPanel } from './classroom-board-panel'
 import { ClassroomChatPanel } from './classroom-chat-panel'
-import { useLectureVoice } from '@/lib/classroom/speech'
+import { useClassroomDirector } from '@/lib/classroom/director'
 import type { Profile } from '@zequel/types'
 
 interface ClassroomWorkspaceProps {
@@ -27,8 +27,9 @@ export function ClassroomWorkspace({
   userEmail,
   profile,
 }: ClassroomWorkspaceProps) {
-  // Drive the AI lecturer's voice (speaks each explanation, honors mute/pause/mic).
-  useLectureVoice()
+  // Mount the Classroom Director — it orchestrates the autonomous lecture
+  // (voice + whiteboard + interruptions) and is cleaned up on exit.
+  useClassroomDirector()
 
   return (
     <div className="h-svh w-full bg-background">

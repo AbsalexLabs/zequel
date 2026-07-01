@@ -2,7 +2,7 @@
 
 import { useWorkspaceStore } from '@/lib/store'
 import { useClassroom } from './use-classroom'
-import { replayLastExplanation } from '@/lib/classroom/speech'
+import { isRecognitionSupported } from '@/lib/classroom/speech'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -12,9 +12,8 @@ import {
 import {
   Mic,
   MicOff,
+  Hand,
   Play,
-  Pause,
-  RotateCcw,
   Gauge,
   Volume2,
   Volume1,
@@ -68,14 +67,15 @@ function VoiceBtn({
 // the placeholder voice state so the real voice lecturer can be wired in later
 // without changing the interface.
 export function ClassroomVoiceBar() {
-  const { classroomVoice, setClassroomVoice, classroomStatus, isClassroomBusy } =
-    useWorkspaceStore()
-  const { pauseLesson, resumeLesson } = useClassroom()
+  const { classroomVoice, setClassroomVoice, classroomStatus } = useWorkspaceStore()
+  const { raiseHand, resumeClass, setMicEnabled } = useClassroom()
 
   const isTeaching = classroomStatus === 'teaching'
-  const isPaused = classroomStatus === 'paused'
-  const speaking = (isTeaching || classroomVoice.playing) && !classroomVoice.muted
+  const isResponding = classroomStatus === 'responding'
+  const awaiting = classroomStatus === 'awaiting_question'
+  const speaking = classroomVoice.playing && !classroomVoice.muted
   const listening = classroomVoice.micActive
+  const micSupported = isRecognitionSupported()
 
   const cycleSpeed = () => {
     const speeds = [0.75, 1, 1.25, 1.5, 2]
@@ -126,48 +126,46 @@ export function ClassroomVoiceBar() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-foreground">
           {classroomVoice.muted
             ? 'Muted'
-            : speaking
-              ? 'Speaking'
-              : isPaused
-                ? 'Paused'
-                : 'Idle'}
+            : awaiting
+              ? 'Listening for you'
+              : speaking
+                ? 'Speaking'
+                : isResponding
+                  ? 'Answering'
+                  : isTeaching
+                    ? 'Teaching'
+                    : 'Idle'}
         </span>
       </div>
 
-      {/* Student microphone — interrupt the lecture at any time (placeholder) */}
-      <VoiceBtn
-        label={listening ? 'Stop microphone' : 'Speak to interrupt'}
-        tone="mic"
-        active={listening}
-        icon={listening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-        onClick={() => setClassroomVoice({ micActive: !listening })}
-      />
-
-      {/* Pause / resume the live lecture */}
-      {isTeaching ? (
+      {/* Live microphone — say "excuse me" to interrupt (where supported) */}
+      {micSupported && (
         <VoiceBtn
-          label="Pause lecture"
-          icon={<Pause className="h-4 w-4" />}
-          onClick={pauseLesson}
-          disabled={isClassroomBusy}
-        />
-      ) : (
-        <VoiceBtn
-          label="Resume lecture"
-          icon={<Play className="h-4 w-4" />}
-          onClick={resumeLesson}
-          disabled={isClassroomBusy || classroomStatus === 'idle'}
-          active={isPaused}
+          label={listening ? 'Turn off voice interruption' : 'Enable voice interruption'}
+          tone="mic"
+          active={listening}
+          icon={listening ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          onClick={() => setMicEnabled(!listening)}
         />
       )}
 
-      {/* Replay last explanation — re-speaks the current explanation aloud */}
-      <VoiceBtn
-        label="Replay last explanation"
-        icon={<RotateCcw className="h-4 w-4" />}
-        onClick={replayLastExplanation}
-        disabled={classroomVoice.muted || classroomStatus === 'idle'}
-      />
+      {/* Raise hand (interrupt) while teaching — or resume after a question */}
+      {awaiting ? (
+        <VoiceBtn
+          label="Resume lecture"
+          icon={<Play className="h-4 w-4" />}
+          onClick={resumeClass}
+          active
+        />
+      ) : (
+        <VoiceBtn
+          label="Raise hand to ask"
+          tone="mic"
+          icon={<Hand className="h-4 w-4" />}
+          onClick={raiseHand}
+          disabled={!isTeaching}
+        />
+      )}
 
       <div className="flex-1" />
 
