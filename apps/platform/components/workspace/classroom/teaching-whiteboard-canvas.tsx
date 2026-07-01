@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import {
   Tldraw,
   type Editor,
+  type TLComponents,
   type TLShapeId,
   createShapeId,
   toRichText,
@@ -13,8 +14,7 @@ import type { WhiteboardContent } from '@zequel/types'
 
 // The four fixed teaching zones are drawn as real tldraw shapes so the board is
 // a genuine whiteboard surface (future: freeform annotation, handwriting,
-// collaboration). The AI never scribbles freely — this module owns the layout
-// and rebuilds the zones whenever the lesson content changes.
+// collaboration). The AI never scribbles freely — this module owns the layout.
 //
 //   ┌───────────────────────── TITLE ─────────────────────────┐
 //   │                                                          │
@@ -22,6 +22,14 @@ import type { WhiteboardContent } from '@zequel/types'
 //   │                                                          │
 //   │  EXAMPLES / DIAGRAMS / EQUATIONS (bottom, full width)    │
 //   └──────────────────────────────────────────────────────────┘
+//
+// IMPORTANT — why this is built the way it is:
+// The board layout (frames + headers) is created exactly ONCE. When lesson
+// content changes we only UPDATE the text shapes in place; we never delete and
+// recreate shapes, and we never re-run the camera animation. Destroying and
+// rebuilding the board on every render is what made it visibly flash /
+// "disappear then reappear". Building once + updating text is flicker-free and
+// self-heals if tldraw ever remounts (the zones are recreated only if missing).
 
 // Layout constants (canvas units).
 const PAD = 40
@@ -41,6 +49,12 @@ const TOTAL_W = EXPLANATION_W + COL_GAP + KEYPOINTS_W
 const CURSOR = '▍'
 const WRITE_INTERVAL_MS = 28 // tick cadence
 const CHARS_PER_TICK = 3 // characters revealed per tick
+
+// Stable tldraw components object (module-level so its identity never changes).
+const TLDRAW_COMPONENTS: TLComponents = {
+  Background: null,
+  Minimap: null,
+}
 
 // Stable shape ids so we can update in place / clean up.
 const IDS = {
@@ -72,6 +86,16 @@ function joinExamples(examples: string[], equations?: string[]): string {
   return blocks.length ? blocks.join('\n\n') : '—'
 }
 
+// Resolve the four text values (+ title) from lesson content.
+function resolveText(wb: WhiteboardContent | null, hint: string) {
+  return {
+    title: wb?.title?.trim() || 'Classroom',
+    explanation: wb?.explanation?.trim() || hint,
+    keyPoints: wb ? joinKeyPoints(wb.keyPoints) : '—',
+    examples: wb ? joinExamples(wb.examples, wb.equations) : '—',
+  }
+}
+
 export interface TeachingWhiteboardCanvasProps {
   content: WhiteboardContent | null
   // Empty-state hint shown on the board before a lesson starts.
@@ -83,9 +107,14 @@ export function TeachingWhiteboardCanvas({
   placeholder = 'The lesson board will appear here.',
 }: TeachingWhiteboardCanvasProps) {
   const editorRef = useRef<Editor | null>(null)
-  // Handle for the in-flight writing animation so we can cancel it cleanly.
+  // In-flight writing animation handles so we can cancel cleanly.
   const writeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const cursorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Signature of the last content we applied — lets us skip redundant work so
+  // duplicate effect runs / re-renders never cause a flash or re-animation.
+  const lastSigRef = useRef<string | null>(null)
+  // Whether we've fit the camera to the board yet (only done once).
+  const fittedRef = useRef(false)
 
   const stopAnimations = useCallback(() => {
     if (writeTimerRef.current) {
@@ -98,36 +127,146 @@ export function TeachingWhiteboardCanvas({
     }
   }, [])
 
-  // Progressively reveal a queue of text zones, one after another, so the board
-  // reads like it is being written live. A blinking cursor trails the writing.
+  // Update a single text shape's content (locked shapes require ignoreShapeLock).
+  const setText = useCallback((editor: Editor, id: TLShapeId, value: string) => {
+    const shape = editor.getShape(id)
+    if (!shape) return
+    editor.run(
+      () => {
+        editor.updateShape({ id, type: 'text', props: { richText: toRichText(value) } })
+      },
+      { history: 'ignore', ignoreShapeLock: true }
+    )
+  }, [])
+
+  // Create the fixed teaching zones exactly once. Idempotent: if the frames
+  // already exist we do nothing, so re-renders / remounts are safe.
+  const ensureZones = useCallback((editor: Editor) => {
+    if (editor.getShape(IDS.titleFrame)) return
+
+    const topRowY = PAD + TITLE_H + ROW_GAP
+    const examplesY = topRowY + TOP_ROW_H + ROW_GAP
+
+    editor.run(
+      () => {
+        editor.createShapes([
+          // ── Title zone (top, full width) ──────────────────────────────
+          {
+            id: IDS.titleFrame,
+            type: 'geo',
+            x: PAD,
+            y: PAD,
+            props: { geo: 'rectangle', w: TOTAL_W, h: TITLE_H, fill: 'solid', color: 'black', dash: 'solid', size: 's' },
+          },
+          {
+            id: IDS.titleText,
+            type: 'text',
+            x: PAD + CONTENT_PAD,
+            y: PAD + CONTENT_PAD,
+            props: { richText: toRichText(''), size: 'xl', font: 'draw', color: 'white', w: TOTAL_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+
+          // ── Explanation zone (left) ───────────────────────────────────
+          {
+            id: IDS.explFrame,
+            type: 'geo',
+            x: PAD,
+            y: topRowY,
+            props: { geo: 'rectangle', w: EXPLANATION_W, h: TOP_ROW_H, fill: 'none', color: 'grey', dash: 'solid', size: 's' },
+          },
+          {
+            id: IDS.explHeader,
+            type: 'text',
+            x: PAD + CONTENT_PAD,
+            y: topRowY + CONTENT_PAD,
+            props: { richText: toRichText('EXPLANATION'), size: 's', font: 'mono', color: 'grey', w: EXPLANATION_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+          {
+            id: IDS.explText,
+            type: 'text',
+            x: PAD + CONTENT_PAD,
+            y: topRowY + CONTENT_PAD + 44,
+            props: { richText: toRichText(''), size: 'm', font: 'draw', color: 'black', w: EXPLANATION_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+
+          // ── Key points zone (right) ───────────────────────────────────
+          {
+            id: IDS.keyFrame,
+            type: 'geo',
+            x: PAD + EXPLANATION_W + COL_GAP,
+            y: topRowY,
+            props: { geo: 'rectangle', w: KEYPOINTS_W, h: TOP_ROW_H, fill: 'none', color: 'grey', dash: 'solid', size: 's' },
+          },
+          {
+            id: IDS.keyHeader,
+            type: 'text',
+            x: PAD + EXPLANATION_W + COL_GAP + CONTENT_PAD,
+            y: topRowY + CONTENT_PAD,
+            props: { richText: toRichText('KEY POINTS'), size: 's', font: 'mono', color: 'grey', w: KEYPOINTS_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+          {
+            id: IDS.keyText,
+            type: 'text',
+            x: PAD + EXPLANATION_W + COL_GAP + CONTENT_PAD,
+            y: topRowY + CONTENT_PAD + 44,
+            props: { richText: toRichText(''), size: 'm', font: 'draw', color: 'black', w: KEYPOINTS_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+
+          // ── Examples zone (bottom, full width) ────────────────────────
+          {
+            id: IDS.exFrame,
+            type: 'geo',
+            x: PAD,
+            y: examplesY,
+            props: { geo: 'rectangle', w: TOTAL_W, h: EXAMPLES_H, fill: 'none', color: 'grey', dash: 'solid', size: 's' },
+          },
+          {
+            id: IDS.exHeader,
+            type: 'text',
+            x: PAD + CONTENT_PAD,
+            y: examplesY + CONTENT_PAD,
+            props: { richText: toRichText('EXAMPLES · DIAGRAMS · EQUATIONS'), size: 's', font: 'mono', color: 'grey', w: TOTAL_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+          {
+            id: IDS.exText,
+            type: 'text',
+            x: PAD + CONTENT_PAD,
+            y: examplesY + CONTENT_PAD + 44,
+            props: { richText: toRichText(''), size: 'm', font: 'draw', color: 'black', w: TOTAL_W - CONTENT_PAD * 2, autoSize: false, textAlign: 'start' },
+          },
+        ])
+
+        // Lock the zones so the board reads as a stable teaching surface.
+        editor.updateShapes(
+          Object.values(IDS).map((id) => ({
+            id,
+            type: editor.getShape(id)?.type ?? 'geo',
+            isLocked: true,
+          }))
+        )
+      },
+      { history: 'ignore', ignoreShapeLock: true }
+    )
+  }, [])
+
+  // Progressively reveal the title + body zones so the board reads like it's
+  // being written live. A blinking cursor trails the current segment.
   const animateWriting = useCallback(
     (editor: Editor, segments: { id: TLShapeId; text: string }[]) => {
       stopAnimations()
 
+      // Clear the animated segments first so writing starts from empty.
+      segments.forEach((seg) => setText(editor, seg.id, ''))
+
       let segIndex = 0
       let charIndex = 0
 
-      const setText = (id: TLShapeId, value: string) => {
-        const shape = editor.getShape(id)
-        if (!shape) return
-        editor.run(
-          () => {
-            editor.updateShape({ id, type: 'text', props: { richText: toRichText(value) } })
-          },
-          // history: ignore keeps writes out of undo; ignoreShapeLock lets us
-          // mutate the locked teaching zones programmatically.
-          { history: 'ignore', ignoreShapeLock: true }
-        )
-      }
-
-      // Blinking cursor on the segment currently being written.
       let cursorOn = true
       cursorTimerRef.current = setInterval(() => {
         const seg = segments[segIndex]
         if (!seg) return
         cursorOn = !cursorOn
-        const revealed = seg.text.slice(0, charIndex)
-        setText(seg.id, revealed + (cursorOn ? CURSOR : ''))
+        setText(editor, seg.id, seg.text.slice(0, charIndex) + (cursorOn ? CURSOR : ''))
       }, 460)
 
       writeTimerRef.current = setInterval(() => {
@@ -136,289 +275,89 @@ export function TeachingWhiteboardCanvas({
           stopAnimations()
           return
         }
-
         charIndex = Math.min(seg.text.length, charIndex + CHARS_PER_TICK)
-        setText(seg.id, seg.text.slice(0, charIndex) + CURSOR)
+        setText(editor, seg.id, seg.text.slice(0, charIndex) + CURSOR)
 
         if (charIndex >= seg.text.length) {
-          // Finish this segment cleanly (no cursor) and advance to the next.
-          setText(seg.id, seg.text)
+          setText(editor, seg.id, seg.text) // finish segment cleanly
           segIndex += 1
           charIndex = 0
-          if (segIndex >= segments.length) {
-            stopAnimations()
-          }
+          if (segIndex >= segments.length) stopAnimations()
         }
       }, WRITE_INTERVAL_MS)
     },
-    [stopAnimations]
+    [stopAnimations, setText]
   )
 
-  const render = useCallback(
-    (editor: Editor, wb: WhiteboardContent | null, hint: string, animate: boolean) => {
-      stopAnimations()
+  // Apply lesson content to the (already-built) zones. Only updates text — never
+  // deletes/recreates shapes and never moves the camera after the first fit.
+  const applyContent = useCallback(
+    (editor: Editor, wb: WhiteboardContent | null, hint: string) => {
+      ensureZones(editor)
 
-      editor.run(
-        () => {
-          // Remove any existing zone shapes (and stray user shapes) for a clean,
-          // consistent board on every render.
-          const existing = Array.from(editor.getCurrentPageShapeIds())
-          if (existing.length > 0) editor.deleteShapes(existing as TLShapeId[])
+      const sig = JSON.stringify({ wb, hint })
+      if (sig === lastSigRef.current) return // nothing changed — avoid any flash
+      const isFirst = lastSigRef.current === null
+      lastSigRef.current = sig
 
-          const title = wb?.title?.trim() || 'Classroom'
-          const explanation = wb?.explanation?.trim() || hint
-          const keyPoints = wb ? joinKeyPoints(wb.keyPoints) : '—'
-          const examples = wb ? joinExamples(wb.examples, wb.equations) : '—'
+      const t = resolveText(wb, hint)
 
-          const topRowY = PAD + TITLE_H + ROW_GAP
-          const examplesY = topRowY + TOP_ROW_H + ROW_GAP
-
-          // When animating, body text starts empty and is written in over time.
-          const initialExpl = animate ? '' : explanation
-          const initialKey = animate ? '' : keyPoints
-          const initialEx = animate ? '' : examples
-
-          editor.createShapes([
-            // ── Title zone (top, full width) ──────────────────────────────
-            {
-              id: IDS.titleFrame,
-              type: 'geo',
-              x: PAD,
-              y: PAD,
-              props: {
-                geo: 'rectangle',
-                w: TOTAL_W,
-                h: TITLE_H,
-                fill: 'solid',
-                color: 'black',
-                dash: 'solid',
-                size: 's',
-              },
-            },
-            {
-              id: IDS.titleText,
-              type: 'text',
-              x: PAD + CONTENT_PAD,
-              y: PAD + CONTENT_PAD,
-              props: {
-                richText: toRichText(animate ? '' : title),
-                size: 'xl',
-                font: 'draw',
-                color: 'white',
-                w: TOTAL_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-
-            // ── Explanation zone (left) ───────────────────────────────────
-            {
-              id: IDS.explFrame,
-              type: 'geo',
-              x: PAD,
-              y: topRowY,
-              props: {
-                geo: 'rectangle',
-                w: EXPLANATION_W,
-                h: TOP_ROW_H,
-                fill: 'none',
-                color: 'grey',
-                dash: 'solid',
-                size: 's',
-              },
-            },
-            {
-              id: IDS.explHeader,
-              type: 'text',
-              x: PAD + CONTENT_PAD,
-              y: topRowY + CONTENT_PAD,
-              props: {
-                richText: toRichText('EXPLANATION'),
-                size: 's',
-                font: 'mono',
-                color: 'grey',
-                w: EXPLANATION_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-            {
-              id: IDS.explText,
-              type: 'text',
-              x: PAD + CONTENT_PAD,
-              y: topRowY + CONTENT_PAD + 44,
-              props: {
-                richText: toRichText(initialExpl),
-                size: 'm',
-                font: 'draw',
-                color: 'black',
-                w: EXPLANATION_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-
-            // ── Key points zone (right) ───────────────────────────────────
-            {
-              id: IDS.keyFrame,
-              type: 'geo',
-              x: PAD + EXPLANATION_W + COL_GAP,
-              y: topRowY,
-              props: {
-                geo: 'rectangle',
-                w: KEYPOINTS_W,
-                h: TOP_ROW_H,
-                fill: 'none',
-                color: 'grey',
-                dash: 'solid',
-                size: 's',
-              },
-            },
-            {
-              id: IDS.keyHeader,
-              type: 'text',
-              x: PAD + EXPLANATION_W + COL_GAP + CONTENT_PAD,
-              y: topRowY + CONTENT_PAD,
-              props: {
-                richText: toRichText('KEY POINTS'),
-                size: 's',
-                font: 'mono',
-                color: 'grey',
-                w: KEYPOINTS_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-            {
-              id: IDS.keyText,
-              type: 'text',
-              x: PAD + EXPLANATION_W + COL_GAP + CONTENT_PAD,
-              y: topRowY + CONTENT_PAD + 44,
-              props: {
-                richText: toRichText(initialKey),
-                size: 'm',
-                font: 'draw',
-                color: 'black',
-                w: KEYPOINTS_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-
-            // ── Examples zone (bottom, full width) ────────────────────────
-            {
-              id: IDS.exFrame,
-              type: 'geo',
-              x: PAD,
-              y: examplesY,
-              props: {
-                geo: 'rectangle',
-                w: TOTAL_W,
-                h: EXAMPLES_H,
-                fill: 'none',
-                color: 'grey',
-                dash: 'solid',
-                size: 's',
-              },
-            },
-            {
-              id: IDS.exHeader,
-              type: 'text',
-              x: PAD + CONTENT_PAD,
-              y: examplesY + CONTENT_PAD,
-              props: {
-                richText: toRichText('EXAMPLES · DIAGRAMS · EQUATIONS'),
-                size: 's',
-                font: 'mono',
-                color: 'grey',
-                w: TOTAL_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-            {
-              id: IDS.exText,
-              type: 'text',
-              x: PAD + CONTENT_PAD,
-              y: examplesY + CONTENT_PAD + 44,
-              props: {
-                richText: toRichText(initialEx),
-                size: 'm',
-                font: 'draw',
-                color: 'black',
-                w: TOTAL_W - CONTENT_PAD * 2,
-                autoSize: false,
-                textAlign: 'start',
-              },
-            },
-          ])
-
-          // Lock the zone shapes so they read as a stable teaching surface.
-          editor.updateShapes(
-            Object.values(IDS).map((id) => ({
-              id,
-              type: editor.getShape(id)?.type ?? 'geo',
-              isLocked: true,
-            }))
-          )
-
-          editor.selectNone()
-          editor.zoomToFit({ animation: { duration: 200 } })
-        },
-        // ignoreShapeLock is required so we can delete/replace the locked zone
-        // shapes on every re-render (topic change).
-        { history: 'ignore', ignoreShapeLock: true }
-      )
-
-      // Kick off the live "writing" pass after the zones exist.
-      if (animate) {
+      // Headers are static; only the title + body text change per topic.
+      // Animate when there is real lesson content; render placeholder instantly.
+      if (wb) {
         animateWriting(editor, [
-          { id: IDS.titleText, text: wb?.title?.trim() || 'Classroom' },
-          { id: IDS.explText, text: wb?.explanation?.trim() || hint },
-          { id: IDS.keyText, text: wb ? joinKeyPoints(wb.keyPoints) : '—' },
-          { id: IDS.exText, text: wb ? joinExamples(wb.examples, wb.equations) : '—' },
+          { id: IDS.titleText, text: t.title },
+          { id: IDS.explText, text: t.explanation },
+          { id: IDS.keyText, text: t.keyPoints },
+          { id: IDS.exText, text: t.examples },
         ])
+      } else {
+        stopAnimations()
+        setText(editor, IDS.titleText, t.title)
+        setText(editor, IDS.explText, t.explanation)
+        setText(editor, IDS.keyText, t.keyPoints)
+        setText(editor, IDS.exText, t.examples)
+      }
+
+      // Fit the camera to the board a single time (no repeated animations).
+      if (!fittedRef.current || isFirst) {
+        editor.selectNone()
+        editor.zoomToFit()
+        fittedRef.current = true
       }
     },
-    [animateWriting, stopAnimations]
+    [ensureZones, animateWriting, stopAnimations, setText]
   )
 
   const handleMount = useCallback(
     (editor: Editor) => {
       editorRef.current = editor
-      // NOTE: we intentionally do NOT use tldraw's readonly mode here — readonly
-      // blocks ALL programmatic shape mutations (createShapes/updateShapes), which
-      // would leave the board permanently blank. Instead the teaching zones are
-      // created locked (isLocked) and every mutation runs with ignoreShapeLock,
-      // so students can pan/zoom but cannot edit the board content.
+      // NOTE: we intentionally do NOT use tldraw's readonly mode — readonly
+      // blocks ALL programmatic shape mutations. Zones are created locked and
+      // every mutation uses ignoreShapeLock, so students can pan/zoom but not edit.
       editor.setCurrentTool('hand')
-      // Animate the first paint only when there is real lesson content.
-      render(editor, content, placeholder, Boolean(content))
+      // A fresh editor has no zones; force a rebuild + reapply.
+      lastSigRef.current = null
+      fittedRef.current = false
+      applyContent(editor, content, placeholder)
     },
-    [content, placeholder, render]
+    [content, placeholder, applyContent]
   )
 
-  // Re-render zones whenever the AI updates the whiteboard content, writing the
-  // new material in live. The empty/placeholder state renders instantly.
+  // Update the board whenever lesson content changes. Guarded by the signature
+  // ref so unrelated re-renders are true no-ops.
   useEffect(() => {
     const editor = editorRef.current
     if (!editor) return
-    render(editor, content, placeholder, Boolean(content))
-  }, [content, placeholder, render])
+    applyContent(editor, content, placeholder)
+  }, [content, placeholder, applyContent])
 
   // Clean up any running timers on unmount.
   useEffect(() => stopAnimations, [stopAnimations])
 
   return (
     <div className="tl-classroom absolute inset-0">
-      <Tldraw
-        onMount={handleMount}
-        hideUi
-        components={{
-          Background: null,
-          Minimap: null,
-        }}
-      />
+      <Tldraw onMount={handleMount} hideUi components={TLDRAW_COMPONENTS} />
     </div>
   )
 }
