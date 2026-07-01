@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useWorkspaceStore } from '@/lib/store'
-import { useToast } from '@zequel/ui/components/use-toast'
+import { useToast } from '@zequel/ui/hooks/use-toast'
 import {
   generateOutline,
   teachTopic,
