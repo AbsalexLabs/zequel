@@ -2,6 +2,7 @@
 
 import { useWorkspaceStore } from '@/lib/store'
 import { useClassroom } from './use-classroom'
+import { replayLastExplanation } from '@/lib/classroom/speech'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -69,7 +70,7 @@ function VoiceBtn({
 export function ClassroomVoiceBar() {
   const { classroomVoice, setClassroomVoice, classroomStatus, isClassroomBusy } =
     useWorkspaceStore()
-  const { pauseLesson, resumeLesson, repeatTopic } = useClassroom()
+  const { pauseLesson, resumeLesson } = useClassroom()
 
   const isTeaching = classroomStatus === 'teaching'
   const isPaused = classroomStatus === 'paused'
@@ -160,12 +161,12 @@ export function ClassroomVoiceBar() {
         />
       )}
 
-      {/* Replay last explanation */}
+      {/* Replay last explanation — re-speaks the current explanation aloud */}
       <VoiceBtn
         label="Replay last explanation"
         icon={<RotateCcw className="h-4 w-4" />}
-        onClick={repeatTopic}
-        disabled={isClassroomBusy || classroomStatus === 'idle'}
+        onClick={replayLastExplanation}
+        disabled={classroomVoice.muted || classroomStatus === 'idle'}
       />
 
       <div className="flex-1" />
