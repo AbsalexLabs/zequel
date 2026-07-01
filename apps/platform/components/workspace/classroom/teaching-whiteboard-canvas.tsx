@@ -114,7 +114,9 @@ export function TeachingWhiteboardCanvas({
           () => {
             editor.updateShape({ id, type: 'text', props: { richText: toRichText(value) } })
           },
-          { history: 'ignore' }
+          // history: ignore keeps writes out of undo; ignoreShapeLock lets us
+          // mutate the locked teaching zones programmatically.
+          { history: 'ignore', ignoreShapeLock: true }
         )
       }
 
@@ -363,7 +365,9 @@ export function TeachingWhiteboardCanvas({
           editor.selectNone()
           editor.zoomToFit({ animation: { duration: 200 } })
         },
-        { history: 'ignore' }
+        // ignoreShapeLock is required so we can delete/replace the locked zone
+        // shapes on every re-render (topic change).
+        { history: 'ignore', ignoreShapeLock: true }
       )
 
       // Kick off the live "writing" pass after the zones exist.
@@ -382,8 +386,11 @@ export function TeachingWhiteboardCanvas({
   const handleMount = useCallback(
     (editor: Editor) => {
       editorRef.current = editor
-      // Read-only teaching surface: students observe, they don't edit shapes.
-      editor.updateInstanceState({ isReadonly: true })
+      // NOTE: we intentionally do NOT use tldraw's readonly mode here — readonly
+      // blocks ALL programmatic shape mutations (createShapes/updateShapes), which
+      // would leave the board permanently blank. Instead the teaching zones are
+      // created locked (isLocked) and every mutation runs with ignoreShapeLock,
+      // so students can pan/zoom but cannot edit the board content.
       editor.setCurrentTool('hand')
       // Animate the first paint only when there is real lesson content.
       render(editor, content, placeholder, Boolean(content))
