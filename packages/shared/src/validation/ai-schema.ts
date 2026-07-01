@@ -67,6 +67,75 @@ export const codingChatRequestSchema = z.object({
   learning_mode: z.boolean().optional(),
 })
 
+// ─── Classroom Mode ───────────────────────────────────────────────────────
+// Classroom Mode drives an AI lecture. A single endpoint handles several
+// intents distinguished by `intent`. All variants share document/lesson context
+// but only require what each intent needs, so most fields are optional and are
+// validated loosely (v1 keeps state client-side and passes it back in).
+
+const whiteboardContentSchema = z.object({
+  title: z.string().max(300),
+  explanation: z.string().max(8000),
+  keyPoints: z.array(z.string().max(600)).max(12),
+  examples: z.array(z.string().max(1200)).max(12),
+  equations: z.array(z.string().max(400)).max(12).optional(),
+})
+
+const lessonTopicSchema = z.object({
+  id: z.string().max(80),
+  title: z.string().max(300),
+  summary: z.string().max(1000),
+  status: z.enum(['pending', 'active', 'completed']).optional(),
+})
+
+export const classroomRequestSchema = z.object({
+  intent: z.enum([
+    'outline',
+    'teach',
+    'interact',
+    'summary',
+    'notes',
+    'flashcards',
+    'quiz',
+  ]),
+  // Documents used as the lesson source (uploaded materials).
+  document_ids: z.array(z.string().uuid()).max(10).optional(),
+  // The lesson title + outline (echoed back from client state).
+  lesson_title: z.string().max(300).optional(),
+  lesson_description: z.string().max(2000).optional(),
+  outline: z.array(lessonTopicSchema).max(40).optional(),
+  // The topic being taught / interacted with.
+  topic_index: z.number().int().min(0).max(200).optional(),
+  topic_title: z.string().max(300).optional(),
+  topic_summary: z.string().max(1000).optional(),
+  // Current whiteboard content (for interaction context).
+  whiteboard: whiteboardContentSchema.nullable().optional(),
+  // Student input for the `interact` intent.
+  student_action: z
+    .enum([
+      'ask_question',
+      'raise_hand',
+      'slow_down',
+      'repeat_explanation',
+      'another_example',
+      'skip_topic',
+      'end_session',
+    ])
+    .nullable()
+    .optional(),
+  student_message: z.string().max(4000).optional().nullable(),
+  // Recent lecture transcript for continuity.
+  history: z
+    .array(
+      z.object({
+        role: z.enum(['student', 'instructor', 'system']),
+        content: z.string().max(8000),
+      })
+    )
+    .max(40)
+    .optional(),
+})
+
 // Document extraction request validation
 export const extractRequestSchema = z.object({
   documentId: z.string().uuid('Invalid document ID'),

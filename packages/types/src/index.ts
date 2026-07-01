@@ -111,7 +111,174 @@ export interface QueryHistoryItem {
   created_at: string
 }
 
-export type WorkspaceMode = 'study' | 'research' | 'coding'
+export type WorkspaceMode = 'study' | 'research' | 'coding' | 'classroom'
+
+// ─── Classroom Mode ─────────────────────────────────────────────────────────
+//
+// Classroom Mode is an AI teaching workspace. Instead of chatting, the student
+// attends an interactive AI lecture driven by their uploaded materials. The AI
+// acts as the instructor, teaching a lesson section by section while keeping a
+// structured whiteboard in sync.
+//
+// v1 keeps all classroom state client-side (Zustand). The type shapes below are
+// deliberately close to what future persistence tables would store so the data
+// model does not need to change when a DB is added, and so future features
+// (voice, collaboration, live sessions, recordings) can attach without a
+// redesign.
+
+// The four fixed teaching zones rendered on the whiteboard. This structure
+// stays consistent across every lesson.
+export interface WhiteboardContent {
+  // Top zone — the topic being taught right now.
+  title: string
+  // Left zone — the main explanation prose.
+  explanation: string
+  // Right zone — the key points / takeaways.
+  keyPoints: string[]
+  // Bottom zone — worked examples, diagrams described in text, equations, etc.
+  examples: string[]
+  // Optional LaTeX equations rendered in the bottom zone.
+  equations?: string[]
+}
+
+export type LessonTopicStatus = 'pending' | 'active' | 'completed'
+
+// A single teachable section within a lesson outline.
+export interface LessonTopic {
+  id: string
+  title: string
+  // One-line summary shown in the outline before teaching.
+  summary: string
+  status: LessonTopicStatus
+  // Populated the first time the AI teaches this topic; reused on "repeat".
+  whiteboard?: WhiteboardContent | null
+}
+
+// A lesson is generated from one or more uploaded materials (documents).
+export interface Lesson {
+  id: string
+  title: string
+  // The uploaded documents this lesson was generated from.
+  source_document_ids: string[]
+  source_document_titles: string[]
+  // Short description of what the lesson covers.
+  description: string
+  outline: LessonTopic[]
+  created_at: string
+}
+
+// Chat is a lecturer <-> student conversation, distinct from the study chat.
+export type ClassroomMessageRole = 'student' | 'instructor' | 'system'
+
+export interface ClassroomMessage {
+  id: string
+  role: ClassroomMessageRole
+  content: string
+  created_at: string
+  // The topic index this message relates to (for future transcript scrubbing).
+  topic_index?: number
+}
+
+export type ClassroomSessionStatus =
+  | 'idle' // no lesson loaded
+  | 'analyzing' // AI is reading materials / building the outline
+  | 'outline' // outline ready, awaiting student to begin
+  | 'teaching' // actively teaching a topic
+  | 'paused' // lesson paused by the student
+  | 'ended' // session finished
+
+// A teaching session over a lesson. Stored in Session History.
+export interface ClassroomSession {
+  id: string
+  lesson_id: string
+  lesson_title: string
+  status: ClassroomSessionStatus
+  current_topic_index: number
+  started_at: string
+  ended_at: string | null
+}
+
+// ── Generated artifacts ──────────────────────────────────────────────────────
+
+export interface GeneratedNote {
+  id: string
+  lesson_id: string
+  lesson_title: string
+  content: string // markdown
+  created_at: string
+}
+
+export interface Flashcard {
+  id: string
+  front: string
+  back: string
+}
+
+export interface FlashcardDeck {
+  id: string
+  lesson_id: string
+  lesson_title: string
+  cards: Flashcard[]
+  created_at: string
+}
+
+export interface QuizQuestion {
+  id: string
+  question: string
+  options: string[]
+  // Index into `options` of the correct answer.
+  answer_index: number
+  explanation: string
+}
+
+export interface Quiz {
+  id: string
+  lesson_id: string
+  lesson_title: string
+  questions: QuizQuestion[]
+  created_at: string
+}
+
+// Instructor toolbar actions (teaching controls).
+export type ClassroomControlId =
+  | 'start'
+  | 'pause'
+  | 'resume'
+  | 'previous'
+  | 'next'
+  | 'repeat'
+  | 'summary'
+  | 'quiz'
+  | 'flashcards'
+
+// Student interaction controls.
+export type StudentActionId =
+  | 'ask_question'
+  | 'raise_hand'
+  | 'slow_down'
+  | 'repeat_explanation'
+  | 'another_example'
+  | 'skip_topic'
+  | 'end_session'
+
+// Which section of the Classroom left sidebar is active.
+export type ClassroomSidebarSection =
+  | 'lessons'
+  | 'materials'
+  | 'history'
+  | 'notes'
+  | 'flashcards'
+  | 'quizzes'
+
+// Placeholder voice settings — voice generation is NOT implemented yet, but the
+// UI and state are wired so a real voice lecturer can be added without redesign.
+export interface ClassroomVoiceSettings {
+  muted: boolean
+  // Playback speed multiplier (0.5–2). Placeholder only.
+  speed: number
+  // Whether the (future) narration is "playing". Drives the speaker indicator.
+  playing: boolean
+}
 
 // ─── Coding Mode ────────────────────────────────────────────────────────────
 
