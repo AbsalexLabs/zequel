@@ -36,6 +36,12 @@ const CONTENT_PAD = 28
 
 const TOTAL_W = EXPLANATION_W + COL_GAP + KEYPOINTS_W
 
+// Writing animation tuning. The board reveals text progressively so it reads
+// like an instructor writing on the board in real time.
+const CURSOR = '▍'
+const WRITE_INTERVAL_MS = 28 // tick cadence
+const CHARS_PER_TICK = 3 // characters revealed per tick
+
 // Stable shape ids so we can update in place / clean up.
 const IDS = {
   titleFrame: createShapeId('zone-title'),
@@ -77,9 +83,79 @@ export function TeachingWhiteboardCanvas({
   placeholder = 'The lesson board will appear here.',
 }: TeachingWhiteboardCanvasProps) {
   const editorRef = useRef<Editor | null>(null)
+  // Handle for the in-flight writing animation so we can cancel it cleanly.
+  const writeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cursorTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopAnimations = useCallback(() => {
+    if (writeTimerRef.current) {
+      clearInterval(writeTimerRef.current)
+      writeTimerRef.current = null
+    }
+    if (cursorTimerRef.current) {
+      clearInterval(cursorTimerRef.current)
+      cursorTimerRef.current = null
+    }
+  }, [])
+
+  // Progressively reveal a queue of text zones, one after another, so the board
+  // reads like it is being written live. A blinking cursor trails the writing.
+  const animateWriting = useCallback(
+    (editor: Editor, segments: { id: TLShapeId; text: string }[]) => {
+      stopAnimations()
+
+      let segIndex = 0
+      let charIndex = 0
+
+      const setText = (id: TLShapeId, value: string) => {
+        const shape = editor.getShape(id)
+        if (!shape) return
+        editor.run(
+          () => {
+            editor.updateShape({ id, type: 'text', props: { richText: toRichText(value) } })
+          },
+          { history: 'ignore' }
+        )
+      }
+
+      // Blinking cursor on the segment currently being written.
+      let cursorOn = true
+      cursorTimerRef.current = setInterval(() => {
+        const seg = segments[segIndex]
+        if (!seg) return
+        cursorOn = !cursorOn
+        const revealed = seg.text.slice(0, charIndex)
+        setText(seg.id, revealed + (cursorOn ? CURSOR : ''))
+      }, 460)
+
+      writeTimerRef.current = setInterval(() => {
+        const seg = segments[segIndex]
+        if (!seg) {
+          stopAnimations()
+          return
+        }
+
+        charIndex = Math.min(seg.text.length, charIndex + CHARS_PER_TICK)
+        setText(seg.id, seg.text.slice(0, charIndex) + CURSOR)
+
+        if (charIndex >= seg.text.length) {
+          // Finish this segment cleanly (no cursor) and advance to the next.
+          setText(seg.id, seg.text)
+          segIndex += 1
+          charIndex = 0
+          if (segIndex >= segments.length) {
+            stopAnimations()
+          }
+        }
+      }, WRITE_INTERVAL_MS)
+    },
+    [stopAnimations]
+  )
 
   const render = useCallback(
-    (editor: Editor, wb: WhiteboardContent | null, hint: string) => {
+    (editor: Editor, wb: WhiteboardContent | null, hint: string, animate: boolean) => {
+      stopAnimations()
+
       editor.run(
         () => {
           // Remove any existing zone shapes (and stray user shapes) for a clean,
@@ -94,6 +170,11 @@ export function TeachingWhiteboardCanvas({
 
           const topRowY = PAD + TITLE_H + ROW_GAP
           const examplesY = topRowY + TOP_ROW_H + ROW_GAP
+
+          // When animating, body text starts empty and is written in over time.
+          const initialExpl = animate ? '' : explanation
+          const initialKey = animate ? '' : keyPoints
+          const initialEx = animate ? '' : examples
 
           editor.createShapes([
             // ── Title zone (top, full width) ──────────────────────────────
@@ -118,9 +199,9 @@ export function TeachingWhiteboardCanvas({
               x: PAD + CONTENT_PAD,
               y: PAD + CONTENT_PAD,
               props: {
-                richText: toRichText(title),
+                richText: toRichText(animate ? '' : title),
                 size: 'xl',
-                font: 'sans',
+                font: 'draw',
                 color: 'white',
                 w: TOTAL_W - CONTENT_PAD * 2,
                 autoSize: false,
@@ -165,9 +246,9 @@ export function TeachingWhiteboardCanvas({
               x: PAD + CONTENT_PAD,
               y: topRowY + CONTENT_PAD + 44,
               props: {
-                richText: toRichText(explanation),
+                richText: toRichText(initialExpl),
                 size: 'm',
-                font: 'sans',
+                font: 'draw',
                 color: 'black',
                 w: EXPLANATION_W - CONTENT_PAD * 2,
                 autoSize: false,
@@ -212,9 +293,9 @@ export function TeachingWhiteboardCanvas({
               x: PAD + EXPLANATION_W + COL_GAP + CONTENT_PAD,
               y: topRowY + CONTENT_PAD + 44,
               props: {
-                richText: toRichText(keyPoints),
+                richText: toRichText(initialKey),
                 size: 'm',
-                font: 'sans',
+                font: 'draw',
                 color: 'black',
                 w: KEYPOINTS_W - CONTENT_PAD * 2,
                 autoSize: false,
@@ -259,9 +340,9 @@ export function TeachingWhiteboardCanvas({
               x: PAD + CONTENT_PAD,
               y: examplesY + CONTENT_PAD + 44,
               props: {
-                richText: toRichText(examples),
+                richText: toRichText(initialEx),
                 size: 'm',
-                font: 'sans',
+                font: 'draw',
                 color: 'black',
                 w: TOTAL_W - CONTENT_PAD * 2,
                 autoSize: false,
@@ -284,8 +365,18 @@ export function TeachingWhiteboardCanvas({
         },
         { history: 'ignore' }
       )
+
+      // Kick off the live "writing" pass after the zones exist.
+      if (animate) {
+        animateWriting(editor, [
+          { id: IDS.titleText, text: wb?.title?.trim() || 'Classroom' },
+          { id: IDS.explText, text: wb?.explanation?.trim() || hint },
+          { id: IDS.keyText, text: wb ? joinKeyPoints(wb.keyPoints) : '—' },
+          { id: IDS.exText, text: wb ? joinExamples(wb.examples, wb.equations) : '—' },
+        ])
+      }
     },
-    []
+    [animateWriting, stopAnimations]
   )
 
   const handleMount = useCallback(
@@ -294,17 +385,22 @@ export function TeachingWhiteboardCanvas({
       // Read-only teaching surface: students observe, they don't edit shapes.
       editor.updateInstanceState({ isReadonly: true })
       editor.setCurrentTool('hand')
-      render(editor, content, placeholder)
+      // Animate the first paint only when there is real lesson content.
+      render(editor, content, placeholder, Boolean(content))
     },
     [content, placeholder, render]
   )
 
-  // Re-render zones whenever the AI updates the whiteboard content.
+  // Re-render zones whenever the AI updates the whiteboard content, writing the
+  // new material in live. The empty/placeholder state renders instantly.
   useEffect(() => {
     const editor = editorRef.current
     if (!editor) return
-    render(editor, content, placeholder)
+    render(editor, content, placeholder, Boolean(content))
   }, [content, placeholder, render])
+
+  // Clean up any running timers on unmount.
+  useEffect(() => stopAnimations, [stopAnimations])
 
   return (
     <div className="tl-classroom absolute inset-0">
