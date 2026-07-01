@@ -159,19 +159,25 @@ class ClassroomDirector {
       // Fetch (and cache) the segmented lecture for this topic.
       let segments = this.segCache.get(ti)
       if (!segments) {
+        this.store.setIsClassroomBusy(true)
         try {
           const result = await generateLecture({ lesson, topicIndex: ti })
           segments = result.segments
         } catch (err) {
-          if (this.aborted(epoch)) return
+          if (this.aborted(epoch)) {
+            this.store.setIsClassroomBusy(false)
+            return
+          }
           this.push(
             'system',
             err instanceof Error ? err.message : 'Could not load this topic.'
           )
           this.store.setClassroomStatus('ended')
+          this.store.setIsClassroomBusy(false)
           this.stopMic()
           return
         }
+        this.store.setIsClassroomBusy(false)
         if (this.aborted(epoch)) return
         this.segCache.set(ti, segments)
       }
@@ -253,6 +259,7 @@ class ClassroomDirector {
 
     this.push('student', q)
     this.store.setClassroomStatus('responding')
+    this.store.setIsClassroomBusy(true)
     this.stopMic()
 
     // New epoch so any lingering teaching loop bails out cleanly.
@@ -266,11 +273,13 @@ class ClassroomDirector {
         message: q,
         history: this.store.classroomMessages.map((m) => ({ role: m.role, content: m.content })).slice(-16),
       })
+      this.store.setIsClassroomBusy(false)
       if (epoch !== this.epoch) return
       this.push('instructor', say, this.store.currentTopicIndex)
       await speakAsync(say)
       if (epoch !== this.epoch) return
     } catch (err) {
+      this.store.setIsClassroomBusy(false)
       this.push('system', err instanceof Error ? err.message : 'I could not answer that just now.')
     }
 

@@ -3,19 +3,14 @@
 import { useCallback } from 'react'
 import { useWorkspaceStore } from '@/lib/store'
 import { useToast } from '@zequel/ui/hooks/use-toast'
+import { classroomDirector } from '@/lib/classroom/director'
 import {
   generateOutline,
-  teachTopic,
-  interact,
   generateMarkdown,
   generateFlashcards,
   generateQuiz,
 } from '@/lib/classroom/engine'
-import type {
-  ClassroomMessage,
-  ClassroomMessageRole,
-  StudentActionId,
-} from '@zequel/types'
+import type { ClassroomMessage, ClassroomMessageRole } from '@zequel/types'
 
 function uid(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -84,7 +79,7 @@ export function useClassroom() {
       st.setClassroomSection('lessons')
       pushMessage(
         'instructor',
-        `I've prepared a lesson: "${lesson.title}". Review the outline, then press Start Lesson when you're ready.`
+        `I've prepared a lesson: "${lesson.title}". Press Start AI Class and I'll teach it to you.`
       )
     } catch (err) {
       useWorkspaceStore.getState().setClassroomStatus('idle')
@@ -106,193 +101,43 @@ export function useClassroom() {
     s.setClassroomStatus('outline')
   }, [])
 
-  // ── Teach a specific topic index ────────────────────────────────────────────
-  const teachIndex = useCallback(
-    async (index: number, opts: { silent?: boolean } = {}) => {
-      const s = useWorkspaceStore.getState()
-      const lesson = s.activeLesson
-      if (!lesson || s.isClassroomBusy) return
-      if (index < 0 || index >= lesson.outline.length) return
+  // ── Autonomous class controls (delegated to the Director) ───────────────────
+  // The Director owns the teaching loop: it decides when to speak, write the
+  // board, pause for a question, and resume. The hook just forwards intent.
 
-      s.setIsClassroomBusy(true)
-      s.setClassroomStatus('teaching')
-      s.setCurrentTopicIndex(index)
-
-      // Mark topic statuses.
-      lesson.outline.forEach((t, i) => {
-        s.updateActiveLessonTopic(t.id, {
-          status: i < index ? 'completed' : i === index ? 'active' : 'pending',
-        })
-      })
-
-      try {
-        const { whiteboard, say } = await teachTopic({ lesson, topicIndex: index })
-        const st = useWorkspaceStore.getState()
-        st.setWhiteboard(whiteboard)
-        st.updateActiveLessonTopic(lesson.outline[index].id, { whiteboard })
-        if (!opts.silent) pushMessage('instructor', say, index)
-        // Track/refresh session progress.
-        const active = st.classroomSessions.find(
-          (ss) => ss.lesson_id === lesson.id && !ss.ended_at
-        )
-        if (active) {
-          st.updateClassroomSession(active.id, {
-            current_topic_index: index,
-            status: 'teaching',
-          })
-        }
-      } catch (err) {
-        useWorkspaceStore.getState().setClassroomStatus('teaching')
-        fail(err instanceof Error ? err.message : 'Could not teach this topic.')
-      } finally {
-        useWorkspaceStore.getState().setIsClassroomBusy(false)
-      }
-    },
-    [pushMessage, fail]
-  )
-
-  // ── Instructor toolbar controls ─────────────────────────────────────────────
-  const startLesson = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    const lesson = s.activeLesson
-    if (!lesson) return
-    // Open a session in history.
-    const existing = s.classroomSessions.find(
-      (ss) => ss.lesson_id === lesson.id && !ss.ended_at
-    )
-    if (!existing) {
-      s.addClassroomSession({
-        id: uid(),
-        lesson_id: lesson.id,
-        lesson_title: lesson.title,
-        status: 'teaching',
-        current_topic_index: 0,
-        started_at: new Date().toISOString(),
-        ended_at: null,
-      })
-    }
-    void teachIndex(0)
-  }, [teachIndex])
-
-  const pauseLesson = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    if (s.classroomStatus !== 'teaching') return
-    s.setClassroomStatus('paused')
-    pushMessage('system', 'Lesson paused.')
-  }, [pushMessage])
-
-  const resumeLesson = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    if (s.classroomStatus !== 'paused') return
-    s.setClassroomStatus('teaching')
-    pushMessage('system', 'Lesson resumed.')
-  }, [pushMessage])
-
-  const nextTopic = useCallback(() => {
+  // Start (or restart) the whole class from the beginning — hands-off.
+  const startClass = useCallback(() => {
     const s = useWorkspaceStore.getState()
     if (!s.activeLesson) return
-    const next = s.currentTopicIndex + 1
-    if (next >= s.activeLesson.outline.length) {
-      toast({ title: 'Classroom', description: 'You have reached the last topic.' })
-      return
-    }
-    void teachIndex(next)
-  }, [teachIndex, toast])
+    void classroomDirector.startClass()
+  }, [])
 
-  const previousTopic = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    if (!s.activeLesson) return
-    const prev = s.currentTopicIndex - 1
-    if (prev < 0) {
-      toast({ title: 'Classroom', description: 'You are at the first topic.' })
-      return
-    }
-    void teachIndex(prev)
-  }, [teachIndex, toast])
+  // Student raised their hand (button). Freeze the lecture, wait for a question.
+  const raiseHand = useCallback(() => {
+    classroomDirector.interrupt()
+  }, [])
 
-  const repeatTopic = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    if (!s.activeLesson) return
-    void teachIndex(s.currentTopicIndex)
-  }, [teachIndex])
+  // Student asked a question (typed or spoken). The Director answers, then resumes.
+  const askQuestion = useCallback((text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    void classroomDirector.submitQuestion(trimmed)
+  }, [])
 
+  // Resume the lecture from where it paused (used to dismiss a raised hand).
+  const resumeClass = useCallback(() => {
+    void classroomDirector.resume()
+  }, [])
+
+  // End the class immediately.
   const endSession = useCallback(() => {
-    const s = useWorkspaceStore.getState()
-    const lesson = s.activeLesson
-    s.setClassroomStatus('ended')
-    if (lesson) {
-      const active = s.classroomSessions.find(
-        (ss) => ss.lesson_id === lesson.id && !ss.ended_at
-      )
-      if (active) {
-        s.updateClassroomSession(active.id, {
-          status: 'ended',
-          ended_at: new Date().toISOString(),
-          current_topic_index: s.currentTopicIndex,
-        })
-      }
-    }
-    pushMessage('system', 'Session ended. You can generate a summary, notes, flashcards, or a quiz.')
-  }, [pushMessage])
+    void classroomDirector.endClass()
+  }, [])
 
-  // ── Student interaction ─────────────────────────────────────────────────────
-  const runInteraction = useCallback(
-    async (action: StudentActionId | null, message: string | null) => {
-      const s = useWorkspaceStore.getState()
-      const lesson = s.activeLesson
-      if (!lesson || s.isClassroomBusy) return
-
-      s.setIsClassroomBusy(true)
-      try {
-        const { say, whiteboard } = await interact({
-          lesson,
-          topicIndex: s.currentTopicIndex,
-          whiteboard: s.whiteboard,
-          action,
-          message,
-          history: useWorkspaceStore
-            .getState()
-            .classroomMessages.map((m) => ({ role: m.role, content: m.content })),
-        })
-        const st = useWorkspaceStore.getState()
-        if (whiteboard) {
-          st.setWhiteboard(whiteboard)
-          const topic = lesson.outline[st.currentTopicIndex]
-          if (topic) st.updateActiveLessonTopic(topic.id, { whiteboard })
-        }
-        pushMessage('instructor', say, st.currentTopicIndex)
-        if (action === 'end_session') endSession()
-      } catch (err) {
-        fail(err instanceof Error ? err.message : 'The instructor could not respond.')
-      } finally {
-        useWorkspaceStore.getState().setIsClassroomBusy(false)
-      }
-    },
-    [pushMessage, fail, endSession]
-  )
-
-  const askQuestion = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-      pushMessage('student', trimmed)
-      void runInteraction(null, trimmed)
-    },
-    [pushMessage, runInteraction]
-  )
-
-  const studentAction = useCallback(
-    (action: StudentActionId, label: string) => {
-      if (action === 'skip_topic') {
-        pushMessage('student', label)
-        nextTopic()
-        return
-      }
-      pushMessage('student', label)
-      void runInteraction(action, null)
-    },
-    [pushMessage, runInteraction, nextTopic]
-  )
+  // Toggle the live microphone (voice interruption where supported).
+  const setMicEnabled = useCallback((enabled: boolean) => {
+    classroomDirector.setMicEnabled(enabled)
+  }, [])
 
   // ── Artifact generation ─────────────────────────────────────────────────────
   const generate = useCallback(
@@ -355,16 +200,12 @@ export function useClassroom() {
   return {
     buildLesson,
     loadLesson,
-    startLesson,
-    pauseLesson,
-    resumeLesson,
-    nextTopic,
-    previousTopic,
-    repeatTopic,
-    endSession,
-    teachIndex,
+    startClass,
+    raiseHand,
+    resumeClass,
     askQuestion,
-    studentAction,
+    endSession,
+    setMicEnabled,
     generate,
   }
 }
