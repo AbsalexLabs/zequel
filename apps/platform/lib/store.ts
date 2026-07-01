@@ -12,6 +12,17 @@ import type {
   CodingFile,
   CodingMessage,
   CodingActionId,
+  Lesson,
+  LessonTopic,
+  ClassroomMessage,
+  ClassroomSession,
+  ClassroomSessionStatus,
+  WhiteboardContent,
+  GeneratedNote,
+  FlashcardDeck,
+  Quiz,
+  ClassroomSidebarSection,
+  ClassroomVoiceSettings,
 } from '@zequel/types'
 
 interface WorkspaceState {
@@ -118,6 +129,64 @@ interface WorkspaceState {
   // is not rendered at dispatch time.
   pendingCodingAction: CodingActionId | null
   setPendingCodingAction: (action: CodingActionId | null) => void
+
+  // ─── Classroom Mode ─────────────────────────────────────────────────────────
+  // Which left-sidebar section is active.
+  classroomSection: ClassroomSidebarSection
+  setClassroomSection: (section: ClassroomSidebarSection) => void
+
+  // Lessons (generated from uploaded materials).
+  lessons: Lesson[]
+  setLessons: (lessons: Lesson[]) => void
+  addLesson: (lesson: Lesson) => void
+  removeLesson: (id: string) => void
+
+  // The lesson currently loaded into the workspace.
+  activeLesson: Lesson | null
+  setActiveLesson: (lesson: Lesson | null) => void
+  // Update a single topic within the active lesson (e.g. cache its whiteboard).
+  updateActiveLessonTopic: (topicId: string, updates: Partial<LessonTopic>) => void
+
+  // Lesson / session runtime state.
+  classroomStatus: ClassroomSessionStatus
+  setClassroomStatus: (status: ClassroomSessionStatus) => void
+  currentTopicIndex: number
+  setCurrentTopicIndex: (index: number) => void
+
+  // The whiteboard content currently displayed.
+  whiteboard: WhiteboardContent | null
+  setWhiteboard: (content: WhiteboardContent | null) => void
+
+  // Lecturer <-> student conversation.
+  classroomMessages: ClassroomMessage[]
+  setClassroomMessages: (msgs: ClassroomMessage[]) => void
+  addClassroomMessage: (msg: ClassroomMessage) => void
+
+  // Whether the AI is currently working (analyzing, teaching, responding).
+  isClassroomBusy: boolean
+  setIsClassroomBusy: (v: boolean) => void
+
+  // Session history.
+  classroomSessions: ClassroomSession[]
+  addClassroomSession: (session: ClassroomSession) => void
+  updateClassroomSession: (id: string, updates: Partial<ClassroomSession>) => void
+
+  // Generated artifacts.
+  generatedNotes: GeneratedNote[]
+  addGeneratedNote: (note: GeneratedNote) => void
+  removeGeneratedNote: (id: string) => void
+
+  flashcardDecks: FlashcardDeck[]
+  addFlashcardDeck: (deck: FlashcardDeck) => void
+  removeFlashcardDeck: (id: string) => void
+
+  quizzes: Quiz[]
+  addQuiz: (quiz: Quiz) => void
+  removeQuiz: (id: string) => void
+
+  // Placeholder voice settings (voice generation not implemented yet).
+  classroomVoice: ClassroomVoiceSettings
+  setClassroomVoice: (updates: Partial<ClassroomVoiceSettings>) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -349,4 +418,80 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
   pendingCodingAction: null,
   setPendingCodingAction: (action) => set({ pendingCodingAction: action }),
+
+  // ─── Classroom Mode ─────────────────────────────────────────────────────────
+  classroomSection: 'lessons',
+  setClassroomSection: (section) => set({ classroomSection: section }),
+
+  lessons: [],
+  setLessons: (lessons) => set({ lessons }),
+  addLesson: (lesson) =>
+    set((state) => ({ lessons: [lesson, ...state.lessons] })),
+  removeLesson: (id) =>
+    set((state) => ({
+      lessons: state.lessons.filter((l) => l.id !== id),
+      activeLesson: state.activeLesson?.id === id ? null : state.activeLesson,
+    })),
+
+  activeLesson: null,
+  setActiveLesson: (lesson) => set({ activeLesson: lesson }),
+  updateActiveLessonTopic: (topicId, updates) =>
+    set((state) => {
+      if (!state.activeLesson) return {}
+      const outline = state.activeLesson.outline.map((t) =>
+        t.id === topicId ? { ...t, ...updates } : t
+      )
+      return { activeLesson: { ...state.activeLesson, outline } }
+    }),
+
+  classroomStatus: 'idle',
+  setClassroomStatus: (status) => set({ classroomStatus: status }),
+  currentTopicIndex: 0,
+  setCurrentTopicIndex: (index) => set({ currentTopicIndex: index }),
+
+  whiteboard: null,
+  setWhiteboard: (content) => set({ whiteboard: content }),
+
+  classroomMessages: [],
+  setClassroomMessages: (msgs) => set({ classroomMessages: msgs }),
+  addClassroomMessage: (msg) =>
+    set((state) => ({ classroomMessages: [...state.classroomMessages, msg] })),
+
+  isClassroomBusy: false,
+  setIsClassroomBusy: (v) => set({ isClassroomBusy: v }),
+
+  classroomSessions: [],
+  addClassroomSession: (session) =>
+    set((state) => ({ classroomSessions: [session, ...state.classroomSessions] })),
+  updateClassroomSession: (id, updates) =>
+    set((state) => ({
+      classroomSessions: state.classroomSessions.map((s) =>
+        s.id === id ? { ...s, ...updates } : s
+      ),
+    })),
+
+  generatedNotes: [],
+  addGeneratedNote: (note) =>
+    set((state) => ({ generatedNotes: [note, ...state.generatedNotes] })),
+  removeGeneratedNote: (id) =>
+    set((state) => ({
+      generatedNotes: state.generatedNotes.filter((n) => n.id !== id),
+    })),
+
+  flashcardDecks: [],
+  addFlashcardDeck: (deck) =>
+    set((state) => ({ flashcardDecks: [deck, ...state.flashcardDecks] })),
+  removeFlashcardDeck: (id) =>
+    set((state) => ({
+      flashcardDecks: state.flashcardDecks.filter((d) => d.id !== id),
+    })),
+
+  quizzes: [],
+  addQuiz: (quiz) => set((state) => ({ quizzes: [quiz, ...state.quizzes] })),
+  removeQuiz: (id) =>
+    set((state) => ({ quizzes: state.quizzes.filter((q) => q.id !== id) })),
+
+  classroomVoice: { muted: false, speed: 1, playing: false },
+  setClassroomVoice: (updates) =>
+    set((state) => ({ classroomVoice: { ...state.classroomVoice, ...updates } })),
 }))
