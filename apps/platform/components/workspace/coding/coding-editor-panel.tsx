@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
+import { useCodingIdeStore } from '@/lib/coding/coding-ide-store'
 import { CodeEditor } from './code-editor'
 import { UploadPreview } from './upload-preview'
 import { FileIcon } from './file-icon'
@@ -63,7 +64,7 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
 
   const isUpload = activeFile?.kind === 'upload'
 
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const { saveState, setSaveState } = useCodingIdeStore()
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Debounced autosave to Supabase whenever the file content changes.
