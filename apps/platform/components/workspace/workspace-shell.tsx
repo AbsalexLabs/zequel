@@ -12,8 +12,9 @@ import { StudyPanel } from './study-panel'
 import { EvidencePanel } from './evidence-panel'
 import { ConversationsPanel } from './conversations-panel'
 import { CodingFilesPanel } from './coding/coding-files-panel'
-import { CodingEditorPanel } from './coding/coding-editor-panel'
 import { CodingAssistantPanel } from './coding/coding-assistant-panel'
+import { CodingCenter } from './coding/coding-center'
+import { CodingWorkspace } from './coding/coding-workspace'
 import { useCodingBootstrap } from './coding/use-coding-bootstrap'
 import { ModeSwitcher } from './mode-switcher'
 import { ClassroomWorkspace } from './classroom/classroom-workspace'
@@ -91,20 +92,23 @@ function DesktopWorkspace({
     )
   }
 
+  // Coding Mode is a full IDE: toolbar + files / editor+preview / assistant with
+  // an integrated terminal, all driven by the CodingRuntime abstraction.
+  if (mode === 'coding') {
+    return <CodingWorkspace userEmail={userEmail} profile={profile} />
+  }
+
   return (
     <div className="h-svh w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        {/* Left Panel — Documents (study/research) or Project Files (coding) */}
+        {/* Left Panel — Documents (study / research). Coding Mode uses its own
+            IDE layout via the early return above. */}
         <ResizablePanel defaultSize={22} minSize={16} maxSize={30}>
-          {mode === 'coding' ? (
-            <CodingFilesPanel userEmail={userEmail} profile={profile} />
-          ) : (
-            <DocumentPanel
-              onUploadClick={onUploadClick}
-              userEmail={userEmail}
-              profile={profile}
-            />
-          )}
+          <DocumentPanel
+            onUploadClick={onUploadClick}
+            userEmail={userEmail}
+            profile={profile}
+          />
         </ResizablePanel>
 
         <ResizableHandle />
@@ -121,9 +125,6 @@ function DesktopWorkspace({
             <div className="min-h-0 flex-1 overflow-hidden">
               {mode === 'study' && <StudyPanel />}
               {mode === 'research' && <ResearchPanel />}
-              {mode === 'coding' && (
-                <CodingEditorPanel onAction={setPendingCodingAction} />
-              )}
             </div>
           </div>
         </ResizablePanel>
@@ -135,7 +136,6 @@ function DesktopWorkspace({
           <div className="h-full overflow-hidden">
             {mode === 'study' && <ConversationsPanel />}
             {mode === 'research' && <EvidencePanel />}
-            {mode === 'coding' && <CodingAssistantPanel />}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
@@ -236,7 +236,7 @@ function MobileWorkspace({
             ) : mode === 'classroom' ? (
               <ClassroomBoardPanel />
             ) : (
-              <CodingEditorPanel onAction={handleMobileAction} />
+              <CodingCenter onAction={handleMobileAction} mobile />
             ))}
           {activeMobileTab === 'evidence' &&
             (mode === 'study' ? (
