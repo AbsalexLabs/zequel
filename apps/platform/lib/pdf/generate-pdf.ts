@@ -36,8 +36,9 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
       return route.abort()
     })
 
-    await page.setContent(html, { waitUntil: 'networkidle', timeout: 20_000 })
+    await page.setContent(html, { waitUntil: 'load', timeout: 20_000 })
     await page.emulateMedia({ media: 'print' })
+    await page.evaluate(() => document.fonts?.ready)
 
     const pdf = await page.pdf({
       format: 'A4',

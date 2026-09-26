@@ -1,6 +1,5 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
-import { generateText } from 'ai'
 
 export interface PdfPage {
   page: number
@@ -133,21 +132,46 @@ export async function analyzePdfVisuals(
   }
 
   try {
-    const result = await generateText({
-      model: VISUAL_MODEL,
-      temperature: 0.1,
-      maxOutputTokens: 16000,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: buildVisualPrompt(lowTextPages, pageCount) },
-          { type: 'file', data: buffer, mediaType: 'application/pdf' },
-        ],
-      }],
-      abortSignal: AbortSignal.timeout(240_000),
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) return { status: 'failed', reason: 'Visual analysis is not configured on this deployment.' }
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.xyz',
+        'X-Title': 'Zequel Research System',
+      },
+      body: JSON.stringify({
+        model: VISUAL_MODEL,
+        temperature: 0.1,
+        max_tokens: 16000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: buildVisualPrompt(lowTextPages, pageCount) },
+            {
+              type: 'file',
+              file: {
+                filename: fileName || 'document.pdf',
+                file_data: `data:application/pdf;base64,${buffer.toString('base64')}`,
+              },
+            },
+          ],
+        }],
+      }),
+      signal: AbortSignal.timeout(240_000),
     })
 
-    const analysis = result.text.trim()
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Zequel] OpenRouter visual analysis failed:', response.status, errorText.slice(0, 500))
+      return { status: 'failed', reason: 'The visual analysis service rejected this document.' }
+    }
+
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
+    const analysis = payload.choices?.[0]?.message?.content?.trim() ?? ''
     if (!analysis) return { status: 'failed', reason: 'The vision model returned no output.' }
     if (analysis === 'NO_VISUAL_CONTENT') {
       return { status: 'complete', analysis: '' }
