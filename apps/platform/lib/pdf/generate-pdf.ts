@@ -8,12 +8,39 @@ import type { Browser } from 'playwright-core'
  */
 const ALLOWED_HOSTS = new Set(['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'])
 
+/**
+ * Root cause of the "PDF generation failed" errors: @sparticuz/chromium only
+ * extracts its bundled NSS/NSPR shared libraries (libnspr4.so, libnss3.so, …)
+ * and wires up LD_LIBRARY_PATH when it believes it is running on Amazon Linux
+ * 2023. That check reads AWS_EXECUTION_ENV / AWS_LAMBDA_JS_RUNTIME /
+ * CODEBUILD_BUILD_IMAGE / VERCEL. When none of those advertise a Node 20/22
+ * AL2023 runtime, the libraries are never laid down and Chromium dies on launch
+ * with "libnspr4.so: cannot open shared object file".
+ *
+ * We advertise a compatible runtime *before* the package is imported (it wires
+ * up LD_LIBRARY_PATH at module-eval time), which forces the libraries to be
+ * extracted. This is a no-op when the environment already signals AL2023.
+ */
+function ensureChromiumLibraries(): void {
+  const signalsAl2023 =
+    /20\.x|22\.x/.test(process.env.AWS_EXECUTION_ENV ?? '') ||
+    /20\.x|22\.x/.test(process.env.AWS_LAMBDA_JS_RUNTIME ?? '') ||
+    /nodejs20|nodejs22/.test(process.env.CODEBUILD_BUILD_IMAGE ?? '') ||
+    (Boolean(process.env.VERCEL) && Number.parseInt(process.versions.node, 10) >= 20)
+
+  if (!signalsAl2023) {
+    const major = Number.parseInt(process.versions.node, 10)
+    process.env.AWS_LAMBDA_JS_RUNTIME = `nodejs${major >= 22 ? 22 : 20}.x`
+  }
+}
+
 async function launchBrowser(): Promise<Browser> {
   const { chromium } = await import('playwright-core')
   const localPath = process.env.CHROMIUM_EXECUTABLE_PATH
   if (localPath) {
     return chromium.launch({ executablePath: localPath, headless: true })
   }
+  ensureChromiumLibraries()
   const sparticuz = (await import('@sparticuz/chromium')).default
   return chromium.launch({
     executablePath: await sparticuz.executablePath(),
@@ -38,7 +65,22 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
 
     await page.setContent(html, { waitUntil: 'load', timeout: 20_000 })
     await page.emulateMedia({ media: 'print' })
-    await page.evaluate(() => document.fonts?.ready)
+
+    // Wait for KaTeX/Geist webfonts and any inline (data:) images to finish
+    // loading so math glyphs and images are fully rendered before we snapshot.
+    await page.evaluate(async () => {
+      await Promise.all([
+        document.fonts?.ready,
+        ...Array.from(document.images).map((img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise<void>((resolve) => {
+                img.addEventListener('load', () => resolve(), { once: true })
+                img.addEventListener('error', () => resolve(), { once: true })
+              }),
+        ),
+      ])
+    })
 
     const pdf = await page.pdf({
       format: 'A4',

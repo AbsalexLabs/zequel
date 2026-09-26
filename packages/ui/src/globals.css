@@ -242,6 +242,20 @@
   color: var(--foreground);
 }
 
+/* Keep wide display equations from expanding the container and overlapping
+   surrounding text on narrow viewports — scroll them horizontally instead. */
+.katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+/* Inline math should never force a horizontal page scroll either. */
+.prose-zequel .katex {
+  max-width: 100%;
+}
+
 /* Typography scale for research density */
 @layer base {
   h1 {

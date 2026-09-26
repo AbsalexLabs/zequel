@@ -36,6 +36,7 @@ function PdfPage({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isNear, setIsNear] = useState(pageNumber <= 2)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
+  const [renderFailed, setRenderFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -75,23 +76,39 @@ function PdfPage({
     let cancelled = false
     const canvas = canvasRef.current
 
-    pdf.getPage(pageNumber).then((page) => {
-      if (cancelled) return
-      const ratio = window.devicePixelRatio || 1
-      const viewport = page.getViewport({ scale })
-      canvas.width = Math.floor(viewport.width * ratio)
-      canvas.height = Math.floor(viewport.height * ratio)
-      canvas.style.width = `${viewport.width}px`
-      canvas.style.height = `${viewport.height}px`
-      const context = canvas.getContext('2d')
-      if (!context) return
-      task = page.render({
-        canvasContext: context,
-        viewport,
-        transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
+    setRenderFailed(false)
+    pdf
+      .getPage(pageNumber)
+      .then((page) => {
+        if (cancelled) return
+        const ratio = window.devicePixelRatio || 1
+        const viewport = page.getViewport({ scale })
+        canvas.width = Math.floor(viewport.width * ratio)
+        canvas.height = Math.floor(viewport.height * ratio)
+        canvas.style.width = `${viewport.width}px`
+        canvas.style.height = `${viewport.height}px`
+        const context = canvas.getContext('2d')
+        if (!context) {
+          setRenderFailed(true)
+          return
+        }
+        task = page.render({
+          canvasContext: context,
+          viewport,
+          transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined,
+        })
+        task.promise.catch((err: unknown) => {
+          // Cancelling a render (scroll away, unmount, rescale) is expected — ignore it.
+          if (cancelled || (err as { name?: string })?.name === 'RenderingCancelledException') return
+          console.error(`[Zequel] Failed to render PDF page ${pageNumber}:`, err)
+          setRenderFailed(true)
+        })
       })
-      task.promise.catch(() => {})
-    })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        console.error(`[Zequel] Failed to load PDF page ${pageNumber}:`, err)
+        setRenderFailed(true)
+      })
 
     return () => {
       cancelled = true
@@ -109,7 +126,14 @@ function PdfPage({
       aria-label={`Page ${pageNumber}`}
       role="img"
     >
-      {isNear && <canvas ref={canvasRef} className="block" />}
+      {renderFailed ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-4 text-center">
+          <p className="font-mono text-[11px] text-destructive">Page {pageNumber} could not be rendered.</p>
+          <p className="font-mono text-[10px] text-muted-foreground">The page may be corrupted or unsupported.</p>
+        </div>
+      ) : (
+        isNear && <canvas ref={canvasRef} className="block" />
+      )}
     </div>
   )
 }
