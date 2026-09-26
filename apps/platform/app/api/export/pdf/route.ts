@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   const title = parsed.data.title?.trim() || 'Zequel Response'
 
   try {
-    const html = renderResponseHtml({ markdown: parsed.data.content, title })
+    const html = await renderResponseHtml({ markdown: parsed.data.content, title })
     const pdf = await htmlToPdf(html)
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,
