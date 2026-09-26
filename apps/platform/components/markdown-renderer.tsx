@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
+import { normalizeMath } from '@/lib/markdown/normalize-math'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -67,7 +68,7 @@ function CodeBlock({
         </button>
       </div>
       {/* Code content */}
-      <pre className="overflow-x-auto bg-[#0d1117] p-4 font-mono text-[13px] leading-[1.6]">
+      <pre className="zequel-code overflow-x-auto p-4 font-mono text-[13px] leading-[1.6]">
         <code className={`${className || ''}`}>{children}</code>
       </pre>
     </div>
@@ -144,7 +145,7 @@ const components: Components = {
       )
     }
     return (
-      <pre className="mb-4 overflow-x-auto rounded-lg border border-border bg-[#0d1117] p-4 font-mono text-[13px] leading-[1.6]">
+      <pre className="zequel-code mb-4 overflow-x-auto rounded-lg border border-border p-4 font-mono text-[13px] leading-[1.6]">
         {children}
       </pre>
     )
@@ -193,15 +194,18 @@ interface MarkdownRendererProps {
   className?: string
 }
 
+const remarkPlugins = [remarkGfm, remarkMath]
+const rehypePlugins: NonNullable<React.ComponentProps<typeof ReactMarkdown>['rehypePlugins']> = [
+  [rehypeKatex, { throwOnError: false, strict: 'ignore' }],
+  [rehypeHighlight, { detect: true, ignoreMissing: true }],
+]
+
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+  const normalized = useMemo(() => normalizeMath(content), [content])
   return (
     <div className={className}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, rehypeHighlight]}
-        components={components}
-      >
-        {content}
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
+        {normalized}
       </ReactMarkdown>
     </div>
   )

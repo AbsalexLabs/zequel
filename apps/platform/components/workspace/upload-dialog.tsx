@@ -21,12 +21,25 @@ interface UploadDialogProps {
   userId: string
 }
 
+type ProcessingStage = 'idle' | 'uploading' | 'extracting' | 'analyzing' | 'complete' | 'failed'
+
+const STAGE_LABELS: Record<ProcessingStage, string> = {
+  idle: '',
+  uploading: 'Uploading',
+  extracting: 'Extracting text',
+  analyzing: 'Analyzing visual content',
+  complete: 'Processing complete',
+  failed: 'Processing failed',
+}
+
 export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [stage, setStage] = useState<ProcessingStage>('idle')
+  const [visualWarning, setVisualWarning] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { addDocument } = useWorkspaceStore()
 
@@ -76,6 +89,9 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
     setIsUploading(true)
     setProgress(10)
     setError(null)
+    setVisualWarning(null)
+    setStage('uploading')
+    let hadVisualWarning = false
 
     const supabase = createClient()
 
@@ -112,53 +128,61 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
       setProgress(80)
       addDocument(data as Document)
 
-      // Extract text from PDF server-side (only for PDFs)
+      const { updateDocument } = useWorkspaceStore.getState()
+
       if (file.type === 'application/pdf') {
-        try {
-          console.log('[Zequel] Starting PDF text extraction for document:', data.id)
-          const extractRes = await fetch('/api/extract-text', {
+        setStage('extracting')
+        setProgress(85)
+        const extractRes = await fetch('/api/extract-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: data.id }),
+        })
+        const extractResult = await extractRes.json().catch(() => ({}))
+        if (!extractRes.ok || !extractResult.success) {
+          updateDocument(data.id, { status: 'error' })
+          throw new Error(extractResult.error || 'Text extraction failed.')
+        }
+        updateDocument(data.id, {
+          status: extractResult.needsOcr ? 'processing' : 'parsed',
+          page_count: extractResult.pageCount || 0,
+        })
+
+        if (extractResult.visualStatus !== 'complete') {
+          setStage('analyzing')
+          setProgress(92)
+          const visualRes = await fetch('/api/extract-text/visual', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ documentId: data.id, filePath }),
+            body: JSON.stringify({ documentId: data.id }),
           })
-          const extractResult = await extractRes.json()
-          console.log('[Zequel] Extract response:', extractRes.status, extractResult)
-          
-          if (extractRes.ok && extractResult.success) {
-            const { updateDocument } = useWorkspaceStore.getState()
-            updateDocument(data.id, {
-              status: 'parsed',
-              page_count: extractResult.pageCount || 0,
-            })
-            console.log('[Zequel] Document successfully parsed')
-          } else {
-            // Even if extraction fails, mark it as available for use
-            const { updateDocument } = useWorkspaceStore.getState()
-            updateDocument(data.id, { status: 'parsed' })
-            console.log('[Zequel] Extraction failed but marking document as parsed')
+          const visualResult = await visualRes.json().catch(() => ({}))
+          if (visualResult.documentStatus) updateDocument(data.id, { status: visualResult.documentStatus })
+          if (!visualRes.ok || !visualResult.success) {
+            hadVisualWarning = true
+            setVisualWarning(
+              visualResult.reason || visualResult.error || 'Visual analysis did not complete. Text is still available.',
+            )
           }
-        } catch (extractError) {
-          console.log('[Zequel] Text extraction error:', extractError)
-          // Text extraction failed, but mark document as parsed anyway so it's usable
-          const { updateDocument } = useWorkspaceStore.getState()
-          updateDocument(data.id, { status: 'parsed' })
         }
       } else {
-        // Non-PDF files are immediately marked as parsed
-        const { updateDocument } = useWorkspaceStore.getState()
         updateDocument(data.id, { status: 'parsed' })
       }
 
+      setStage('complete')
       setProgress(100)
 
       // Reset and close
       setTimeout(() => {
         setFile(null)
         setProgress(0)
+        setStage('idle')
+        setVisualWarning(null)
         setIsUploading(false)
         onOpenChange(false)
-      }, 500)
+      }, hadVisualWarning ? 3500 : 600)
     } catch (err: unknown) {
+      setStage('failed')
       setError(err instanceof Error ? err.message : 'Upload failed.')
       setIsUploading(false)
       setProgress(0)
@@ -169,6 +193,8 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
     setFile(null)
     setError(null)
     setProgress(0)
+    setStage('idle')
+    setVisualWarning(null)
     setIsUploading(false)
   }
 
@@ -261,10 +287,22 @@ export function UploadDialog({ open, onOpenChange, userId }: UploadDialogProps) 
             {isUploading && (
               <div className="flex flex-col gap-1.5">
                 <Progress value={progress} className="h-1" />
-                <p className="font-mono text-[10px] text-muted-foreground">
-                  {progress < 100 ? 'Uploading...' : 'Complete'}
+                <p className="font-mono text-[10px] text-muted-foreground" role="status" aria-live="polite">
+                  {STAGE_LABELS[stage]}
+                  {stage !== 'complete' && stage !== 'failed' ? '...' : ''}
                 </p>
+                {visualWarning && (
+                  <p className="font-mono text-[10px] text-muted-foreground">
+                    Visual analysis not completed: {visualWarning}
+                  </p>
+                )}
               </div>
+            )}
+
+            {!isUploading && stage === 'failed' && (
+              <p className="font-mono text-[10px] text-destructive" role="status">
+                {STAGE_LABELS.failed}
+              </p>
             )}
 
             {error && (

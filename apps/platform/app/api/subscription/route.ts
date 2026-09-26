@@ -110,9 +110,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    // For premium/enterprise, in production you'd integrate with Stripe here
-    // For now, we'll just update the subscription directly
-    
+    // Paid plans must only be granted after a verified payment (or by an admin).
+    // Without this, any signed-in user could grant themselves Premium Pro for free.
+    if (plan !== 'free' && process.env.ALLOW_SELF_SERVE_PLAN_CHANGES !== 'true') {
+      return NextResponse.json(
+        { error: 'Online payments are not available yet. Please contact support to upgrade.' },
+        { status: 402 },
+      )
+    }
+
     if (!canCreateServiceClient()) {
       return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
     }

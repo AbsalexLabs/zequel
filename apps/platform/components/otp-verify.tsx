@@ -7,7 +7,7 @@ import { Button } from '@zequel/ui/components/button'
 interface OtpVerifyProps {
   email: string
   purpose: 'signup' | 'reset_password' | 'change_password' | 'delete_account'
-  onVerified: () => void
+  onVerified: (verificationToken: string) => void
   onBack?: () => void
 }
 
@@ -42,7 +42,7 @@ export function OtpVerify({ email, purpose, onVerified, onBack }: OtpVerifyProps
         return
       }
 
-      onVerified()
+      onVerified(typeof data.token === 'string' ? data.token : '')
     } catch {
       setError('Verification failed')
       setIsVerifying(false)

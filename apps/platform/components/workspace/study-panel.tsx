@@ -10,12 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@zequel/ui/components/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@zequel/ui/components/dialog'
 import { useWorkspaceStore } from '@/lib/store'
 import { createClient } from '@zequel/shared/supabase/client'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
@@ -1239,8 +1233,8 @@ function ChatMessage({
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const [showPdfModal, setShowPdfModal] = useState(false)
-  const [pdfContent, setPdfContent] = useState('')
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
@@ -1277,102 +1271,39 @@ function ChatMessage({
     if (onShare) onShare()
   }
 
-  // Strip markdown syntax for clean text
-  const stripMarkdown = (text: string): string => {
-    return text
-      // Remove headers
-      .replace(/^#{1,6}\s+/gm, '')
-      // Remove bold/italic
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/__([^_]+)__/g, '$1')
-      .replace(/_([^_]+)_/g, '$1')
-      // Remove inline code
-      .replace(/`([^`]+)`/g, '$1')
-      // Remove code blocks
-      .replace(/```[\s\S]*?```/g, (match) => {
-        // Extract just the code content without the language identifier
-        const lines = match.split('\n')
-        return lines.slice(1, -1).join('\n')
+  const exportAsPdf = async () => {
+    if (isExportingPdf) return
+    setIsExportingPdf(true)
+    setPdfError(null)
+    try {
+      const firstLine = message.content.split('\n').find((line) => line.trim()) ?? ''
+      const title = firstLine.replace(/[#*_`>\[\]]/g, '').trim().slice(0, 80) || 'Zequel Response'
+      const response = await fetch('/api/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: message.content, title }),
       })
-      // Remove links but keep text
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Remove images
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
-      // Remove blockquotes
-      .replace(/^>\s+/gm, '')
-      // Remove horizontal rules
-      .replace(/^[-*_]{3,}$/gm, '')
-      // Remove bullet points
-      .replace(/^[\s]*[-*+]\s+/gm, '• ')
-      // Remove numbered lists prefix
-      .replace(/^[\s]*\d+\.\s+/gm, '')
-      // Clean up multiple newlines
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-  }
-
-  const openPdfModal = () => {
-    const cleanText = stripMarkdown(message.content)
-    setPdfContent(cleanText)
-    setShowPdfModal(true)
-  }
-
-  const downloadAsPdf = () => {
-    // Create a clean HTML document styled like the app
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Zequel Response</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-            body { 
-              font-family: 'Inter', system-ui, sans-serif; 
-              padding: 48px; 
-              max-width: 700px; 
-              margin: 0 auto; 
-              line-height: 1.7;
-              color: #1a1a1a;
-              font-size: 15px;
-            }
-            .header {
-              margin-bottom: 32px;
-              padding-bottom: 20px;
-              border-bottom: 1px solid #e5e5e5;
-            }
-            .header-label {
-              font-size: 10px;
-              text-transform: uppercase;
-              letter-spacing: 0.1em;
-              color: #888;
-              font-weight: 600;
-            }
-            .content {
-              white-space: pre-wrap;
-              word-wrap: break-word;
-            }
-            @media print {
-              body { padding: 24px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="header-label">Zequel Response</div>
-          </div>
-          <div class="content">${pdfContent.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
-        </body>
-      </html>
-    `
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
-      printWindow.print()
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error || 'PDF export failed')
+      }
+      const blob = await response.blob()
+      const disposition = response.headers.get('Content-Disposition') ?? ''
+      const fileName = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'zequel-response.pdf'
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : 'PDF export failed')
+      setTimeout(() => setPdfError(null), 4000)
+    } finally {
+      setIsExportingPdf(false)
     }
-    setShowPdfModal(false)
   }
 
   // Long press detection — only for user messages, cancel if moved more than 10px
@@ -1573,53 +1504,31 @@ function ChatMessage({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="gap-2 font-mono text-[11px] uppercase tracking-wider cursor-pointer"
-                onClick={openPdfModal}
+                onClick={exportAsPdf}
+                disabled={isExportingPdf}
               >
-                <Download className="h-3.5 w-3.5" />
-                Download as PDF
+                {isExportingPdf ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                {isExportingPdf ? 'Exporting…' : 'Export as PDF'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {isExportingPdf && (
+            <span role="status" className="ml-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Generating PDF…
+            </span>
+          )}
+          {pdfError && (
+            <span role="alert" className="ml-1 font-sans text-[11px] text-destructive">
+              {pdfError}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* PDF Download Modal */}
-      <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
-        <DialogContent className="max-w-2xl border-border bg-background">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-sm uppercase tracking-wider">
-              Download as PDF
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <p className="mb-3 font-sans text-xs text-muted-foreground">
-              Edit the content below before downloading. Changes here won&apos;t affect the original response.
-            </p>
-            <textarea
-              value={pdfContent}
-              onChange={(e) => setPdfContent(e.target.value)}
-              className="h-[300px] w-full resize-none rounded-lg border border-border bg-secondary/30 p-4 font-sans text-sm leading-relaxed text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-              placeholder="Edit content..."
-            />
-          </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowPdfModal(false)}
-              className="h-9 font-mono text-[11px] uppercase tracking-wider"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={downloadAsPdf}
-              className="h-9 gap-2 bg-foreground font-mono text-[11px] uppercase tracking-wider text-background hover:bg-foreground/90"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download PDF
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

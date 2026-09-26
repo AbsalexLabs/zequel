@@ -156,6 +156,64 @@
   padding: 0 !important;
 }
 
+/* Theme-aware syntax highlighting (highlight.js token classes) */
+:root {
+  --code-bg: #FAFAFA;
+  --code-fg: #1F2328;
+  --code-comment: #6E7781;
+  --code-keyword: #CF222E;
+  --code-string: #0A3069;
+  --code-number: #0550AE;
+  --code-function: #8250DF;
+  --code-type: #953800;
+}
+
+.dark {
+  --code-bg: #0A0A0A;
+  --code-fg: #E6EDF3;
+  --code-comment: #8B949E;
+  --code-keyword: #FF7B72;
+  --code-string: #A5D6FF;
+  --code-number: #79C0FF;
+  --code-function: #D2A8FF;
+  --code-type: #FFA657;
+}
+
+.zequel-code {
+  background: var(--code-bg);
+  color: var(--code-fg);
+}
+
+.zequel-code .hljs-comment,
+.zequel-code .hljs-quote,
+.zequel-code .hljs-meta { color: var(--code-comment); font-style: italic; }
+.zequel-code .hljs-keyword,
+.zequel-code .hljs-selector-tag,
+.zequel-code .hljs-literal,
+.zequel-code .hljs-doctag { color: var(--code-keyword); }
+.zequel-code .hljs-string,
+.zequel-code .hljs-regexp,
+.zequel-code .hljs-addition,
+.zequel-code .hljs-template-tag { color: var(--code-string); }
+.zequel-code .hljs-number,
+.zequel-code .hljs-attr,
+.zequel-code .hljs-attribute,
+.zequel-code .hljs-variable,
+.zequel-code .hljs-symbol,
+.zequel-code .hljs-bullet { color: var(--code-number); }
+.zequel-code .hljs-title,
+.zequel-code .hljs-title.function_,
+.zequel-code .hljs-section,
+.zequel-code .hljs-name { color: var(--code-function); }
+.zequel-code .hljs-type,
+.zequel-code .hljs-built_in,
+.zequel-code .hljs-title.class_,
+.zequel-code .hljs-params,
+.zequel-code .hljs-selector-class { color: var(--code-type); }
+.zequel-code .hljs-deletion { color: var(--code-keyword); }
+.zequel-code .hljs-emphasis { font-style: italic; }
+.zequel-code .hljs-strong { font-weight: 600; }
+
 /* Make action icons visible on touch */
 @media (hover: none) {
   .group\/msg .opacity-0 {

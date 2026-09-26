@@ -5,6 +5,12 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Headless Chromium for PDF export must stay a real node_module so its
+  // compressed binary is traced into the serverless function bundle.
+  serverExternalPackages: ["@sparticuz/chromium", "playwright-core", "pdf-parse"],
+  outputFileTracingIncludes: {
+    "/api/export/pdf": ["../../node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**"],
+  },
   images: {
     unoptimized: true,
   },

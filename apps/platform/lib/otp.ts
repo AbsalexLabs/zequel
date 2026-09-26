@@ -1,5 +1,7 @@
+import { randomInt } from 'crypto'
+
 export function generateOtp(): string {
-  return Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('')
+  return randomInt(0, 1_000_000).toString().padStart(6, '0')
 }
 
 export function otpEmailHtml({

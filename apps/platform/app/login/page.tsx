@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [resetError, setResetError] = useState('')
+  const [resetToken, setResetToken] = useState('')
   const [isSendingReset, setIsSendingReset] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
 
@@ -82,14 +83,14 @@ export default function LoginPage() {
   const handleSetNewPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setResetError('')
-    if (newPassword.length < 6) { setResetError('Password must be at least 6 characters'); return }
+    if (newPassword.length < 8) { setResetError('Password must be at least 8 characters'); return }
     if (newPassword !== confirmNewPassword) { setResetError('Passwords do not match'); return }
     setIsResetting(true)
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, newPassword }),
+        body: JSON.stringify({ email: resetEmail, newPassword, verificationToken: resetToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to reset password')
@@ -149,7 +150,15 @@ export default function LoginPage() {
   if (view === 'forgot_otp') {
     return (
       <Shell subtitle="Reset Password">
-        <OtpVerify email={resetEmail} purpose="reset_password" onVerified={() => setView('new_password')} onBack={() => setView('forgot')} />
+        <OtpVerify
+          email={resetEmail}
+          purpose="reset_password"
+          onVerified={(token) => {
+            setResetToken(token)
+            setView('new_password')
+          }}
+          onBack={() => setView('forgot')}
+        />
       </Shell>
     )
   }
