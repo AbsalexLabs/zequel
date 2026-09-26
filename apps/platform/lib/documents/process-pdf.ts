@@ -1,5 +1,6 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
+import { generateText } from 'ai'
 
 export interface PdfPage {
   page: number
@@ -127,53 +128,26 @@ export async function analyzePdfVisuals(
   lowTextPages: number[],
   pageCount: number,
 ): Promise<VisualAnalysisResult> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    return { status: 'failed', reason: 'Visual analysis is not configured on the server.' }
-  }
   if (buffer.byteLength > VISUAL_ANALYSIS_MAX_BYTES) {
     return { status: 'skipped', reason: 'File is larger than 20MB, so visual analysis was skipped.' }
   }
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://zequel.xyz',
-        'X-Title': 'Zequel',
-      },
-      body: JSON.stringify({
-        model: VISUAL_MODEL,
-        temperature: 0.1,
-        max_tokens: 16000,
-        plugins: [{ id: 'file-parser', pdf: { engine: 'native' } }],
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: buildVisualPrompt(lowTextPages, pageCount) },
-              {
-                type: 'file',
-                file: {
-                  filename: fileName.replace(/[^\w.\- ]/g, '_') || 'document.pdf',
-                  file_data: `data:application/pdf;base64,${buffer.toString('base64')}`,
-                },
-              },
-            ],
-          },
+    const result = await generateText({
+      model: VISUAL_MODEL,
+      temperature: 0.1,
+      maxOutputTokens: 16000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: buildVisualPrompt(lowTextPages, pageCount) },
+          { type: 'file', data: buffer, mediaType: 'application/pdf' },
         ],
-      }),
-      signal: AbortSignal.timeout(240_000),
+      }],
+      abortSignal: AbortSignal.timeout(240_000),
     })
 
-    if (!response.ok) {
-      console.error('[Zequel] Visual analysis HTTP error:', response.status)
-      return { status: 'failed', reason: 'The vision model could not process this document.' }
-    }
-
-    const data = await response.json()
-    const analysis: string = data?.choices?.[0]?.message?.content?.trim() ?? ''
+    const analysis = result.text.trim()
     if (!analysis) return { status: 'failed', reason: 'The vision model returned no output.' }
     if (analysis === 'NO_VISUAL_CONTENT') {
       return { status: 'complete', analysis: '' }
