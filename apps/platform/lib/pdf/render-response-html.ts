@@ -1,6 +1,6 @@
 import 'server-only'
 import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderToStaticMarkup } from 'react-dom/server.edge'
 import { MarkdownRenderer } from '@/components/markdown-renderer'
 import { PRINT_STYLES } from './print-styles'
 
