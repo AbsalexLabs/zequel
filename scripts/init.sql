@@ -544,13 +544,11 @@ CREATE POLICY "queries_insert_own" ON public.queries FOR INSERT WITH CHECK (auth
 CREATE POLICY "queries_update_own" ON public.queries FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "queries_delete_own" ON public.queries FOR DELETE USING (auth.uid() = user_id);
 
--- RLS Policies for OTP codes (allow anonymous for signup)
+-- OTP codes: no client policies. Only server routes (service role) may access them.
 DROP POLICY IF EXISTS "otp_codes_anon_insert" ON public.otp_codes;
 DROP POLICY IF EXISTS "otp_codes_anon_select" ON public.otp_codes;
 DROP POLICY IF EXISTS "otp_codes_anon_update" ON public.otp_codes;
-CREATE POLICY "otp_codes_anon_insert" ON public.otp_codes FOR INSERT WITH CHECK (true);
-CREATE POLICY "otp_codes_anon_select" ON public.otp_codes FOR SELECT USING (true);
-CREATE POLICY "otp_codes_anon_update" ON public.otp_codes FOR UPDATE USING (true);
+
 
 -- RLS Policies for AI usage logs
 DROP POLICY IF EXISTS "ai_usage_logs_select_own" ON public.ai_usage_logs;
@@ -564,7 +562,6 @@ CREATE POLICY "rate_limit_violations_select_own" ON public.rate_limit_violations
 DROP POLICY IF EXISTS "subscriptions_select_own" ON public.subscriptions;
 DROP POLICY IF EXISTS "subscriptions_insert_own" ON public.subscriptions;
 CREATE POLICY "subscriptions_select_own" ON public.subscriptions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "subscriptions_insert_own" ON public.subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- RLS Policies for plan_configs (publicly readable so the platform & website
 -- can render current pricing; writes happen only through the admin service client).
@@ -611,6 +608,9 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- NOTE: run 002-security-and-documents.sql after this file for privilege
+-- protection, OTP brute-force limits, and document processing columns.
 
 -- Force PostgREST (Supabase's API layer) to reload its cached schema.
 -- Newly added columns like subscriptions.expires_at exist in Postgres immediately,

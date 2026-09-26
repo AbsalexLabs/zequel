@@ -3,6 +3,8 @@ import { processAIRequest, executeAICall, logStreamCompletion } from '@/lib/ai/m
 import { estimateTokens } from '@/lib/logging/ai-logger'
 import { buildPersonalizationContext, extractAndSaveMemories } from '@/lib/ai/personalization'
 import type { SystemSettings } from '@zequel/shared/settings/system-settings'
+import { buildDocumentContext, extractPdfText } from '@/lib/documents/process-pdf'
+import { updateDocumentRecord } from '@/lib/documents/document-record'
 
 const STUDY_SYSTEM_PROMPT = `You are Zequel, a world-class AI research assistant and study companion created by Absalex Labs. You possess extraordinary intelligence, depth of knowledge, and analytical capability rivaling the best human experts in every field.
 
@@ -159,33 +161,46 @@ export async function POST(request: Request) {
     const docsToFetch = document_ids && document_ids.length > 0 ? document_ids : (document_id ? [document_id] : [])
 
     if (docsToFetch.length > 0) {
-      const { data: docs } = await supabase
+      const withVisuals = await supabase
         .from('documents')
-        .select('id, title, file_name, file_path, extracted_text')
+        .select('id, title, file_name, file_path, extracted_text, visual_analysis')
         .in('id', docsToFetch)
-      
+        .eq('user_id', user.id)
+      const { data: docs } = withVisuals.error
+        ? await supabase
+            .from('documents')
+            .select('id, title, file_name, file_path, extracted_text')
+            .in('id', docsToFetch)
+            .eq('user_id', user.id)
+        : withVisuals
+
       if (docs && docs.length > 0) {
-        // Combine multiple documents
         const docTexts: string[] = []
         const docTitles: string[] = []
 
-        for (const doc of docs) {
+        for (const doc of docs as Array<{
+          id: string
+          title: string
+          file_path: string | null
+          extracted_text: string | null
+          visual_analysis?: string | null
+        }>) {
           docTitles.push(doc.title)
           let text = doc.extracted_text
 
-          if (!text && doc.file_path) {
+          if (!text && doc.file_path?.toLowerCase().endsWith('.pdf')) {
             try {
               const { data: fileData } = await supabase.storage.from('documents').download(doc.file_path)
               if (fileData) {
-                const pdfParse = (await import('pdf-parse')).default
-                const buffer = Buffer.from(await fileData.arrayBuffer())
-                const parsed = await pdfParse(buffer)
-                text = parsed.text?.trim() || null
+                const extraction = await extractPdfText(Buffer.from(await fileData.arrayBuffer()))
+                text = extraction.text || null
                 if (text) {
-                  await supabase
-                    .from('documents')
-                    .update({ extracted_text: text, page_count: parsed.numpages || 0, status: 'parsed' })
-                    .eq('id', doc.id)
+                  await updateDocumentRecord(supabase, doc.id, user.id, {
+                    extracted_text: text,
+                    page_count: extraction.pageCount,
+                    pages: extraction.pages,
+                    status: 'parsed',
+                  })
                 }
               }
             } catch (extractErr) {
@@ -193,9 +208,8 @@ export async function POST(request: Request) {
             }
           }
 
-          if (text) {
-            docTexts.push(`[Document: ${doc.title}]\n${text}`)
-          }
+          const context = buildDocumentContext({ ...doc, extracted_text: text })
+          if (context) docTexts.push(context)
         }
 
         documentTitle = docTitles.join(', ')
@@ -227,7 +241,7 @@ export async function POST(request: Request) {
         : documentText
       chatMessages.push({
         role: 'system',
-        content: `The user is studying the following document titled "${documentTitle}". Here is the full extracted text:\n\n---BEGIN DOCUMENT---\n${truncated}\n---END DOCUMENT---\n\nReference specific sections, quote relevant passages, and provide page-accurate citations when answering questions about this document.`,
+        content: `The user is studying the following document titled "${documentTitle}". Its extracted text is marked with [Page N] references, and a separate section describes visual content (figures, charts, tables, diagrams) and OCR of scanned pages, also by page:\n\n---BEGIN DOCUMENT---\n${truncated}\n---END DOCUMENT---\n\nUse both the text and the visual descriptions. Cite pages as (p. N) using the [Page N] markers. If the answer depends on a visual that is not described, say so rather than guessing.`,
       })
     } else if (documentTitle) {
       chatMessages.push({
