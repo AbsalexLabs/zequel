@@ -160,12 +160,12 @@
 :root {
   --code-bg: #FAFAFA;
   --code-fg: #1F2328;
-  --code-comment: #6E7781;
-  --code-keyword: #CF222E;
-  --code-string: #0A3069;
-  --code-number: #0550AE;
-  --code-function: #8250DF;
-  --code-type: #953800;
+  --code-comment: #57606A;
+  --code-keyword: #A40E26;
+  --code-string: #0550AE;
+  --code-number: #0A4A9B;
+  --code-function: #6639BA;
+  --code-type: #7D3200;
 }
 
 .dark {
