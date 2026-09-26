@@ -38,21 +38,31 @@ const SIGNED_URL_TTL_SECONDS = 60 * 30
 
 async function fetchDocumentDetails([, id, filePath]: [string, string, string]): Promise<DocumentDetails> {
   const supabase = createClient()
-  const [signed, details] = await Promise.all([
-    filePath.toLowerCase().endsWith('.pdf')
-      ? supabase.storage.from('documents').createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS)
-      : Promise.resolve({ data: null }),
-    supabase
-      .from('documents')
-      .select('visual_status, visual_analysis, processing_error')
-      .eq('id', id)
-      .maybeSingle(),
-  ])
+  const signed = filePath.toLowerCase().endsWith('.pdf')
+    ? await supabase.storage.from('documents').createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS)
+    : { data: null }
+
+  const full = await supabase
+    .from('documents')
+    .select('visual_status, visual_analysis, processing_error')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!full.error) {
+    return {
+      signedUrl: signed.data?.signedUrl ?? null,
+      visualStatus: full.data?.visual_status ?? null,
+      visualAnalysis: full.data?.visual_analysis ?? null,
+      processingError: full.data?.processing_error ?? null,
+    }
+  }
+
+  // Keep original-document preview working while migration 002 is being applied.
   return {
     signedUrl: signed.data?.signedUrl ?? null,
-    visualStatus: details.data?.visual_status ?? null,
-    visualAnalysis: details.data?.visual_analysis ?? null,
-    processingError: details.data?.processing_error ?? null,
+    visualStatus: null,
+    visualAnalysis: null,
+    processingError: null,
   }
 }
 

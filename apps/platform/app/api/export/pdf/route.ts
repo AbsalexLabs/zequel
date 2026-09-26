@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('[export/pdf] generation failed:', error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: 'PDF generation failed. Please try again.' }, { status: 500 })
+    console.error('[export/pdf] generation failed:', error)
+    return NextResponse.json(
+      { error: 'PDF generation failed. Please try again.', code: 'PDF_RENDER_FAILED' },
+      { status: 500 },
+    )
   }
 }
