@@ -52,22 +52,27 @@ async function launchBrowser(): Promise<Browser> {
 export async function htmlToPdf(html: string): Promise<Buffer> {
   const browser = await launchBrowser()
   try {
-    const context = await browser.newContext({ javaScriptEnabled: false })
+    const context = await browser.newContext()
     const page = await context.newPage()
 
     await page.route('**/*', (route) => {
-      const url = new URL(route.request().url())
-      if (url.protocol === 'data:' || (url.protocol === 'https:' && ALLOWED_HOSTS.has(url.hostname))) {
-        return route.continue()
+      try {
+        const url = new URL(route.request().url())
+        if (
+          url.protocol === 'data:' ||
+          url.protocol === 'about:' ||
+          (url.protocol === 'https:' && ALLOWED_HOSTS.has(url.hostname))
+        ) {
+          return route.continue()
+        }
+      } catch {
+        // Fall through to abort
       }
       return route.abort()
     })
 
-    await page.setContent(html, { waitUntil: 'load', timeout: 20_000 })
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15_000 })
     await page.emulateMedia({ media: 'print' })
-
-    // Wait for KaTeX/Geist webfonts and any inline (data:) images to finish
-    // loading so math glyphs and images are fully rendered before we snapshot.
 
     const pdf = await page.pdf({
       format: 'A4',
