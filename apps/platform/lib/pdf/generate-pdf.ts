@@ -68,19 +68,6 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
 
     // Wait for KaTeX/Geist webfonts and any inline (data:) images to finish
     // loading so math glyphs and images are fully rendered before we snapshot.
-    await page.evaluate(async () => {
-      await Promise.all([
-        document.fonts?.ready,
-        ...Array.from(document.images).map((img) =>
-          img.complete
-            ? Promise.resolve()
-            : new Promise<void>((resolve) => {
-                img.addEventListener('load', () => resolve(), { once: true })
-                img.addEventListener('error', () => resolve(), { once: true })
-              }),
-        ),
-      ])
-    })
 
     const pdf = await page.pdf({
       format: 'A4',
