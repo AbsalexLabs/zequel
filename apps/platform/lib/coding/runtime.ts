@@ -5,19 +5,15 @@ import type { CodingProject } from '@zequel/types'
  *
  * The UI depends ONLY on the `CodingRuntime` interface below — never directly
  * on any infrastructure provider. This is the seam that lets us connect a real
- * isolated cloud sandbox (e.g. Daytona) later without rebuilding Coding Mode.
+ * isolated cloud sandbox (e.g. Daytona) without rebuilding Coding Mode.
  *
  * Architecture (never coupled directly to Daytona in the browser):
  *
  *   Zequel frontend  ->  Zequel backend  ->  isolated sandbox  ->  Daytona
  *
  * The browser must NEVER receive privileged sandbox credentials. A concrete
- * `DaytonaCodingRuntime` will live behind server routes; every method here maps
+ * `DaytonaCodingRuntime` lives behind server routes; every method here maps
  * to a backend call, not a direct provider call from the client.
- *
- * Until that backend exists, `NotConnectedRuntime` is the active adapter. It
- * does not fake execution — every operation that needs a live sandbox reports a
- * clear "not connected" result so the UI can render honest loading/error state.
  */
 
 export type RuntimeStatus =
@@ -28,8 +24,7 @@ export type RuntimeStatus =
 
 export type ServerStatus = 'stopped' | 'starting' | 'running' | 'error'
 
-// A node in the sandbox filesystem tree (distinct from the DB-backed CodingFile
-// model — this is what a real sandbox FS API will return).
+// A node in the sandbox filesystem tree
 export interface RuntimeFileNode {
   path: string
   name: string
@@ -52,50 +47,39 @@ export interface CommandResult {
 // Information about a running dev server / preview surface.
 export interface PreviewInfo {
   status: ServerStatus
-  // Sandbox-provided public URL. Never a hardcoded localhost — this is supplied
-  // by the backend once the sandbox boots its dev server.
+  // Sandbox-provided public URL. Supplied by the backend once the sandbox boots its dev server.
   url: string | null
   port: number
   error?: string
 }
 
-// A long-lived interactive terminal (PTY) session. The custom terminal UI and a
-// future xterm.js renderer both drive the exact same interface.
+// A long-lived interactive terminal (PTY) session.
 export interface TerminalSession {
   readonly id: string
-  // Send raw input (a command + newline, a keystroke, a Ctrl-C, etc.).
   write(data: string): void
-  // Subscribe to output streamed back from the PTY. Returns an unsubscribe fn.
   onData(handler: (chunk: string) => void): () => void
-  // Notified when the underlying session exits.
   onExit(handler: (code: number | null) => void): () => void
   kill(): Promise<void>
 }
 
-// The conceptual project a runtime manages. Richer than the DB `CodingProject`
-// row: it also carries the sandbox binding the backend will populate.
+// The conceptual project a runtime manages.
 export interface RuntimeProject {
   id: string
   name: string
-  // Which runtime backs this project (mock today, daytona later).
   runtime: 'mock' | 'daytona'
-  // Sandbox identifier assigned by the backend once provisioned.
   sandboxId: string | null
-  // Working directory / repository path inside the sandbox.
   path: string
   createdAt: string
   updatedAt: string
 }
 
-// The full surface a coding runtime must implement. Each method is also the
-// tool surface the AI coding assistant will call (listFiles, readFile,
-// writeFile, execute, startServer, ...).
+// The full surface a coding runtime must implement.
 export interface CodingRuntime {
   readonly kind: 'mock' | 'daytona'
   status(): RuntimeStatus
 
   // Lifecycle
-  connect(project: RuntimeProject): Promise<RuntimeStatus>
+  connect(project: RuntimeProject, rawProject?: CodingProject): Promise<RuntimeStatus>
   destroy(): Promise<void>
 
   // Filesystem
@@ -131,38 +115,26 @@ function notConnected(command: string): CommandResult {
 }
 
 /**
- * The development adapter used until a real sandbox backend is wired up.
- *
- * It is deliberately honest: it never pretends a command ran or a server
- * started. Anything requiring a live sandbox resolves to a not-connected
- * result, letting the UI show correct empty/error states instead of fabricated
- * output. Swap this for `DaytonaCodingRuntime` behind the same interface.
+ * The development adapter used when Daytona is not connected.
  */
 export class NotConnectedRuntime implements CodingRuntime {
   readonly kind = 'mock' as const
   private _status: RuntimeStatus = 'disconnected'
-  private _project: RuntimeProject | null = null
 
   status(): RuntimeStatus {
     return this._status
   }
 
-  async connect(project: RuntimeProject): Promise<RuntimeStatus> {
-    // A real adapter would provision/attach a sandbox here. With no backend we
-    // remain honestly disconnected rather than reporting a phantom "ready".
-    this._project = project
+  async connect(): Promise<RuntimeStatus> {
     this._status = 'disconnected'
     return this._status
   }
 
   async destroy(): Promise<void> {
-    this._project = null
     this._status = 'disconnected'
   }
 
   async listFiles(): Promise<RuntimeFileNode[]> {
-    // Files live in the DB-backed store today; the sandbox FS is empty until
-    // connected.
     return []
   }
 
@@ -191,14 +163,11 @@ export class NotConnectedRuntime implements CodingRuntime {
   }
 
   async createTerminal(): Promise<TerminalSession> {
-    // Return an inert session that immediately reports the not-connected state
-    // rather than swallowing input silently.
     const id = crypto.randomUUID()
     const dataHandlers = new Set<(c: string) => void>()
     return {
       id,
       write: (data: string) => {
-        // Echo a clear notice for any submitted command line.
         if (data.trim()) {
           for (const h of dataHandlers) h(`\n${NOT_CONNECTED_MESSAGE}\n`)
         }
@@ -232,22 +201,257 @@ export class NotConnectedRuntime implements CodingRuntime {
   }
 }
 
-// Map a DB project row onto the richer runtime project shape.
+/**
+ * The real Daytona runtime implementation routing requests through server API routes.
+ */
+export class DaytonaCodingRuntime implements CodingRuntime {
+  readonly kind = 'daytona' as const
+  private _status: RuntimeStatus = 'disconnected'
+  private _project: RuntimeProject | null = null
+  private _rawProject: CodingProject | null = null
+
+  status(): RuntimeStatus {
+    return this._status
+  }
+
+  async connect(project: RuntimeProject, rawProject?: CodingProject): Promise<RuntimeStatus> {
+    this._project = project
+    this._rawProject = rawProject || null
+    this._status = 'connecting'
+
+    try {
+      const res = await fetch('/api/coding/sandbox/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'connect', project: this._rawProject }),
+      })
+
+      if (!res.ok) {
+        this._status = 'error'
+        return this._status
+      }
+
+      const data = await res.json()
+      if (data.status === 'ready') {
+        this._status = 'ready'
+        if (data.sandboxId && this._project) {
+          this._project.sandboxId = data.sandboxId
+        }
+      } else {
+        this._status = 'disconnected'
+      }
+    } catch {
+      this._status = 'error'
+    }
+
+    return this._status
+  }
+
+  async destroy(): Promise<void> {
+    if (this._rawProject) {
+      try {
+        await fetch('/api/coding/sandbox/manage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'stop', project: this._rawProject }),
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+    this._status = 'disconnected'
+    this._project = null
+    this._rawProject = null
+  }
+
+  async listFiles(): Promise<RuntimeFileNode[]> {
+    if (this._status !== 'ready' || !this._rawProject) return []
+    try {
+      const res = await fetch('/api/coding/sandbox/fs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'listFiles', project: this._rawProject }),
+      })
+      const data = await res.json()
+      return data.files || []
+    } catch {
+      return []
+    }
+  }
+
+  async readFile(path: string): Promise<string> {
+    if (!this._rawProject) throw new Error(NOT_CONNECTED_MESSAGE)
+    const res = await fetch('/api/coding/sandbox/fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'readFile', project: this._rawProject, path }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+    return data.content || ''
+  }
+
+  async writeFile(path: string, content: string): Promise<void> {
+    if (!this._rawProject) throw new Error(NOT_CONNECTED_MESSAGE)
+    const res = await fetch('/api/coding/sandbox/fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'writeFile', project: this._rawProject, path, content }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+  }
+
+  async createFile(path: string): Promise<void> {
+    if (!this._rawProject) throw new Error(NOT_CONNECTED_MESSAGE)
+    const res = await fetch('/api/coding/sandbox/fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'createFile', project: this._rawProject, path }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    if (!this._rawProject) throw new Error(NOT_CONNECTED_MESSAGE)
+    const res = await fetch('/api/coding/sandbox/fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'deleteFile', project: this._rawProject, path }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+  }
+
+  async renameFile(from: string, to: string): Promise<void> {
+    if (!this._rawProject) throw new Error(NOT_CONNECTED_MESSAGE)
+    const res = await fetch('/api/coding/sandbox/fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'renameFile', project: this._rawProject, from, to }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+  }
+
+  async execute(command: string): Promise<CommandResult> {
+    if (!this._rawProject) return notConnected(command)
+    try {
+      const res = await fetch('/api/coding/sandbox/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'execute', project: this._rawProject, command }),
+      })
+      const data = await res.json()
+      return data as CommandResult
+    } catch (err) {
+      return {
+        command,
+        exitCode: 1,
+        stdout: '',
+        stderr: err instanceof Error ? err.message : 'Execution request failed',
+        ok: false,
+      }
+    }
+  }
+
+  async createTerminal(): Promise<TerminalSession> {
+    const id = crypto.randomUUID()
+    const dataHandlers = new Set<(c: string) => void>()
+
+    return {
+      id,
+      write: (data: string) => {
+        if (!data.trim()) return
+        void (async () => {
+          const result = await this.execute(data.trim())
+          const output = result.stdout || result.stderr || (result.ok ? '' : result.error || 'Execution failed')
+          for (const h of dataHandlers) {
+            h(`\n$ ${data.trim()}\n${output}\n`)
+          }
+        })()
+      },
+      onData: (handler) => {
+        dataHandlers.add(handler)
+        return () => dataHandlers.delete(handler)
+      },
+      onExit: () => () => {},
+      kill: async () => {
+        dataHandlers.clear()
+      },
+    }
+  }
+
+  async startServer(port = 3000): Promise<PreviewInfo> {
+    if (!this._rawProject) {
+      return { status: 'error', url: null, port, error: NOT_CONNECTED_MESSAGE }
+    }
+    try {
+      const res = await fetch('/api/coding/sandbox/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'startServer', project: this._rawProject, port }),
+      })
+      const data = await res.json()
+      return data as PreviewInfo
+    } catch (err) {
+      return {
+        status: 'error',
+        url: null,
+        port,
+        error: err instanceof Error ? err.message : 'Server start failed',
+      }
+    }
+  }
+
+  async stopServer(): Promise<void> {
+    if (!this._rawProject) return
+    try {
+      await fetch('/api/coding/sandbox/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stopServer', project: this._rawProject }),
+      })
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async getPreviewUrl(): Promise<string | null> {
+    if (!this._rawProject) return null
+    try {
+      const res = await fetch('/api/coding/sandbox/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getPreviewUrl', project: this._rawProject }),
+      })
+      const data = await res.json()
+      return data.url || null
+    } catch {
+      return null
+    }
+  }
+}
+
+// Map a DB project row onto the runtime project shape.
 export function toRuntimeProject(project: CodingProject): RuntimeProject {
   return {
     id: project.id,
     name: project.name,
-    runtime: 'mock',
-    sandboxId: null,
+    runtime: project.daytona_sandbox_id ? 'daytona' : 'mock',
+    sandboxId: project.daytona_sandbox_id || null,
     path: `/workspace/${project.id}`,
     createdAt: project.created_at,
     updatedAt: project.updated_at,
   }
 }
 
-// Factory. When the Daytona backend lands, this is the single place that
-// decides which concrete runtime to instantiate.
-export function createCodingRuntime(): CodingRuntime {
+// Factory to instantiate runtime adapter.
+export function createCodingRuntime(kind: 'mock' | 'daytona' = 'daytona'): CodingRuntime {
+  if (kind === 'daytona') {
+    return new DaytonaCodingRuntime()
+  }
   return new NotConnectedRuntime()
 }
 

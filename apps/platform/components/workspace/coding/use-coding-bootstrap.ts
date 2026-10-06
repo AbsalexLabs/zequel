@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { createClient } from '@zequel/shared/supabase/client'
 import { useWorkspaceStore } from '@/lib/store'
+import { useCodingIdeStore } from '@/lib/coding/coding-ide-store'
+import { toRuntimeProject } from '@/lib/coding/runtime'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import type {
   CodingFile,
@@ -56,6 +58,12 @@ export function useLoadCodingProject() {
       const firstRoot = fileList.find((f) => !f.folder_id) ?? fileList[0]
       setActiveCodingFileId(firstRoot ? firstRoot.id : null)
       setCodingMessages((messages as CodingMessage[]) ?? [])
+
+      // Auto-connect to Daytona Runtime if configured
+      const { runtime, setRuntimeStatus } = useCodingIdeStore.getState()
+      setRuntimeStatus('connecting')
+      const status = await runtime.connect(toRuntimeProject(project), project)
+      setRuntimeStatus(status)
     },
     [
       setCodingProject,
