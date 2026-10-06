@@ -145,6 +145,8 @@ export function CodingFilesPanel({
     removeCodingFile,
     activeCodingFileId,
     setActiveCodingFileId,
+    openCodingFileIds = [],
+    closeCodingFile,
   } = useWorkspaceStore()
 
   const { toast } = useToast()
@@ -912,30 +914,59 @@ export function CodingFilesPanel({
         )}
       </div>
 
-      {/* Tree */}
+      {/* Tree & Open Editors */}
       <div
         className={cn(
           'min-h-0 flex-1 overflow-y-auto px-2 pb-3',
           draggingItem && dropTargetId === 'root' && 'bg-foreground/5'
         )}
-        onDragOver={(e) => {
-          if (!draggingItem) return
-          e.preventDefault()
-          e.dataTransfer.dropEffect = 'move'
-          // Hovering empty tree space targets the project root.
-          if (e.target === e.currentTarget && dropTargetId !== 'root') {
-            setDropTargetId('root')
-          }
-        }}
-        onDrop={(e) => {
-          if (!draggingItem) return
-          // Only handle drops on the empty area (folder rows stop propagation).
-          if (e.target === e.currentTarget) {
-            e.preventDefault()
-            onDropInto(null)
-          }
-        }}
       >
+        {/* Open Editors Section */}
+        {openCodingFileIds.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              <span>Open Editors</span>
+            </div>
+            <ul className="flex flex-col gap-0.5">
+              {openCodingFileIds.map((id) => {
+                const file = codingFiles.find((f) => f.id === id)
+                if (!file) return null
+                const isActive = file.id === activeCodingFileId
+                return (
+                  <li key={`open-${id}`}>
+                    <div
+                      className={cn(
+                        'group flex items-center gap-2 rounded-md px-2 py-1 transition-colors cursor-pointer',
+                        isActive
+                          ? 'bg-secondary text-foreground'
+                          : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                      )}
+                      onClick={() => setActiveCodingFileId(file.id)}
+                    >
+                      <FileIcon fileName={file.name} size={14} />
+                      <span className="truncate font-mono text-xs">{file.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeCodingFile(file.id)
+                        }}
+                        className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-foreground"
+                        title="Close file"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Folder Structure Header */}
+        <div className="flex items-center justify-between px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-semibold border-t border-border/50 pt-2 mb-1">
+          <span>Folder Structure</span>
+        </div>
         {/* Root-level create row */}
         {createTarget && createTarget.parentId === null && renderCreateRow(0)}
 

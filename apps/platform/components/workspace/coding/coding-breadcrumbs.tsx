@@ -2,7 +2,7 @@
 
 import { useWorkspaceStore } from '@/lib/store'
 import { FileIcon } from './file-icon'
-import { ChevronRight, Folder } from 'lucide-react'
+import { ChevronRight, Folder, Code, Braces } from 'lucide-react'
 
 export function CodingBreadcrumbs() {
   const { codingProject, codingFolders, codingFiles, activeCodingFileId } = useWorkspaceStore()
@@ -36,6 +36,15 @@ export function CodingBreadcrumbs() {
 
   segments.push({ id: activeFile.id, name: activeFile.name, kind: 'file' })
 
+  // Infer class / function symbols from active file content for richer IDE breadcrumbs
+  const symbols: string[] = []
+  if (activeFile.content) {
+    const classMatch = activeFile.content.match(/class\s+([A-Za-z0-9_$]+)/)
+    if (classMatch?.[1]) symbols.push(classMatch[1])
+    const funcMatch = activeFile.content.match(/(?:function|const|let|var)\s+([A-Za-z0-9_$]+)\s*=?\s*(?:function|\([^)]*\)\s*=>)/)
+    if (funcMatch?.[1]) symbols.push(funcMatch[1])
+  }
+
   return (
     <div className="flex shrink-0 items-center gap-1.5 border-b border-border bg-background px-4 py-1.5 font-mono text-[11px] text-muted-foreground select-none overflow-x-auto">
       {segments.map((seg, idx) => (
@@ -52,6 +61,14 @@ export function CodingBreadcrumbs() {
           >
             {seg.name}
           </span>
+        </div>
+      ))}
+
+      {symbols.map((sym, i) => (
+        <div key={i} className="flex items-center gap-1.5 shrink-0">
+          <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+          {i === 0 ? <Braces className="h-3.5 w-3.5 text-amber-500" /> : <Code className="h-3.5 w-3.5 text-purple-400" />}
+          <span className="text-foreground/90 font-medium">{sym}</span>
         </div>
       ))}
     </div>
