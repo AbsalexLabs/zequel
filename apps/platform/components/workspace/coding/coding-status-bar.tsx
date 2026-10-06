@@ -40,15 +40,16 @@ export function CodingStatusBar() {
         </button>
       </div>
 
-      {/* Right side: Cursor pos, Spaces, Encoding, Language, Runtime */}
+      {/* Right side: Line/Col, 2 Spaces, UTF-8, LF, Language, Runtime */}
       <div className="flex items-center gap-3">
         {activeFile && (
           <>
             <div>
-              Ln {cursorPosition.line}, Col {cursorPosition.col}
+              Line:{cursorPosition.line} Col:{cursorPosition.col}
             </div>
-            <div>Spaces: 2</div>
+            <div>2 Spaces</div>
             <div>UTF-8</div>
+            <div>LF</div>
             <div className="hover:text-foreground cursor-pointer">
               {getLanguageMeta(activeFile.language).label}
             </div>
@@ -62,7 +63,7 @@ export function CodingStatusBar() {
               runtimeStatus === 'ready' ? 'text-emerald-500 animate-pulse' : 'text-muted-foreground'
             )}
           />
-          <span>{runtimeStatus === 'ready' ? 'Daytona Connected' : 'Local Sandbox'}</span>
+          <span>{runtimeStatus === 'ready' ? 'Daytona Connected' : 'Sandbox'}</span>
         </div>
       </div>
     </div>
