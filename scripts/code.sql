@@ -20,9 +20,17 @@ create table if not exists public.coding_projects (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null default 'Untitled Project',
   description text,
+  daytona_sandbox_id text,
+  daytona_sandbox_state text,
+  daytona_last_synced_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.coding_projects
+  add column if not exists daytona_sandbox_id text,
+  add column if not exists daytona_sandbox_state text,
+  add column if not exists daytona_last_synced_at timestamptz;
 
 create index if not exists coding_projects_user_id_idx on public.coding_projects(user_id);
 

@@ -362,6 +362,9 @@ export interface CodingProject {
   user_id: string
   name: string
   description: string | null
+  daytona_sandbox_id?: string | null
+  daytona_sandbox_state?: string | null
+  daytona_last_synced_at?: string | null
   created_at: string
   updated_at: string
 }
