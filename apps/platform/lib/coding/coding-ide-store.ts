@@ -6,6 +6,12 @@ import {
   type RuntimeStatus,
 } from './runtime'
 
+// Activity Bar tabs
+export type ActivityTab = 'explorer' | 'search' | 'git' | 'assistant' | 'settings'
+
+// Bottom Dock tabs
+export type BottomTab = 'terminal' | 'problems' | 'output' | 'preview'
+
 // Which surface the center area shows.
 export type CodingViewMode = 'editor' | 'split' | 'preview'
 
@@ -31,6 +37,20 @@ interface CodingIdeState {
   runtimeStatus: RuntimeStatus
   setRuntimeStatus: (status: RuntimeStatus) => void
 
+  // Activity Bar & Sidebar state
+  activeActivityTab: ActivityTab
+  setActiveActivityTab: (tab: ActivityTab) => void
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+  toggleSidebar: () => void
+
+  // Bottom Dock state
+  activeBottomTab: BottomTab
+  setActiveBottomTab: (tab: BottomTab) => void
+  bottomDockOpen: boolean
+  setBottomDockOpen: (open: boolean) => void
+  toggleBottomDock: () => void
+
   // Center view + panel visibility
   viewMode: CodingViewMode
   setViewMode: (mode: CodingViewMode) => void
@@ -55,6 +75,10 @@ interface CodingIdeState {
   saveState: SaveState
   setSaveState: (state: SaveState) => void
 
+  // Editor cursor position for status bar
+  cursorPosition: { line: number; col: number }
+  setCursorPosition: (pos: { line: number; col: number }) => void
+
   // Terminal output buffer (the terminal UI renders these lines).
   terminalLines: TerminalLine[]
   appendTerminalLine: (line: Omit<TerminalLine, 'id'>) => void
@@ -78,12 +102,36 @@ export const useCodingIdeStore = create<CodingIdeState>((set) => ({
   runtimeStatus: 'disconnected',
   setRuntimeStatus: (runtimeStatus) => set({ runtimeStatus }),
 
+  activeActivityTab: 'explorer',
+  setActiveActivityTab: (tab) =>
+    set((s) => {
+      if (s.activeActivityTab === tab && s.sidebarOpen) {
+        return { sidebarOpen: false }
+      }
+      return { activeActivityTab: tab, sidebarOpen: true }
+    }),
+  sidebarOpen: true,
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+
+  activeBottomTab: 'terminal',
+  setActiveBottomTab: (tab) =>
+    set((s) => {
+      if (s.activeBottomTab === tab && s.bottomDockOpen) {
+        return { bottomDockOpen: false }
+      }
+      return { activeBottomTab: tab, bottomDockOpen: true }
+    }),
+  bottomDockOpen: true,
+  setBottomDockOpen: (bottomDockOpen) => set({ bottomDockOpen }),
+  toggleBottomDock: () => set((s) => ({ bottomDockOpen: !s.bottomDockOpen })),
+
   viewMode: 'editor',
   setViewMode: (viewMode) => set({ viewMode }),
-  terminalOpen: false,
-  setTerminalOpen: (terminalOpen) => set({ terminalOpen }),
-  toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
-  assistantOpen: true,
+  terminalOpen: true,
+  setTerminalOpen: (terminalOpen) => set({ terminalOpen, bottomDockOpen: terminalOpen }),
+  toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen, bottomDockOpen: !s.terminalOpen })),
+  assistantOpen: false,
   setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
   toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
 
@@ -97,6 +145,9 @@ export const useCodingIdeStore = create<CodingIdeState>((set) => ({
 
   saveState: 'idle',
   setSaveState: (saveState) => set({ saveState }),
+
+  cursorPosition: { line: 1, col: 1 },
+  setCursorPosition: (cursorPosition) => set({ cursorPosition }),
 
   terminalLines: [],
   appendTerminalLine: (line) =>

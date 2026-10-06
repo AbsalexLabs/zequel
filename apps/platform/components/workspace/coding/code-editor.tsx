@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
-import { EditorView } from '@codemirror/view'
+import { EditorView, ViewUpdate } from '@codemirror/view'
+import { useCodingIdeStore } from '@/lib/coding/coding-ide-store'
 import { javascript } from '@codemirror/lang-javascript'
 import { python } from '@codemirror/lang-python'
 import { html } from '@codemirror/lang-html'
@@ -108,10 +109,23 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorProps) {
+  const { setCursorPosition } = useCodingIdeStore()
+
   const extensions = useMemo(
     () => [...languageExtension(language), zequelTheme, EditorView.lineWrapping],
     [language]
   )
+
+  const handleUpdate = (update: ViewUpdate) => {
+    if (update.selectionSet || update.docChanged) {
+      const pos = update.state.selection.main.head
+      const line = update.state.doc.lineAt(pos)
+      setCursorPosition({
+        line: line.number,
+        col: pos - line.from + 1,
+      })
+    }
+  }
 
   return (
     <CodeMirror
@@ -120,6 +134,7 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
       theme="dark"
       extensions={extensions}
       onChange={onChange}
+      onUpdate={handleUpdate}
       readOnly={readOnly}
       basicSetup={{
         lineNumbers: true,
