@@ -7,6 +7,7 @@ import { useCodingIdeStore } from '@/lib/coding/coding-ide-store'
 import { CodeEditor } from './code-editor'
 import { UploadPreview } from './upload-preview'
 import { FileIcon } from './file-icon'
+import { CodingBreadcrumbs } from './coding-breadcrumbs'
 import { getLanguageMeta } from '@/lib/coding/languages'
 import { CODING_ACTIONS } from '@/lib/coding/prompts'
 import { cn } from '@/lib/utils'
@@ -149,38 +150,8 @@ export function CodingEditorPanel({ onAction }: CodingEditorPanelProps) {
         </div>
       )}
 
-      {/* Editor header: language + save state */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          {activeFile ? (
-            <FileIcon fileName={activeFile.name} size={16} />
-          ) : (
-            <FileCode2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-          )}
-          <span className="truncate font-mono text-xs text-foreground">
-            {activeFile ? activeFile.name : 'No file selected'}
-          </span>
-          {activeFile && !isUpload && (
-            <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              {getLanguageMeta(activeFile.language).label}
-            </span>
-          )}
-          {activeFile && isUpload && (
-            <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              Asset
-            </span>
-          )}
-          {saveState === 'saving' && (
-            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-          )}
-          {saveState === 'saved' && (
-            <span className="flex shrink-0 items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-              <Check className="h-3 w-3" />
-              Saved
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Breadcrumbs bar */}
+      <CodingBreadcrumbs />
 
       {/* Quick action toolbar */}
       <div className="flex shrink-0 items-center gap-1 overflow-x-auto px-4 pb-2">
