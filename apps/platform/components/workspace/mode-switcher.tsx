@@ -3,7 +3,7 @@
 import { useWorkspaceStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { WorkspaceMode } from '@zequel/types'
-import { GraduationCap, FlaskConical, Code2, Presentation } from 'lucide-react'
+import { GraduationCap, FlaskConical, Code2 } from 'lucide-react'
 
 /* Mode Switcher — responsive: labels on desktop, icon-only on small screens */
 export function ModeSwitcher({ compact = false }: { compact?: boolean }) {
@@ -17,7 +17,6 @@ export function ModeSwitcher({ compact = false }: { compact?: boolean }) {
     { id: 'study', label: 'Study', icon: <GraduationCap className="h-3.5 w-3.5" /> },
     { id: 'research', label: 'Research', icon: <FlaskConical className="h-3.5 w-3.5" /> },
     { id: 'coding', label: 'Coding', icon: <Code2 className="h-3.5 w-3.5" /> },
-    { id: 'classroom', label: 'Classroom', icon: <Presentation className="h-3.5 w-3.5" /> },
   ]
 
   return (

@@ -17,10 +17,6 @@ import { CodingCenter } from './coding/coding-center'
 import { CodingWorkspace } from './coding/coding-workspace'
 import { useCodingBootstrap } from './coding/use-coding-bootstrap'
 import { ModeSwitcher } from './mode-switcher'
-import { ClassroomWorkspace } from './classroom/classroom-workspace'
-import { ClassroomSidebar } from './classroom/classroom-sidebar'
-import { ClassroomBoardPanel } from './classroom/classroom-board-panel'
-import { ClassroomChatPanel } from './classroom/classroom-chat-panel'
 import { useWorkspaceStore } from '@/lib/store'
 import { ThemeToggle } from '@zequel/ui/components/theme-toggle'
 import { Avatar, AvatarImage, AvatarFallback } from '@zequel/ui/components/avatar'
@@ -32,7 +28,6 @@ import {
   Search,
   BookOpen,
   GraduationCap,
-  Presentation,
   MessageSquare,
   Code2,
   Bot,
@@ -80,17 +75,6 @@ function DesktopWorkspace({
 
   // Bootstrap the coding project/files/messages the first time Coding Mode opens.
   useCodingBootstrap(mode === 'coding')
-
-  // Classroom Mode owns its own layout (resources sidebar + whiteboard/chat split).
-  if (mode === 'classroom') {
-    return (
-      <ClassroomWorkspace
-        onUploadClick={onUploadClick}
-        userEmail={userEmail}
-        profile={profile}
-      />
-    )
-  }
 
   // Coding Mode is a full IDE: toolbar + files / editor+preview / assistant with
   // an integrated terminal, all driven by the CodingRuntime abstraction.
@@ -213,13 +197,6 @@ function MobileWorkspace({
           {activeMobileTab === 'documents' &&
             (mode === 'coding' ? (
               <CodingFilesPanel hideHeader userEmail={userEmail} profile={profile} />
-            ) : mode === 'classroom' ? (
-              <ClassroomSidebar
-                onUploadClick={onUploadClick}
-                userEmail={userEmail}
-                profile={profile}
-                hideHeader
-              />
             ) : (
               <DocumentPanel
                 onUploadClick={onUploadClick}
@@ -233,8 +210,6 @@ function MobileWorkspace({
               <StudyPanel />
             ) : mode === 'research' ? (
               <ResearchPanel />
-            ) : mode === 'classroom' ? (
-              <ClassroomBoardPanel />
             ) : (
               <CodingCenter onAction={handleMobileAction} mobile />
             ))}
@@ -243,8 +218,6 @@ function MobileWorkspace({
               <ConversationsPanel />
             ) : mode === 'research' ? (
               <EvidencePanel />
-            ) : mode === 'classroom' ? (
-              <ClassroomChatPanel />
             ) : (
               <CodingAssistantPanel />
             ))}
@@ -256,7 +229,7 @@ function MobileWorkspace({
       <nav className="flex items-center bg-background" role="tablist">
         <MobileTab
           icon={<FileText className="h-4 w-4" />}
-          label={mode === 'coding' ? 'Files' : mode === 'classroom' ? 'Library' : 'Documents'}
+          label={mode === 'coding' ? 'Files' : 'Documents'}
           isActive={activeMobileTab === 'documents'}
           onClick={() => setActiveMobileTab('documents')}
         />
@@ -266,20 +239,12 @@ function MobileWorkspace({
               <GraduationCap className="h-4 w-4" />
             ) : mode === 'research' ? (
               <Search className="h-4 w-4" />
-            ) : mode === 'classroom' ? (
-              <Presentation className="h-4 w-4" />
             ) : (
               <Code2 className="h-4 w-4" />
             )
           }
           label={
-            mode === 'study'
-              ? 'Study'
-              : mode === 'research'
-                ? 'Research'
-                : mode === 'classroom'
-                  ? 'Board'
-                  : 'Editor'
+            mode === 'study' ? 'Study' : mode === 'research' ? 'Research' : 'Editor'
           }
           isActive={activeMobileTab === 'research'}
           onClick={() => setActiveMobileTab('research')}
@@ -290,20 +255,12 @@ function MobileWorkspace({
               <MessageSquare className="h-4 w-4" />
             ) : mode === 'research' ? (
               <BookOpen className="h-4 w-4" />
-            ) : mode === 'classroom' ? (
-              <GraduationCap className="h-4 w-4" />
             ) : (
               <Bot className="h-4 w-4" />
             )
           }
           label={
-            mode === 'study'
-              ? 'Chats'
-              : mode === 'research'
-                ? 'Evidence'
-                : mode === 'classroom'
-                  ? 'Class'
-                  : 'Assistant'
+            mode === 'study' ? 'Chats' : mode === 'research' ? 'Evidence' : 'Assistant'
           }
           isActive={activeMobileTab === 'evidence'}
           onClick={() => setActiveMobileTab('evidence')}
