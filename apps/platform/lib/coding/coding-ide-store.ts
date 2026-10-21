@@ -32,7 +32,7 @@ export interface TerminalLine {
 }
 
 interface CodingIdeState {
-  // Single runtime instance the whole IDE talks to (never Daytona directly).
+  // Single runtime instance the whole IDE talks to (never a provider SDK directly).
   runtime: CodingRuntime
   runtimeStatus: RuntimeStatus
   setRuntimeStatus: (status: RuntimeStatus) => void

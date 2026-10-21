@@ -11,7 +11,7 @@ const HELP_TEXT = `Zequel terminal — client commands:
   status   show the current runtime connection
 
 Any other command is dispatched to the coding runtime. Once an isolated
-sandbox (Daytona) is connected, commands run inside it and stream real output.`
+sandbox execution provider is connected, commands run inside it and stream real output.`
 
 /**
  * Terminal UI wired to the CodingRuntime execution adapter.

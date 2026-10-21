@@ -63,7 +63,7 @@ export function CodingStatusBar() {
               runtimeStatus === 'ready' ? 'text-emerald-500 animate-pulse' : 'text-muted-foreground'
             )}
           />
-          <span>{runtimeStatus === 'ready' ? 'Daytona Connected' : 'Sandbox'}</span>
+          <span>{runtimeStatus === 'ready' ? 'Sandbox Connected' : 'Sandbox'}</span>
         </div>
       </div>
     </div>

@@ -4,20 +4,22 @@ import type { CodingProject } from '@zequel/types'
  * Coding Mode runtime abstraction.
  *
  * The UI depends ONLY on the `CodingRuntime` interface below — never directly
- * on any infrastructure provider. This is the seam that lets us connect a real
- * isolated cloud sandbox (e.g. Daytona) later without rebuilding Coding Mode.
+ * on any infrastructure provider. This is the seam that lets a real isolated
+ * cloud sandbox be connected later without rebuilding Coding Mode.
  *
- * Architecture (never coupled directly to Daytona in the browser):
+ * Architecture (never coupled directly to a provider SDK in the browser):
  *
- *   Zequel frontend  ->  Zequel backend  ->  isolated sandbox  ->  Daytona
+ *   Zequel frontend  ->  Zequel backend  ->  isolated sandbox  ->  (provider)
  *
  * The browser must NEVER receive privileged sandbox credentials. A concrete
- * `DaytonaCodingRuntime` will live behind server routes; every method here maps
- * to a backend call, not a direct provider call from the client.
+ * remote runtime adapter will live behind server routes; every method here
+ * maps to a backend call, not a direct provider call from the client.
  *
- * Until that backend exists, `NotConnectedRuntime` is the active adapter. It
- * does not fake execution — every operation that needs a live sandbox reports a
- * clear "not connected" result so the UI can render honest loading/error state.
+ * No execution provider is currently integrated. `NotConnectedRuntime` is the
+ * active adapter. It does not fake execution — every operation that needs a
+ * live sandbox reports a clear "not connected" result so the UI can render
+ * honest loading/error state. See docs/ARCHITECTURE.md for the requirements a
+ * future provider integration must satisfy.
  */
 
 export type RuntimeStatus =
@@ -77,8 +79,9 @@ export interface TerminalSession {
 export interface RuntimeProject {
   id: string
   name: string
-  // Which runtime backs this project (mock today, daytona later).
-  runtime: 'mock' | 'daytona'
+  // Which runtime backs this project (mock today, a real remote sandbox
+  // provider once one is integrated).
+  runtime: 'mock' | 'remote'
   // Sandbox identifier assigned by the backend once provisioned.
   sandboxId: string | null
   // Working directory / repository path inside the sandbox.
@@ -91,7 +94,7 @@ export interface RuntimeProject {
 // tool surface the AI coding assistant will call (listFiles, readFile,
 // writeFile, execute, startServer, ...).
 export interface CodingRuntime {
-  readonly kind: 'mock' | 'daytona'
+  readonly kind: 'mock' | 'remote'
   status(): RuntimeStatus
 
   // Lifecycle
@@ -117,7 +120,7 @@ export interface CodingRuntime {
 }
 
 const NOT_CONNECTED_MESSAGE =
-  'Runtime not connected. Coding Mode is not yet bound to an isolated sandbox — connect a Daytona workspace to run commands, start servers, and open previews.'
+  'Runtime not connected. Coding Mode is not yet bound to an isolated sandbox — no execution provider is currently configured, so commands, servers, and previews are unavailable.'
 
 function notConnected(command: string): CommandResult {
   return {
@@ -136,7 +139,8 @@ function notConnected(command: string): CommandResult {
  * It is deliberately honest: it never pretends a command ran or a server
  * started. Anything requiring a live sandbox resolves to a not-connected
  * result, letting the UI show correct empty/error states instead of fabricated
- * output. Swap this for `DaytonaCodingRuntime` behind the same interface.
+ * output. Swap this for a concrete remote runtime adapter behind the same
+ * interface once an execution provider is integrated.
  */
 export class NotConnectedRuntime implements CodingRuntime {
   readonly kind = 'mock' as const
@@ -245,8 +249,8 @@ export function toRuntimeProject(project: CodingProject): RuntimeProject {
   }
 }
 
-// Factory. When the Daytona backend lands, this is the single place that
-// decides which concrete runtime to instantiate.
+// Factory. When a real remote sandbox backend is integrated, this is the
+// single place that decides which concrete runtime to instantiate.
 export function createCodingRuntime(): CodingRuntime {
   return new NotConnectedRuntime()
 }

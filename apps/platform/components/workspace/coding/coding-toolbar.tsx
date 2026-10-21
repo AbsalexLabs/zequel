@@ -305,8 +305,8 @@ export function CodingToolbar({ userEmail, profile }: CodingToolbarProps) {
                 <span className="font-mono">{runtimeStatus}</span>
               </div>
               <p className="mt-2 leading-relaxed">
-                Connect an isolated Daytona sandbox to run commands, start
-                servers, and open live previews.
+                Connect an isolated sandbox to run commands, start servers,
+                and open live previews.
               </p>
             </div>
           </DropdownMenuContent>
