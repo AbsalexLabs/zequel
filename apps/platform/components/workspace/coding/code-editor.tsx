@@ -3,6 +3,8 @@
 import { useMemo } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { EditorView, ViewUpdate } from '@codemirror/view'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags as t } from '@lezer/highlight'
 import { useCodingIdeStore } from '@/lib/coding/coding-ide-store'
 import { javascript } from '@codemirror/lang-javascript'
 import { python } from '@codemirror/lang-python'
@@ -53,53 +55,70 @@ function languageExtension(language: CodingLanguage): Extension[] {
   }
 }
 
-// Monochrome dark theme tuned to match Zequel's #0d1117 code surface.
-const zequelTheme = EditorView.theme(
-  {
-    '&': {
-      backgroundColor: '#0d1117',
-      color: '#e6edf3',
-      height: '100%',
-      fontSize: '13px',
-    },
-    '.cm-content': {
-      fontFamily:
-        'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-      caretColor: '#e6edf3',
-      padding: '12px 0',
-    },
-    '.cm-gutters': {
-      backgroundColor: '#0d1117',
-      color: '#484f58',
-      border: 'none',
-    },
-    '.cm-activeLineGutter': {
-      backgroundColor: 'rgba(255,255,255,0.04)',
-      color: '#8b949e',
-    },
-    '.cm-activeLine': {
-      backgroundColor: 'rgba(255,255,255,0.03)',
-    },
-    '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-      backgroundColor: 'rgba(255,255,255,0.12) !important',
-    },
-    '.cm-cursor, .cm-dropCursor': {
-      borderLeftColor: '#e6edf3',
-    },
-    '.cm-lineNumbers .cm-gutterElement': {
-      padding: '0 12px 0 8px',
-    },
-    '&.cm-focused': {
-      outline: 'none',
-    },
-    '.cm-scroller': {
-      fontFamily:
-        'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-      lineHeight: '1.6',
-    },
+// Editor chrome (background, gutters, selection, caret) is themed entirely
+// through CSS custom properties, NOT hardcoded colors. `--code-bg` / `--code-fg`
+// and friends are defined in globals.css for both :root (light) and .dark, and
+// are the same tokens the chat's markdown code blocks use (`.zequel-code`) —
+// so the editor automatically tracks the app's active theme instead of being
+// stuck on one hardcoded palette.
+const zequelEditorTheme = EditorView.theme({
+  '&': {
+    backgroundColor: 'var(--code-bg)',
+    color: 'var(--code-fg)',
+    height: '100%',
+    fontSize: '13px',
   },
-  { dark: true }
-)
+  '.cm-content': {
+    fontFamily:
+      'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
+    caretColor: 'var(--code-fg)',
+    padding: '12px 0',
+  },
+  '.cm-gutters': {
+    backgroundColor: 'var(--code-bg)',
+    color: 'var(--code-comment)',
+    border: 'none',
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: 'color-mix(in srgb, var(--code-fg) 6%, transparent)',
+    color: 'var(--code-fg)',
+  },
+  '.cm-activeLine': {
+    backgroundColor: 'color-mix(in srgb, var(--code-fg) 4%, transparent)',
+  },
+  '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
+    backgroundColor:
+      'color-mix(in srgb, var(--code-fg) 15%, transparent) !important',
+  },
+  '.cm-cursor, .cm-dropCursor': {
+    borderLeftColor: 'var(--code-fg)',
+  },
+  '.cm-lineNumbers .cm-gutterElement': {
+    padding: '0 12px 0 8px',
+  },
+  '&.cm-focused': {
+    outline: 'none',
+  },
+  '.cm-scroller': {
+    fontFamily:
+      'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
+    lineHeight: '1.6',
+  },
+})
+
+// Syntax token colors — mapped to the exact same --code-keyword / --code-string
+// / --code-number / --code-function / --code-type / --code-comment tokens the
+// chat's markdown code blocks use, so a snippet looks the same whether it's
+// rendered in a chat message or open in the editor.
+const zequelHighlightStyle = HighlightStyle.define([
+  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--code-comment)', fontStyle: 'italic' },
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.bool, t.null], color: 'var(--code-keyword)' },
+  { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--code-string)' },
+  { tag: [t.number, t.integer, t.float, t.attributeName], color: 'var(--code-number)' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.className, t.labelName], color: 'var(--code-function)' },
+  { tag: [t.typeName, t.namespace, t.tagName], color: 'var(--code-type)' },
+  { tag: t.invalid, color: 'var(--destructive)' },
+])
 
 interface CodeEditorProps {
   value: string
@@ -112,7 +131,12 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
   const { setCursorPosition } = useCodingIdeStore()
 
   const extensions = useMemo(
-    () => [...languageExtension(language), zequelTheme, EditorView.lineWrapping],
+    () => [
+      ...languageExtension(language),
+      zequelEditorTheme,
+      syntaxHighlighting(zequelHighlightStyle),
+      EditorView.lineWrapping,
+    ],
     [language]
   )
 
@@ -131,7 +155,6 @@ export function CodeEditor({ value, language, onChange, readOnly }: CodeEditorPr
     <CodeMirror
       value={value}
       height="100%"
-      theme="dark"
       extensions={extensions}
       onChange={onChange}
       onUpdate={handleUpdate}

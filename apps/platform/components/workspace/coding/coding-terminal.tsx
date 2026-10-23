@@ -20,6 +20,10 @@ sandbox execution provider is connected, commands run inside it and stream real 
  * `runtime.execute()`, and the honest not-connected result is rendered until a
  * real PTY/sandbox backend is attached. `help`/`clear`/`status` are local UI
  * meta-commands, not sandbox execution.
+ *
+ * Styled with the same --code-bg/--code-fg tokens as the editor (code-editor.tsx)
+ * so the terminal and editor are visually consistent and both track the app's
+ * active light/dark theme, instead of being hardcoded to one palette.
  */
 export function CodingTerminal({ onClose }: { onClose?: () => void }) {
   const {
@@ -120,26 +124,26 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#0d1117]">
+    <div className="flex h-full flex-col bg-[var(--code-bg)]">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-1.5">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--code-fg)]/10 px-3 py-1.5">
         <div className="flex items-center gap-2">
-          <TerminalSquare className="h-3.5 w-3.5 text-white/70" />
-          <span className="font-mono text-[10px] uppercase tracking-wider text-white/70">
+          <TerminalSquare className="h-3.5 w-3.5 text-[var(--code-fg)]/70" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--code-fg)]/70">
             Terminal
           </span>
           <span
             className={cn(
               'ml-1 inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider',
               runtimeStatus === 'ready'
-                ? 'border-white/20 text-white/70'
-                : 'border-white/10 text-white/40'
+                ? 'border-[var(--code-fg)]/20 text-[var(--code-fg)]/70'
+                : 'border-[var(--code-fg)]/10 text-[var(--code-fg)]/40'
             )}
           >
             <span
               className={cn(
                 'h-1.5 w-1.5 rounded-full',
-                runtimeStatus === 'ready' ? 'bg-white/80' : 'bg-white/30'
+                runtimeStatus === 'ready' ? 'bg-[var(--code-fg)]/80' : 'bg-[var(--code-fg)]/30'
               )}
             />
             {runtimeStatus === 'ready' ? 'Sandbox' : 'No sandbox'}
@@ -149,7 +153,7 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
           <button
             onClick={explainOutput}
             title="Explain output with Zequel AI"
-            className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[9px] uppercase tracking-wider text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+            className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[9px] uppercase tracking-wider text-[var(--code-fg)]/50 transition-colors hover:bg-[var(--code-fg)]/10 hover:text-[var(--code-fg)]/90"
           >
             <Sparkles className="h-3 w-3" />
             <span className="hidden sm:inline">Explain</span>
@@ -158,7 +162,7 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
             onClick={clearTerminal}
             title="Clear terminal"
             aria-label="Clear terminal"
-            className="rounded p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+            className="rounded p-1 text-[var(--code-fg)]/50 transition-colors hover:bg-[var(--code-fg)]/10 hover:text-[var(--code-fg)]/90"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -167,7 +171,7 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
               onClick={onClose}
               title="Close terminal"
               aria-label="Close terminal"
-              className="rounded p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white/90"
+              className="rounded p-1 text-[var(--code-fg)]/50 transition-colors hover:bg-[var(--code-fg)]/10 hover:text-[var(--code-fg)]/90"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -182,8 +186,8 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
         className="min-h-0 flex-1 cursor-text overflow-y-auto px-3 py-2 font-mono text-[12px] leading-relaxed"
       >
         {terminalLines.length === 0 && (
-          <p className="text-white/40">
-            Type <span className="text-white/70">help</span> to get started. The
+          <p className="text-[var(--code-fg)]/40">
+            Type <span className="text-[var(--code-fg)]/70">help</span> to get started. The
             runtime is not connected to a sandbox yet — commands report their
             real status instead of fake output.
           </p>
@@ -193,10 +197,10 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
             key={line.id}
             className={cn(
               'whitespace-pre-wrap break-words',
-              line.stream === 'input' && 'text-white/90',
-              line.stream === 'stdout' && 'text-white/70',
-              line.stream === 'stderr' && 'text-red-300/90',
-              line.stream === 'system' && 'text-sky-300/80'
+              line.stream === 'input' && 'text-[var(--code-fg)]/90',
+              line.stream === 'stdout' && 'text-[var(--code-fg)]/70',
+              line.stream === 'stderr' && 'text-destructive',
+              line.stream === 'system' && 'text-[var(--code-string)]'
             )}
           >
             {line.stream === 'input' ? `$ ${line.text}` : line.text}
@@ -205,9 +209,9 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
 
         {/* Active input line */}
         <div className="flex items-center gap-2">
-          <span className="text-white/50">$</span>
+          <span className="text-[var(--code-fg)]/50">$</span>
           {busy ? (
-            <span className="flex items-center gap-2 text-white/50">
+            <span className="flex items-center gap-2 text-[var(--code-fg)]/50">
               <Loader2 className="h-3 w-3 animate-spin" />
               running…
             </span>
@@ -220,7 +224,7 @@ export function CodingTerminal({ onClose }: { onClose?: () => void }) {
               spellCheck={false}
               autoComplete="off"
               aria-label="Terminal input"
-              className="flex-1 bg-transparent font-mono text-[12px] text-white/90 caret-white placeholder:text-white/30 focus:outline-none"
+              className="flex-1 bg-transparent font-mono text-[12px] text-[var(--code-fg)]/90 caret-[var(--code-fg)] placeholder:text-[var(--code-fg)]/30 focus:outline-none"
               placeholder=""
             />
           )}
